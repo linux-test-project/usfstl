@@ -60,6 +60,9 @@ static inline bool should_restore(uintptr_t _ptr)
 	if (ptr >= __start_usfstl_rpcstub && ptr < __stop_usfstl_rpcstub)
 		return false;
 
+	if (ptr >= (char *)__start_usfstl_shms && ptr < (char *)__stop_usfstl_shms)
+		return false;
+
 	return true;
 }
 

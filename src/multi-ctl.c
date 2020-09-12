@@ -144,6 +144,9 @@ static void usfstl_multi_sched_ext_wait_controller(struct usfstl_scheduler *sche
 {
 	g_usfstl_multi_test_sched_continue = false;
 
+	// save the local view of the shared memory before waiting
+	usfstl_shared_mem_prepare_msg(true);
+
 	while (!g_usfstl_multi_test_sched_continue) {
 		usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_WAITING, false);
 		usfstl_sched_next(&g_usfstl_multi_sched);
@@ -254,8 +257,13 @@ static void usfstl_multi_controller_sched_callback(struct usfstl_job *job)
 	// of how long it's allowed to run.
 	usfstl_multi_controller_update_sync_time(p);
 
-	multi_rpc_sched_cont_conn(p->conn,
-				  usfstl_sched_current_time(&g_usfstl_multi_sched));
+	// send the updated view of the shared memory (include the buffer
+	// only if it has changed)
+	multi_rpc_sched_cont_conn(p->conn, g_usfstl_shared_mem_msg,
+				  usfstl_shared_mem_get_msg_size(
+					p->flags &
+					USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED));
+	p->flags &= ~USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 }
 
 #define USFSTL_RPC_IMPLEMENTATION
@@ -290,11 +298,19 @@ USFSTL_RPC_VOID_METHOD(multi_rpc_sched_request, uint64_t /* time */)
 	usfstl_multi_controller_update_sync_time(NULL);
 }
 
-USFSTL_RPC_VOID_METHOD(multi_rpc_sched_wait, uint32_t /* dummy */)
+USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
+		      multi_rpc_sched_wait,
+		      struct usfstl_shared_mem_msg)
 {
 	struct usfstl_multi_participant *p = conn->data;
 
+	usfstl_shared_mem_handle_msg(in, insize);
+
+	// set the flag after handling the shared mem msg, so the handler
+	// knows which participant was running
 	p->flags |= USFSTL_MULTI_PARTICIPANT_WAITING;
+
+	return 0;
 }
 
 USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_failed, uint32_t /* status */)

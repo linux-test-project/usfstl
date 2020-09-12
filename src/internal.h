@@ -172,6 +172,23 @@ static inline bool usfstl_is_multi_participant(void)
 	       g_usfstl_multi_ctrl_conn != USFSTL_RPC_LOCAL;
 }
 
+/* shared memory */
+extern struct usfstl_shared_mem_section *__start_usfstl_shms[];
+extern struct usfstl_shared_mem_section *__stop_usfstl_shms[];
+
+extern struct usfstl_shared_mem_msg *g_usfstl_shared_mem_msg;
+extern bool g_usfstl_shared_mem_dirty;
+
+#define for_each_shared_mem_section(s, i)				\
+	for (i = 0; &__start_usfstl_shms[i] < __stop_usfstl_shms; i++)	\
+		if ((s = __start_usfstl_shms[i]))
+
+unsigned int usfstl_shared_mem_get_msg_size(bool is_participant_outdated);
+void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
+				  unsigned int msg_size);
+void usfstl_shared_mem_update_local_view(void);
+void usfstl_shared_mem_prepare_msg(bool do_not_mark_dirty);
+
 #if USFSTL_USE_FUZZING == 3
 extern const unsigned char *g_usfstl_fuzz_data;
 extern size_t g_usfstl_fuzz_datasz;

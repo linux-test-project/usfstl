@@ -59,7 +59,16 @@ static void usfstl_multi_sched_ext_wait_participant(struct usfstl_scheduler *sch
 {
 	g_usfstl_multi_test_sched_continue = false;
 
-	multi_rpc_sched_wait_conn(g_usfstl_multi_ctrl_conn, 0);
+	// save the local view of the shared memory before waiting
+	usfstl_shared_mem_prepare_msg(false);
+
+	// send the updated view of the shared memory (include the buffer
+	// only if it has changed)
+	multi_rpc_sched_wait_conn(g_usfstl_multi_ctrl_conn,
+				  g_usfstl_shared_mem_msg,
+				  usfstl_shared_mem_get_msg_size(
+					g_usfstl_shared_mem_dirty));
+	g_usfstl_shared_mem_dirty = false;
 
 	while (!g_usfstl_multi_test_sched_continue)
 		usfstl_rpc_handle();
@@ -222,9 +231,17 @@ USFSTL_RPC_VOID_METHOD(multi_rpc_exit, uint32_t /* dummy */)
 	g_usfstl_multi_ctrl_conn = NULL;
 }
 
-USFSTL_RPC_VOID_METHOD(multi_rpc_sched_cont, uint64_t /* time */)
+USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
+		      multi_rpc_sched_cont,
+		      struct usfstl_shared_mem_msg)
 {
+	usfstl_shared_mem_handle_msg(in, insize);
+	// refresh the local view of the shared memory before continuing
+	usfstl_shared_mem_update_local_view();
+
 	g_usfstl_multi_test_sched_continue = true;
+
+	return 0;
 }
 
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_set_sync, uint64_t /* time */)
