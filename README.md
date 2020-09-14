@@ -9,7 +9,7 @@ intended for firmware.
 The library also integrates with User-Mode-Linux and vhost-user to
 allow simulating devices and testing them against a real (virtio)
 driver running in Linux. If you came here just for this, take a look
-at the code under control/ first.
+at the vlab/ directory and the code under control/ first.
 
 ## License
 
