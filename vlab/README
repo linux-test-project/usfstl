@@ -1,0 +1,27 @@
+Here's a "virtual lab" which lets you run Linux machines with WiFi
+(via hwsim) and very simple Ethernet (via the controller) in a
+virtual, completely simulated environment.
+
+There are certain software requirements for it, which are described
+in the shell.nix file. If you have nix-shell installed, you can just
+run
+
+	nix-shell --pure --run 'make tests'
+
+or similar. If you have all the requirements locally, then of course
+
+	make tests
+
+will work.
+
+This leaves the logs in the logs/ folder.
+
+If you want to see something, run
+
+	make && ./examples/eth-ping.sh
+
+or
+
+	make && ./examples/hwsim-ibss.sh
+
+(with or without nix-shell) instead.

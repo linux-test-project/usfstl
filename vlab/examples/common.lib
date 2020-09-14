@@ -1,0 +1,69 @@
+#
+# Copyright (C) 2020 Intel Corporation
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+set -euo pipefail
+
+if [ -z ${configs+x} ] ; then
+	configs=""
+fi
+
+run_configs=""
+for arg in "$@" ; do
+	case "$arg" in
+	--get-configs)
+		if ! [ -z ${configs+x} ] ; then
+			echo "$configs"
+		fi
+		exit 0
+		;;
+	--config=*)
+		run_configs="${run_configs} ${arg:9}"
+		;;
+	esac
+done
+
+if [ "$run_configs" != "" ] ; then
+	configs="$run_configs"
+fi
+
+args=""
+if ! [ -z ${VLAB_ARGS+x} ] ; then
+	args=$VLAB_ARGS
+fi
+
+tmpdir=$(mktemp -d) || exit 2
+
+check_logs="logs/current"
+tee_file="$tmpdir/dmesg"
+for arg in $args ; do
+	case "$arg" in
+	--logpath=*)
+		check_logs="${arg:10}"
+		tee_file=""
+		;;
+	esac
+done
+
+run_vlab()
+{
+	if [ "$tee_file" = "" ] ; then
+		$exampledir/../vlab $args "$@"
+	else
+		$exampledir/../vlab $args "$@" 2>&1 | tee $tee_file
+
+		# NOTE: this assumes the first machine is always called m1
+		test -f logs/current/m1/dmesg || exit 2
+		mv $tee_file logs/current/m1/
+	fi
+
+	if grep -E 'WARN|BUG' "$check_logs"/*/dmesg ; then
+		exit 2
+	fi
+}
+
+delete() {
+        rm -rf $tmpdir
+}
+trap delete EXIT

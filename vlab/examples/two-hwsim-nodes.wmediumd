@@ -1,0 +1,12 @@
+#
+# Copyright (C) 2020 Intel Corporation
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+ifaces :
+{
+    ids = [
+        "02:00:00:00:00:01",
+        "02:00:00:00:00:02"
+    ]
+}

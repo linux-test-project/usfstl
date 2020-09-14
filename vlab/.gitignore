@@ -1,0 +1,6 @@
+linux
+/iw
+wmediumd
+logs
+__pycache__
+.mypy_cache

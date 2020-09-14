@@ -1,0 +1,14 @@
+#
+# Copyright (C) 2020 Intel Corporation
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+nodes:
+ - name: m1
+   mem: 256
+   hwsim: true
+ - name: m2
+   mem: 256
+   hwsim: true
+wmediumd:
+   config: two-hwsim-nodes.wmediumd
