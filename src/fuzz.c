@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <usfstl/test.h>
+#include <usfstl/alloc.h>
 #include "internal.h"
 
 #ifdef USFSTL_USE_FUZZING
@@ -65,7 +66,7 @@ void usfstl_fuzz(const unsigned char **data, size_t *len)
 	size_t bytes, offs = 0;
 #endif
 	int fd = 0; /* stdin */
-	unsigned char *buf = malloc(bufsz);
+	unsigned char *buf = usfstl_malloc(bufsz);
 
 	assert(buf);
 
