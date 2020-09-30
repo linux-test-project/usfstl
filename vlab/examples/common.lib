@@ -54,7 +54,7 @@ run_vlab()
 		$exampledir/../vlab $args "$@" 2>&1 | tee $tee_file
 
 		# NOTE: this assumes the first machine is always called m1
-		test -f logs/current/m1/dmesg || exit 2
+		test -f logs/current/m1/dmesg && exit 2
 		mv $tee_file logs/current/m1/
 	fi
 
