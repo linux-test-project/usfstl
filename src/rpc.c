@@ -329,7 +329,7 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 		     void *ret, uint32_t retmin, uint32_t retsize)
 {
 	struct usfstl_rpc_request req = {
-		.argsize = argsize ? argsize | USFSTL_VAR_DATA_SIZE : argmin,
+		.argsize = argsize ?: argmin,
 		.retsize = retsize ? retsize | USFSTL_VAR_DATA_SIZE : retmin,
 	};
 	struct usfstl_rpc_response resp;
@@ -337,6 +337,8 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 
 	if (!conn->initialized)
 		usfstl_rpc_initialize(conn);
+
+	argsize &= ~USFSTL_VAR_DATA_SIZE;
 
 	if (!argsize)
 		argsize = argmin;

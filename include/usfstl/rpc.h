@@ -401,7 +401,7 @@ _out _name(const _in *arg, const uint32_t argsz)			\
 									\
 	usfstl_rpc_call(g_usfstl_rpc_default_connection,		\
 		      #_name "-" #_out "-" #_in "*",			\
-		      arg, sizeof(_in), argsz,				\
+		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
 		      &ret, sizeof(_out), 0);				\
 									\
 	return ret;							\
@@ -415,7 +415,8 @@ _out _name ## _conn(struct usfstl_rpc_connection *conn,			\
 		conn = g_usfstl_rpc_default_connection;			\
 									\
 	usfstl_rpc_call(conn, #_name "-" #_out "-" #_in "*",		\
-		      arg, sizeof(_in), argsz, &ret, sizeof(_out), 0);	\
+		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
+		      &ret, sizeof(_out), 0);				\
 									\
 	return ret;							\
 }
@@ -424,7 +425,8 @@ void _name(const _in *arg, const uint32_t argsz)			\
 {									\
 	usfstl_rpc_call(g_usfstl_rpc_default_connection,		\
 		      #_name "--" #_in "*",				\
-		      arg, sizeof(_in), argsz, USFSTL_RPC_ASYNC, 0, 0);	\
+		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
+		      USFSTL_RPC_ASYNC, 0, 0);				\
 }									\
 void _name ## _conn(struct usfstl_rpc_connection *conn,			\
 		    const _in *arg, const uint32_t argsz)		\
@@ -433,7 +435,8 @@ void _name ## _conn(struct usfstl_rpc_connection *conn,			\
 		conn = g_usfstl_rpc_default_connection;			\
 									\
 	usfstl_rpc_call(conn, #_name "--" #_in "*",			\
-		      arg, sizeof(_in), argsz, USFSTL_RPC_ASYNC, 0, 0);	\
+		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
+		      USFSTL_RPC_ASYNC, 0, 0);				\
 }
 #define _USFSTL_RPC_VAR_METHOD(_out, _name, _in, _p, _np, _d)		\
 void _name(const _in _p arg, _out *ret, const uint32_t retsz)		\
@@ -464,7 +467,7 @@ void _name(const _in *arg, const uint32_t argsz,			\
 {									\
 	usfstl_rpc_call(g_usfstl_rpc_default_connection,		\
 		      #_name "-" #_out "*-" #_in "*",			\
-		      arg, sizeof(_in), argsz,				\
+		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
 		      ret, sizeof(_out), retsz);			\
 }									\
 void _name ## _conn(struct usfstl_rpc_connection *conn,			\
@@ -475,7 +478,7 @@ void _name ## _conn(struct usfstl_rpc_connection *conn,			\
 		conn = g_usfstl_rpc_default_connection;			\
 									\
 	usfstl_rpc_call(conn, #_name "-" #_out "*-" #_in "*",		\
-		      arg, sizeof(_in), argsz,				\
+		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
 		      ret, sizeof(_out), retsz);			\
 }
 #elif defined(USFSTL_RPC_IMPLEMENTATION)

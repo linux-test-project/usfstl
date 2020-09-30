@@ -23,6 +23,7 @@ void calls(void)
 	callme3(100);
 	callme4(&in);
 	hello(&name.hdr, sizeof(name), &ret.hdr, sizeof(ret));
+	hello(&name.hdr, sizeof(name.hdr), &ret.hdr, sizeof(ret));
 	printf("%.*s\n", (int)(sizeof(ret) - sizeof(ret.hdr)), ret.hdr.msg);
 
 	rpclog(&log.hdr, sizeof(log));
