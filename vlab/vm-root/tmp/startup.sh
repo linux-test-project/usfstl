@@ -72,6 +72,8 @@ done
 
 # need to fix some permissions - git doesn't preserve
 chmod 0600 /tmp/sshd.key /tmp/sshd.rsa
+chmod 0700 /root/.ssh
+chmod 0700 /root/.ssh/config
 
 ln -s /tmp/.host$tmpdir/hosts /etc/hosts
 
