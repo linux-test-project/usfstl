@@ -429,7 +429,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).globals: $(USFSTL_TEST_BIN_PATH
 	$(eval DATA_RO_END_HEX:= $(shell printf '%08x' $(DATA_RO_END)))
 	$(S)nm -S --size-sort $< | sort | \
 		awk '{if ("$(DATA_RO_ADDR)" == "" || "$(DATA_RO_END_HEX)" == "" || $$1 < "$(DATA_RO_ADDR)" || $$1 >= "$(DATA_RO_END_HEX)") print}' | \
-		grep -E -v " . (_*_gcov|_*emutls|.*_(a|ub)san|\.bss|\.data|___|__end__|_Z.*GlobCopy|_Z.*__(sanitizer|interception)|replaced_headers|usfstl_tested_files|__unnamed)" | \
+		grep -E -v " . (_*_gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir)|_Z.*__(sanitizer|interception)|replaced_headers|usfstl_tested_files|__unnamed)" | \
 		perl -ne 'binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack("$(_USFSTL_GLOBAL_PACK)",hex($$1), hex($$2))' > $@
 
 .SECONDEXPANSION:
