@@ -215,14 +215,14 @@ struct usfstl_testcase {
 	USFSTL_MAP(_SELECT, _SEL_REQUIREMENTS, __VA_ARGS__)			\
 	static const char * const usfstl_tested_files_##n[] =			\
 		{ USFSTL_TESTED_FILES NULL };					\
-	struct usfstl_test usfstl_test_##n =					\
+	const struct usfstl_test usfstl_test_##n =				\
 		USFSTL_TEST_SETUP(fn, extra, cases, _flow, _negative, _max_cpu,	\
 				  .tested_files = usfstl_tested_files_##n,	\
 				  .name=#n					\
 				  USFSTL_MAP(_SELECT, _MK_REQLINK, __VA_ARGS__)	\
 				  USFSTL_MAP(_SELECT_NOPARENS, _REMOVE,		\
 					     __VA_ARGS__));			\
-	static struct usfstl_test *usfstl_test_##n##_ptr			\
+	static const struct usfstl_test *usfstl_test_##n##_ptr			\
 	__attribute__((used, section("usfstl_tests"))) = &usfstl_test_##n
 #define USFSTL_TEST(fn, extra, cases, _flow, _negative, _max_cpu, ...)		\
 	USFSTL_TEST_NAMED(fn, fn, extra, cases, _flow, _negative, _max_cpu, __VA_ARGS__)
