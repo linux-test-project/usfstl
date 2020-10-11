@@ -271,7 +271,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 }
 #elif USFSTL_LIBRARY
 // can be overridden by the user if they need to
-const char *g_usfstl_projectname = "libtest";
+const char *USFSTL_NORESTORE_VAR(g_usfstl_projectname) = "libtest";
 
 enum usfstl_testcase_status usfstl_run_test(struct usfstl_test *tc)
 {
