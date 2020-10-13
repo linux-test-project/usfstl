@@ -28,7 +28,7 @@
 	     s = (void *)(s->buf + s->size))
 
 // make the section exist even in non-multi builds
-static const struct usfstl_shared_mem_section *usfstl_shared_mem_section_NULL
+static const struct usfstl_shared_mem_section * const usfstl_shared_mem_section_NULL
 	__attribute__((used, section("usfstl_shms"))) = NULL;
 
 // Shared memory message for receiving/sending from/to a remote participant, or

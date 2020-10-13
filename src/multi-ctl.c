@@ -32,7 +32,7 @@ USFSTL_OPT_FLAG("multi-debug-subprocs", 0, g_usfstl_debug_subprocesses,
 
 /* variables for controller */
 // make the section exist even in non-multi builds
-static const struct usfstl_multi_participant *usfstl_multi_participant_NULL
+static const struct usfstl_multi_participant * const usfstl_multi_participant_NULL
 	__attribute__((used, section("usfstl_rpcp"))) = NULL;
 
 struct usfstl_multi_participant g_usfstl_multi_local_participant = {

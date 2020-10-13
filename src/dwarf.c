@@ -25,7 +25,7 @@ static unsigned int static_reference_count(void)
 }
 
 /* need a dummy in case the test case has none */
-static const struct usfstl_static_reference *_dummy
+static const struct usfstl_static_reference * const _dummy
 __attribute__((used, section("static_reference_data"))) = NULL;
 
 static struct backtrace_state *USFSTL_NORESTORE_VAR(g_usfstl_backtrace_state);

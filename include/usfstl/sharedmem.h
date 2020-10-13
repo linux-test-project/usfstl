@@ -55,7 +55,7 @@ static const struct usfstl_shared_mem_section _name ## _SECTION = {	\
 	.p_stop = USFSTL_SHARED_MEM_STOP(_name),			\
 	__VA_ARGS__							\
 };									\
-const struct usfstl_shared_mem_section *				\
+const struct usfstl_shared_mem_section * const				\
 usfstl_shared_mem_section_ ## _name					\
 	__attribute__((used, section("usfstl_shms"))) = &_name ## _SECTION
 

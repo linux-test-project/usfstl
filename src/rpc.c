@@ -35,9 +35,9 @@ static struct usfstl_list USFSTL_NORESTORE_VAR(g_usfstl_rpc_connections) =
 static uint32_t g_usfstl_rpc_wait_result;
 
 // put a dummies into the sections to guarantee they're emitted
-static struct usfstl_rpc_stub *dummy __attribute__((section("usfstl_rpc"), used)) =
+static const struct usfstl_rpc_stub * const dummy __attribute__((section("usfstl_rpc"), used)) =
 	NULL;
-static unsigned int stub_fill __attribute__((section("usfstl_rpcstub"), used));
+static const unsigned int stub_fill __attribute__((section("usfstl_rpcstub"), used));
 
 extern struct usfstl_rpc_stub *__start_usfstl_rpc[];
 extern struct usfstl_rpc_stub *__stop_usfstl_rpc;

@@ -25,7 +25,7 @@ void usfstl_get_function_info(const void *ptr, char *funcname,
  * Test project name, really just derived from the binary that's running.
  * Could be overwritten by an initializer, but not later than that.
  */
-extern const char *g_usfstl_projectname;
+extern const char * const g_usfstl_projectname;
 // temporarily:
 #define g_usfstl_testname g_usfstl_projectname
 
@@ -198,7 +198,7 @@ struct usfstl_testcase {
 #define REQUIREMENTS(...)		(_REQUIREMENTS(__VA_ARGS__))
 
 #define ___SELECT_REQUIREMENTS_REQUIREMENTS(l, ...) \
-	static const char * const USFSTL_NORESTORE_VAR(_usfstl_test_req##l[]) = { __VA_ARGS__, NULL };
+	static const char * const _usfstl_test_req##l[] = { __VA_ARGS__, NULL };
 #define __SELECT_REQUIREMENTS_REQUIREMENTS(l, ...) \
 	___SELECT_REQUIREMENTS_REQUIREMENTS(l, __VA_ARGS__)
 #define _SELECT_REQUIREMENTS_REQUIREMENTS(...) \
@@ -222,7 +222,7 @@ struct usfstl_testcase {
 				  USFSTL_MAP(_SELECT, _MK_REQLINK, __VA_ARGS__)	\
 				  USFSTL_MAP(_SELECT_NOPARENS, _REMOVE,		\
 					     __VA_ARGS__));			\
-	static const struct usfstl_test *usfstl_test_##n##_ptr			\
+	static const struct usfstl_test * const usfstl_test_##n##_ptr		\
 	__attribute__((used, section("usfstl_tests"))) = &usfstl_test_##n
 #define USFSTL_TEST(fn, extra, cases, _flow, _negative, _max_cpu, ...)		\
 	USFSTL_TEST_NAMED(fn, fn, extra, cases, _flow, _negative, _max_cpu, __VA_ARGS__)
@@ -308,14 +308,14 @@ struct usfstl_code_testcase {
 
 #define USFSTL_CODE_TEST_CASE(...)		_USFSTL_CODE_TEST_CASE(TEST_NAME, __LINE__, __VA_ARGS__)
 #define _USFSTL_CODE_TEST_CASE(tn, ctr, ...)	__USFSTL_CODE_TEST_CASE(tn, ctr, __VA_ARGS__)
-#define __USFSTL_CODE_TEST_CASE(tn, ctr, ...)					\
+#define __USFSTL_CODE_TEST_CASE(tn, ctr, ...)				\
 static void TCNAME(tn,ctr,)(const void *data);				\
-static struct usfstl_code_testcase TCNAME(tn,ctr,_data) = {		\
+static const struct usfstl_code_testcase TCNAME(tn,ctr,_data) = {	\
 	.fn = TCNAME(tn,ctr,),						\
 	.ndata = 1,							\
 	__VA_ARGS__							\
 };									\
-static struct usfstl_code_testcase *TCNAME(tn,ctr,_ptr)			\
+static const struct usfstl_code_testcase * const TCNAME(tn,ctr,_ptr)	\
 __attribute__((used,section("usfstl_code_test_cases_" #tn))) =		\
 	&TCNAME(tn,ctr,_data);						\
 static void TCNAME(tn,ctr,)(const void *data)
@@ -332,10 +332,10 @@ static void TCNAME(tn,ctr,)(const void *data)
 				 __VA_ARGS__)
 #define __USFSTL_CODE_TEST_CASES(_args, _cnt, _sdata, tn, ctr, ...)	\
 struct TCNAME(tn,ctr,_data) { _args };					\
-static const struct TCNAME(tn,ctr,_data)				\
-TCNAME(tn,ctr,_cases)[] = { _sdata };					\
+static struct TCNAME(tn,ctr,_data)					\
+const TCNAME(tn,ctr,_cases)[] = { _sdata };				\
 static void TCNAME(tn,ctr,)(const struct TCNAME(tn,ctr,_data) *data);	\
-static struct usfstl_code_testcase TCNAME(tn,ctr,_data) = {		\
+static const struct usfstl_code_testcase TCNAME(tn,ctr,_data) = {	\
 	.fn = (void *)TCNAME(tn,ctr,),					\
 	.data = TCNAME(tn,ctr,_cases),					\
 	.ndata = sizeof(TCNAME(tn,ctr,_cases)) /			\
@@ -343,7 +343,7 @@ static struct usfstl_code_testcase TCNAME(tn,ctr,_data) = {		\
 	.dsz = sizeof(TCNAME(tn,ctr,_cases)[0]),			\
 	__VA_ARGS__							\
 };									\
-static struct usfstl_code_testcase *TCNAME(tn,ctr,_ptr)			\
+static const struct usfstl_code_testcase * const TCNAME(tn,ctr,_ptr)	\
 __attribute__((used,section("usfstl_code_test_cases_" #tn))) =		\
 	&TCNAME(tn,ctr,_data);						\
 static void TCNAME(tn,ctr,)(const struct TCNAME(tn,ctr,_data) *data)
@@ -453,7 +453,7 @@ struct usfstl_static_reference {
 		.filename = _filename,									\
 		.reference_type = _reference_type							\
 	};												\
-	static const struct usfstl_static_reference *usfstl_static_referencep_##_name			\
+	static const struct usfstl_static_reference * const usfstl_static_referencep_##_name		\
 	__attribute__((used, section("static_reference_data"))) =					\
 	&usfstl_static_reference_##_name
 

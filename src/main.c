@@ -36,7 +36,7 @@ static uint64_t __attribute__((used)) get_monotonic_time_ms(void)
 #endif
 
 // dummy test so you can link a binary with no tests
-static struct usfstl_test *_dummy_test __attribute__((used, section("usfstl_tests")));
+static const struct usfstl_test * const _dummy_test __attribute__((used, section("usfstl_tests")));
 extern struct usfstl_test *__start_usfstl_tests[];
 extern struct usfstl_test *__stop_usfstl_tests;
 
@@ -271,7 +271,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 }
 #elif USFSTL_LIBRARY
 // can be overridden by the user if they need to
-const char *USFSTL_NORESTORE_VAR(g_usfstl_projectname) = "libtest";
+const char * const g_usfstl_projectname = "libtest";
 
 enum usfstl_testcase_status usfstl_run_test(struct usfstl_test *tc)
 {

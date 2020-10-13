@@ -209,15 +209,15 @@ _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
 	_out _ret = _impl_ ## _name(conn, _np arg);			\
 	memcpy(ret, &_ret, sizeof(_out));				\
 }									\
-static struct usfstl_rpc_stub usfstl_rpc_stub_##_name			\
+static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
 __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.name = #_name "-" #_out "-" #_in #_p,			\
 	.req.argsize = sizeof(_in),					\
 	.req.retsize = sizeof(_out),					\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
 },									\
-*_usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"), used)) =\
-	&usfstl_rpc_stub_##_name
+* const _usfstl_rpc_stub_##_name					\
+__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
 #define _USFSTL_RPC_VOID_METHOD(_name, _in, _p, _np, _d)		\
 static void								\
 _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
@@ -226,14 +226,14 @@ _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
 	ret = ret; /* it is intentionally unused */			\
 	_impl_ ## _name(conn, _np arg);					\
 }									\
-static struct usfstl_rpc_stub usfstl_rpc_stub_##_name			\
+static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
 __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.name = #_name "--" #_in #_p,				\
 	.req.argsize = sizeof(_in),					\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
 },									\
-*_usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"), used)) =\
-	&usfstl_rpc_stub_##_name
+* const _usfstl_rpc_stub_##_name					\
+__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
 #define _USFSTL_RPC_ASYNC_METHOD(_name, _in, _p, _np, _d)		\
 static void								\
 _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
@@ -242,15 +242,15 @@ _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
 	ret = ret; /* it is intentionally unused */			\
 	_impl_ ## _name(conn, _np arg);					\
 }									\
-static struct usfstl_rpc_stub usfstl_rpc_stub_##_name			\
+static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
 __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.name = #_name "--" #_in #_p,				\
 	.req.argsize = sizeof(_in),					\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
 	.async = 1,							\
 },									\
-*_usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"), used)) =\
-	&usfstl_rpc_stub_##_name
+* const _usfstl_rpc_stub_##_name					\
+__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
 #define _USFSTL_RPC_METHOD_VAR(_out, _name, _in)			\
 static void								\
 _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
@@ -261,15 +261,15 @@ _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
 	_out _ret = _impl_ ## _name(conn, arg, argsz);			\
 	memcpy(ret, &_ret, sizeof(_out));				\
 }									\
-static struct usfstl_rpc_stub usfstl_rpc_stub_##_name			\
+static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
 __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.name = #_name "-" #_out "-" #_in "*",			\
 	.req.argsize = USFSTL_VAR_DATA_SIZE | sizeof(_in),		\
 	.req.retsize = sizeof(_out),					\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
 },									\
-*_usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"), used)) =\
-	&usfstl_rpc_stub_##_name
+* const _usfstl_rpc_stub_##_name					\
+__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
 #define _USFSTL_RPC_ASYNC_METHOD_VAR(_name, _in)			\
 static void								\
 _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
@@ -278,15 +278,15 @@ _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
 {									\
 	_impl_ ## _name(conn, arg, argsz);				\
 }									\
-static struct usfstl_rpc_stub usfstl_rpc_stub_##_name			\
+static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
 __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.name = #_name "--" #_in "*",				\
 	.req.argsize = USFSTL_VAR_DATA_SIZE | sizeof(_in),		\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
 	.async = 1,							\
 },									\
-*_usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"), used)) =\
-	&usfstl_rpc_stub_##_name
+* const _usfstl_rpc_stub_##_name					\
+__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
 #define _USFSTL_RPC_VAR_METHOD(_out, _name, _in, _p, _np, _d)		\
 static void								\
 _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
@@ -296,15 +296,15 @@ _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
 {									\
 	_impl_ ## _name(conn, _np arg, ret, retsz);			\
 }									\
-static struct usfstl_rpc_stub usfstl_rpc_stub_##_name			\
+static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
 __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.name = #_name "-" #_out "*-" #_in #_p,			\
 	.req.argsize = sizeof(_in),					\
 	.req.retsize = USFSTL_VAR_DATA_SIZE | sizeof(_out),		\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
 },									\
-*_usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"), used)) =\
-	&usfstl_rpc_stub_##_name
+* const _usfstl_rpc_stub_##_name					\
+__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
 #define _USFSTL_RPC_VAR_METHOD_VAR(_out, _name, _in)			\
 static void								\
 _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
@@ -315,14 +315,14 @@ _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
 {									\
 	_impl_ ## _name(conn, arg, argsz, ret, retsz);			\
 }									\
-static struct usfstl_rpc_stub usfstl_rpc_stub_##_name			\
+static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
 __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.name = #_name "-" #_out "*-" #_in "*",			\
 	.req.argsize = USFSTL_VAR_DATA_SIZE | sizeof(_in),		\
 	.req.retsize = USFSTL_VAR_DATA_SIZE | sizeof(_out),		\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
 },									\
-*_usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"),		\
+* const _usfstl_rpc_stub_##_name __attribute__((section("usfstl_rpc"),	\
 					 used)) =			\
 	&usfstl_rpc_stub_##_name
 #elif defined(USFSTL_RPC_CALLER_STUB)

@@ -30,7 +30,7 @@ bool usfstl_opt_parse_str(struct usfstl_opt *opt, const char *arg);
 	static const struct usfstl_opt _usfstl_opt_##l = {	\
 		__VA_ARGS__					\
 	};							\
-	static const struct usfstl_opt *_usfstl_optp##l		\
+	static const struct usfstl_opt * const _usfstl_optp##l	\
 	__attribute__((used, section("usfstl_opt")))		\
 	= &_usfstl_opt_##l
 #define _USFSTL_OPT(l, ...) __USFSTL_OPT(l, __VA_ARGS__)

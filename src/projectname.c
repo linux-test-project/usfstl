@@ -5,4 +5,4 @@
  */
 #include <usfstl/test.h>
 
-const char *USFSTL_NORESTORE_VAR(g_usfstl_projectname) = USFSTL_TEST_NAME;
+const char * const g_usfstl_projectname = USFSTL_TEST_NAME;

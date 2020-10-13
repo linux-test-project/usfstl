@@ -16,16 +16,6 @@
 // created by the linker
 extern char __start_usfstl_norestore[];
 extern char __stop_usfstl_norestore[];
-extern char __start_usfstl_opt[];
-extern char __stop_usfstl_opt[];
-#ifndef USFSTL_LIBRARY
-extern char __start_usfstl_tests[];
-extern char __stop_usfstl_tests[];
-#endif
-extern char __start_static_reference_data[];
-extern char __stop_static_reference_data[];
-extern char __start_usfstl_rpcstub[];
-extern char __stop_usfstl_rpcstub[];
 
 struct restore_info {
 	uintptr_t ptr, size;
@@ -44,23 +34,6 @@ static inline bool should_restore(uintptr_t _ptr)
 	USFSTL_BUILD_BUG_ON(sizeof(uintptr_t) != sizeof(void *));
 
 	if (ptr >= __start_usfstl_norestore && ptr < __stop_usfstl_norestore)
-		return false;
-	if (ptr >= __start_usfstl_opt && ptr < __stop_usfstl_opt)
-		return false;
-#ifndef USFSTL_LIBRARY
-	if (ptr >= __start_usfstl_tests && ptr < __stop_usfstl_tests)
-		return false;
-#endif
-	if (ptr >= __start_static_reference_data && ptr < __stop_static_reference_data)
-		return false;
-
-	if (ptr >= (char *)__start_usfstl_rpcp && ptr < (char *)__stop_usfstl_rpcp)
-		return false;
-
-	if (ptr >= __start_usfstl_rpcstub && ptr < __stop_usfstl_rpcstub)
-		return false;
-
-	if (ptr >= (char *)__start_usfstl_shms && ptr < (char *)__stop_usfstl_shms)
 		return false;
 
 	return true;
