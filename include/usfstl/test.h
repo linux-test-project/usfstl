@@ -353,18 +353,19 @@ static void TCNAME(tn,ctr,)(const struct TCNAME(tn,ctr,_data) *data)
 #define __USFSTL_CODE_TEST_FUNC(tn, ...)				\
 static void tn(struct usfstl_test *test, void *testcase);		\
 extern struct usfstl_code_testcase					\
-* __start_usfstl_code_test_cases_##tn[0],				\
+* __start_usfstl_code_test_cases_##tn[],				\
 * __stop_usfstl_code_test_cases_##tn;					\
+__attribute__((no_sanitize_address))					\
 static void *tn##_generator(struct usfstl_test *t, unsigned int n)	\
 {									\
-	struct usfstl_code_testcase **iter, *tc;			\
 	static struct usfstl_code_testcase ret = {};			\
 	unsigned int i = 0;						\
+	for (int tcidx = 0;						\
+	     &__start_usfstl_code_test_cases_##tn[tcidx] < &__stop_usfstl_code_test_cases_##tn;	\
+	     tcidx++) { 						\
+		const struct usfstl_code_testcase *tc =			\
+			__start_usfstl_code_test_cases_##tn[tcidx];	\
 									\
-	iter = &__start_usfstl_code_test_cases_##tn[0];			\
-									\
-	while (iter < &__stop_usfstl_code_test_cases_##tn) {		\
-		tc = *iter;						\
 		if (!tc)						\
 			continue;					\
 		if (n >= i && n < i + tc->ndata) {			\
@@ -372,13 +373,12 @@ static void *tn##_generator(struct usfstl_test *t, unsigned int n)	\
 			unsigned int offs = tc->dsz * subcase;		\
 									\
 			ret = *tc;					\
-			ret.data = ((unsigned char *)tc->data) + offs;	\
+			ret.data = tc->data ? ((unsigned char *)tc->data) + offs : 0;	\
 									\
 			return &ret;					\
 		}							\
 									\
 		i += tc->ndata;						\
-		iter++;							\
 	}								\
 									\
 	return NULL;							\
