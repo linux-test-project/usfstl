@@ -351,6 +351,7 @@ static void TCNAME(tn,ctr,)(const struct TCNAME(tn,ctr,_data) *data)
 #define USFSTL_CODE_TEST_FUNC(...) _USFSTL_CODE_TEST_FUNC(TEST_NAME, __VA_ARGS__)
 #define _USFSTL_CODE_TEST_FUNC(tn, ...) __USFSTL_CODE_TEST_FUNC(tn, __VA_ARGS__)
 #define __USFSTL_CODE_TEST_FUNC(tn, ...)				\
+USFSTL_BUILD_BUG_ON(!__builtin_strcmp(#tn, "TEST_NAME"));		\
 static void tn(struct usfstl_test *test, void *testcase);		\
 extern struct usfstl_code_testcase					\
 * __start_usfstl_code_test_cases_##tn[],				\
