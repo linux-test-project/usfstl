@@ -44,7 +44,7 @@ iw/iw: iw
 
 .PHONY: pychecks
 pychecks:
-	$(Q)mypy virtlab.py plugins/*.py
+	$(Q)mypy --strict virtlab.py plugins/*.py
 	$(Q)pylint virtlab.py plugins/*.py
 
 EXAMPLES := $(sort $(wildcard examples/*.sh))
