@@ -15,7 +15,7 @@
 #endif
 
 // ----------- simple test
-void test_simple(struct usfstl_test *test, void *testcase)
+void test_simple(const struct usfstl_test *test, void *testcase)
 {
 	USFSTL_ASSERT_EQ(dummy1(), OFFSET, "%d");
 	USFSTL_ASSERT_EQ(dummy2(100), 100 + OFFSET, "%d");
@@ -29,7 +29,7 @@ struct testcase {
 	int input, output;
 };
 
-void test_cases(struct usfstl_test *test, void *testcase)
+void test_cases(const struct usfstl_test *test, void *testcase)
 {
 	struct testcase *tc = testcase;
 
@@ -51,7 +51,7 @@ USFSTL_UNIT_TEST(test_cases, NULL, cases);
 // ----------- test with multiple test cases from generator
 static struct testcase g_generator_testcase;
 
-void *generator(struct usfstl_test *test, unsigned int i)
+void *generator(const struct usfstl_test *test, unsigned int i)
 {
 	if (i < 100) {
 		g_generator_testcase.input = 100 * i;
@@ -72,7 +72,7 @@ int dummy1_stub(void)
 	return 55;
 }
 
-void test_override(struct usfstl_test *test, void *testcase)
+void test_override(const struct usfstl_test *test, void *testcase)
 {
 	USFSTL_STUB(dummy1, dummy1_stub);
 
@@ -82,7 +82,7 @@ USFSTL_UNIT_TEST(test_override, NULL, NO_CASES);
 
 
 // ----------- test with function override
-void test_no_print(struct usfstl_test *test, void *testcase)
+void test_no_print(const struct usfstl_test *test, void *testcase)
 {
 	dummy3(100);
 	USFSTL_ASSERT_EQ(g_printed_value, 100 + OFFSET, "%d");

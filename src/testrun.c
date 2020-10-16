@@ -20,7 +20,7 @@ static jmp_buf g_usfstl_jmp_buf;
 bool g_usfstl_abort_on_error;
 bool g_usfstl_disable_wdt;
 bool g_usfstl_test_aborted;
-struct usfstl_test *g_usfstl_current_test;
+const struct usfstl_test *g_usfstl_current_test;
 struct usfstl_testcase *g_usfstl_current_testcase;
 void *g_usfstl_current_test_case_data;
 int g_usfstl_current_case_num = -1;
@@ -102,7 +102,7 @@ void usfstl_abort(const char *fn, unsigned int line, const char *cond,
 	longjmp(g_usfstl_jmp_buf, USFSTL_STATUS_ASSERTION_FAILED);
 }
 
-enum usfstl_testcase_status usfstl_execute_test(struct usfstl_test *test,
+enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
 						unsigned int test_num,
 						unsigned int case_num,
 						bool execute)

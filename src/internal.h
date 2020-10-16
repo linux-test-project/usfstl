@@ -70,7 +70,7 @@ extern bool g_usfstl_abort_on_error;
 extern bool g_usfstl_test_aborted;
 extern unsigned int g_usfstl_failure_reason;
 void usfstl_out_of_time(void *rip);
-enum usfstl_testcase_status usfstl_execute_test(struct usfstl_test *tc,
+enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *tc,
 						unsigned int test_num,
 						unsigned int case_num,
 						bool execute);

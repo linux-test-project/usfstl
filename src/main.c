@@ -130,7 +130,7 @@ void usfstl_tested_requirement(const char *req, bool pass)
 }
 
 #if !defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3
-static void write_requirements(struct usfstl_test *tc, int tc_succeeded,
+static void write_requirements(const struct usfstl_test *tc, int tc_succeeded,
 			       int tc_failed)
 {
 	const char * const *req = tc->requirements;
@@ -273,7 +273,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 // can be overridden by the user if they need to
 const char * const g_usfstl_projectname = "libtest";
 
-enum usfstl_testcase_status usfstl_run_test(struct usfstl_test *tc)
+enum usfstl_testcase_status usfstl_run_test(const struct usfstl_test *tc)
 {
 	enum usfstl_testcase_status status;
 
@@ -307,7 +307,7 @@ int main(int argc, char **argv)
 		return usfstl_multi_participant_run();
 
 	for (tcidx = 0; &__start_usfstl_tests[tcidx] < &__stop_usfstl_tests; tcidx++) {
-		struct usfstl_test *tc = __start_usfstl_tests[tcidx];
+		const struct usfstl_test *tc = __start_usfstl_tests[tcidx];
 		unsigned int tc_succeeded = 0, tc_failed = 0;
 
 		if (!tc)

@@ -35,7 +35,7 @@ USFSTL_OPT_STR("multi-ptc-name", 0, "name",
 	       g_usfstl_multi_local_participant.name,
 	       "Participant name, set by the controller");
 
-static void usfstl_multi_participant_test_fn(struct usfstl_test *test, void *tc)
+static void usfstl_multi_participant_test_fn(const struct usfstl_test *test, void *tc)
 {
 	/*
 	 * Tell the controller that we're done with startup; this

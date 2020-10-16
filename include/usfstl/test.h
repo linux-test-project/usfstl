@@ -32,7 +32,7 @@ extern const char * const g_usfstl_projectname;
 /*
  * current test and, if test has multiple cases, test case data
  */
-extern struct usfstl_test *g_usfstl_current_test;
+extern const struct usfstl_test *g_usfstl_current_test;
 extern void *g_usfstl_current_test_case_data;
 extern int g_usfstl_current_test_num;
 extern int g_usfstl_current_case_num;
@@ -91,11 +91,12 @@ enum usfstl_testcase_status {
 };
 
 struct usfstl_test {
-	void (*fn)(struct usfstl_test *test, void *testcase);
+	void (*fn)(const struct usfstl_test *test, void *testcase);
 	const void *extra_data;
 	const char *name;
 	const void *testcases;
-	void *(*case_generator)(struct usfstl_test *test, unsigned int idx);
+	void *(*case_generator)(const struct usfstl_test *test,
+				unsigned int idx);
 	size_t testcase_size;
 	size_t testcase_count;
 	unsigned int testcase_generic_offset;
@@ -105,9 +106,9 @@ struct usfstl_test {
 
 	const void *negative_data;
 	unsigned int max_cpu_time_ms;
-	void (*pre)(struct usfstl_test *test, void *testcase,
+	void (*pre)(const struct usfstl_test *test, void *testcase,
 		    int test_num, int case_num);
-	void (*post)(struct usfstl_test *test, void *testcase,
+	void (*post)(const struct usfstl_test *test, void *testcase,
 		     int test_num, int case_num,
 		     enum usfstl_testcase_status status);
 
@@ -124,7 +125,7 @@ struct usfstl_test {
  *
  * In this case, you should define USFSTL_LIBRARY when compiling
  * usfstl, and then need to call usfstl_init() once, and
- * usfstl_run_test() or usfstl_run_named_test() for each test.
+ * usfstl_run_test() for each test.
  *
  * Note that in the library case,
  *
@@ -141,7 +142,7 @@ struct usfstl_test {
  */
 int usfstl_init(int argc, char **argv);
 
-enum usfstl_testcase_status usfstl_run_test(struct usfstl_test *tc);
+enum usfstl_testcase_status usfstl_run_test(const struct usfstl_test *tc);
 #endif /* USFSTL_LIBRARY */
 
 /*
@@ -352,12 +353,12 @@ static void TCNAME(tn,ctr,)(const struct TCNAME(tn,ctr,_data) *data)
 #define _USFSTL_CODE_TEST_FUNC(tn, ...) __USFSTL_CODE_TEST_FUNC(tn, __VA_ARGS__)
 #define __USFSTL_CODE_TEST_FUNC(tn, ...)				\
 USFSTL_BUILD_BUG_ON(!__builtin_strcmp(#tn, "TEST_NAME"));		\
-static void tn(struct usfstl_test *test, void *testcase);		\
+static void tn(const struct usfstl_test *test, void *testcase);		\
 extern struct usfstl_code_testcase					\
 * __start_usfstl_code_test_cases_##tn[],				\
 * __stop_usfstl_code_test_cases_##tn;					\
 __attribute__((no_sanitize_address))					\
-static void *tn##_generator(struct usfstl_test *t, unsigned int n)	\
+static void *tn##_generator(const struct usfstl_test *t, unsigned int n)\
 {									\
 	static struct usfstl_code_testcase ret = {};			\
 	unsigned int i = 0;						\
@@ -384,7 +385,7 @@ static void *tn##_generator(struct usfstl_test *t, unsigned int n)	\
 									\
 	return NULL;							\
 }									\
-static void tn(struct usfstl_test *test, void *testcase)
+static void tn(const struct usfstl_test *test, void *testcase)
 
 static inline void
 usfstl_run_code_test_case(const struct usfstl_code_testcase *testcase)
@@ -395,8 +396,8 @@ usfstl_run_code_test_case(const struct usfstl_code_testcase *testcase)
 
 #define __USFSTL_CODE_TEST_INIT(type, tn, extra, ...)				\
 /* declare them so this can be used before USFSTL_CODE_TEST_FUNC() */		\
-static void tn(struct usfstl_test *test, void *testcase);			\
-static void *tn##_generator(struct usfstl_test *t, unsigned int n);		\
+static void tn(const struct usfstl_test *test, void *testcase);			\
+static void *tn##_generator(const struct usfstl_test *t, unsigned int n);	\
 type(tn, extra, NO_CASES, .case_generator = tn##_generator,			\
 	.case_generator_has_generic = true,					\
 	.testcase_generic_offset =						\
