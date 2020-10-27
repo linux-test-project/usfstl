@@ -58,6 +58,9 @@ exec $(which which) "\$@"
 EOF
 chmod +x /tmp/bin/which
 
+# create iw symlink - avoid having symlinks in the git repo
+ln -s ../../../iw/iw /tmp/bin/
+
 # copy plugin-files
 pushd /tmp/.host/$tmpdir/pluginfiles >/dev/null
 find . -not -type d -not -type l -print0 | cpio --quiet -0 -R0:0 -d -p /
