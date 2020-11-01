@@ -207,6 +207,9 @@ enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
 	if (!g_usfstl_disable_wdt && test->max_cpu_time_ms)
 		usfstl_watchdog_stop();
 
+        if (g_usfstl_assert_coverage_file)
+                usfstl_log_reached_asserts();
+
 	if (test->post)
 		test->post(g_usfstl_current_test, g_usfstl_current_test_case_data,
 			   test_num, case_num, status);

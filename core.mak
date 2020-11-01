@@ -257,6 +257,10 @@ USFSTL_LOG_TEST         :=
 USFSTL_LOG_USFSTL       :=
 endif
 
+ASSERT_PROFILING_DEFINE = -DUSFSTL_USE_ASSERT_PROFILING=1
+USFSTL_CC_OPT += $(ASSERT_PROFILING_DEFINE)
+USFSTL_TEST_CC_OPT += $(ASSERT_PROFILING_DEFINE)
+
 # We really need:
 # -g -gdwarf-2                   to get debug information we process here
 #                                we use v2 because v3,v4 crash gdb when
@@ -368,6 +372,7 @@ $(USFSTL_BIN_PATH)/%/:
 OBJS = print.o main.o override.o dwarf.o testrun.o restore.o fuzz.o opt.o
 OBJS += ctx-$(USFSTL_CONTEXT_BACKEND).o ctx-common.o sched.o task.o rpc.o
 OBJS += multi.o multi-rpc.o multi-ctl.o multi-ptc.o multi-shared-mem.o rpc-rpc.o loop.o alloc.o
+OBJS += assert-profiling.o
 ASM_OBJS = entry.o
 DWARF_OBJS = dwarf/dwarf.o dwarf/sort.o dwarf/state.o dwarf/fileline.o
 DWARF_READ_OBJS = dwarf/posix.o dwarf/print.o dwarf/backtrace.o
@@ -429,7 +434,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).globals: $(USFSTL_TEST_BIN_PATH
 	$(eval DATA_RO_END_HEX:= $(shell printf '%08x' $(DATA_RO_END)))
 	$(S)nm -S --size-sort $< | sort | \
 		awk '{if ("$(DATA_RO_ADDR)" == "" || "$(DATA_RO_END_HEX)" == "" || $$1 < "$(DATA_RO_ADDR)" || $$1 >= "$(DATA_RO_END_HEX)") print}' | \
-		grep -E -v " . (_*_gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir)|_Z.*__(sanitizer|interception)|replaced_headers|usfstl_tested_files|__unnamed)" | \
+		grep -E -v " . (_*_gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir)|_Z.*__(sanitizer|interception)|replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed)" | \
 		perl -ne 'binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack("$(_USFSTL_GLOBAL_PACK)",hex($$1), hex($$2))' > $@
 
 .SECONDEXPANSION:

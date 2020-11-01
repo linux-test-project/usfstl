@@ -189,6 +189,11 @@ void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 void usfstl_shared_mem_update_local_view(void);
 void usfstl_shared_mem_prepare_msg(bool do_not_mark_dirty);
 
+extern char *g_usfstl_assert_coverage_file;
+void usfstl_log_reached_asserts(void);
+void usfstl_init_reached_assert_log(void);
+void usfstl_list_all_asserts(void);
+
 #if USFSTL_USE_FUZZING == 3
 extern const unsigned char *g_usfstl_fuzz_data;
 extern size_t g_usfstl_fuzz_datasz;

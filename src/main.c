@@ -51,7 +51,8 @@ static int USFSTL_NORESTORE_VAR(g_usfstl_requirements_fd) = -1;
 static char *g_usfstl_requirements_file;
 bool g_usfstl_skip_known_failing;
 bool g_usfstl_flush_each_log;
-static bool g_usfstl_list;
+static bool g_usfstl_list_tests;
+static bool g_usfstl_list_asserts;
 
 #if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3)
 static int g_usfstl_test = -1;
@@ -179,7 +180,7 @@ USFSTL_OPT("test", 't', "test name or number", usfstl_parse_test,
 	   &g_usfstl_test, "execute only this test");
 USFSTL_OPT_FLAG("count", 0, g_usfstl_count,
 		"print total test case count (over all tests)");
-USFSTL_OPT_FLAG("list", 'p', g_usfstl_list,
+USFSTL_OPT_FLAG("list", 'p', g_usfstl_list_tests,
 		"print test list with number of cases");
 USFSTL_OPT_INT("case", 'c', "case num", g_usfstl_testcase,
 	       "execute only this case (should come with -t)");
@@ -189,6 +190,8 @@ USFSTL_OPT("summary", 0, "filename", init_summary, NULL,
 	   "write summary of tests to this file after running");
 USFSTL_OPT_FLAG("skip-known-failing", 0, g_usfstl_skip_known_failing,
 		"skip tests/testcases known to fail");
+USFSTL_OPT_FLAG("list-asserts", 0, g_usfstl_list_asserts,
+                "list all asserts compiled in the test code");
 #endif
 
 USFSTL_OPT_FLAG("debug", 'd', g_usfstl_abort_on_error,
@@ -227,12 +230,15 @@ int usfstl_init(int argc, char **argv)
 
 	usfstl_dwarf_init(argv[0]);
 
-	if (!g_usfstl_list)
+	if (g_usfstl_assert_coverage_file)
+		usfstl_init_reached_assert_log();
+
+	if (!g_usfstl_list_tests)
 		usfstl_call_initializers();
 
 	usfstl_save_globals(argv[0]);
 
-	if (!g_usfstl_list)
+	if (!g_usfstl_list_tests)
 		usfstl_multi_init();
 
 	return 0;
@@ -306,6 +312,11 @@ int main(int argc, char **argv)
 	if (usfstl_is_multi_participant())
 		return usfstl_multi_participant_run();
 
+	if (g_usfstl_list_asserts) {
+		usfstl_list_all_asserts();
+		return 0;
+	}
+
 	for (tcidx = 0; &__start_usfstl_tests[tcidx] < &__stop_usfstl_tests; tcidx++) {
 		const struct usfstl_test *tc = __start_usfstl_tests[tcidx];
 		unsigned int tc_succeeded = 0, tc_failed = 0;
@@ -323,7 +334,7 @@ int main(int argc, char **argv)
 
 		for (i = 0; /* until we break */; i++, ctr++) {
 			enum usfstl_testcase_status status;
-			bool execute = !g_usfstl_count && !g_usfstl_list;
+			bool execute = !g_usfstl_count && !g_usfstl_list_tests;
 
 			if (g_usfstl_testcase >= 0) {
 				if (g_usfstl_testcase_last < 0 && i != g_usfstl_testcase)
@@ -348,7 +359,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		if (g_usfstl_list) {
+		if (g_usfstl_list_tests) {
 			printf("%s: %d\n", tc->name, i);
 			continue;
 		}
@@ -365,7 +376,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	if (g_usfstl_list)
+	if (g_usfstl_list_tests)
 		return 0;
 
 	usfstl_multi_finish();
