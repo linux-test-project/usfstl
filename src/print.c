@@ -340,7 +340,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t, rpc_log_create, struct usfstl_rpc_log_create)
 	char name[namelen + 1];
 	struct usfstl_logger *logger;
 
-	sprintf(name, "%*s", namelen, in->name);
+	sprintf(name, "%.*s", namelen, in->name);
 	name[namelen] = 0;
 
 	logger = usfstl_log_create(name);
