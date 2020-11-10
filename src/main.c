@@ -52,7 +52,10 @@ static char *g_usfstl_requirements_file;
 bool g_usfstl_skip_known_failing;
 bool g_usfstl_flush_each_log;
 static bool g_usfstl_list_tests;
+
+#ifndef USFSTL_LIBRARY
 static bool g_usfstl_list_asserts;
+#endif // USFSTL_LIBRARY
 
 #if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3)
 static int g_usfstl_test = -1;
@@ -190,9 +193,12 @@ USFSTL_OPT("summary", 0, "filename", init_summary, NULL,
 	   "write summary of tests to this file after running");
 USFSTL_OPT_FLAG("skip-known-failing", 0, g_usfstl_skip_known_failing,
 		"skip tests/testcases known to fail");
+#endif
+
+#ifndef USFSTL_LIBRARY
 USFSTL_OPT_FLAG("list-asserts", 0, g_usfstl_list_asserts,
                 "list all asserts compiled in the test code");
-#endif
+#endif // USFSTL_LIBRARY
 
 USFSTL_OPT_FLAG("debug", 'd', g_usfstl_abort_on_error,
 		"debug mode, abort on any error");
