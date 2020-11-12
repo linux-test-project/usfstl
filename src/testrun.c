@@ -89,6 +89,10 @@ void usfstl_abort(const char *fn, unsigned int line, const char *cond,
 	usfstl_vprintf(msg, va);
 	va_end(va);
 	usfstl_printf("\n");
+
+	if (g_usfstl_current_testcase && g_usfstl_current_testcase->failing)
+		usfstl_printf("!!!! NOTE: This failure is a know one (marked explicitly in the testcase)\n\n");
+
 	/* we printed all that to stdout, flush */
 	fflush(stdout);
 	/* so it doesn't interleave with this on stderr */
