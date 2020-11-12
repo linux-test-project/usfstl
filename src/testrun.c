@@ -62,13 +62,21 @@ void usfstl_abort(const char *fn, unsigned int line, const char *cond,
 
 	usfstl_printf("\n");
 	usfstl_printf("!!!! assertion failure in %s:%d", fn, line);
+
 	if (g_usfstl_current_case_num >= 0) {
 		usfstl_printf(" (test '%s', case #%d)\n",
 			      g_usfstl_current_test->name, g_usfstl_current_case_num);
-		usfstl_printf("        re-run just this test with '--test=%d --case=%d'\n",
-			      g_usfstl_current_test_num, g_usfstl_current_case_num);
 	} else {
 		usfstl_printf("\n");
+	}
+
+	if (g_usfstl_current_testcase && g_usfstl_current_testcase->name)
+		usfstl_printf("  testcase name:\n\t\"\"\"%s\"\"\"\n\n",
+			      g_usfstl_current_testcase->name);
+
+	if (g_usfstl_current_case_num >= 0) {
+		usfstl_printf("\t\tre-run just this test with '--test=%d --case=%d'\n",
+			      g_usfstl_current_test_num, g_usfstl_current_case_num);
 	}
 
 	if (g_usfstl_multi_local_participant.name)
