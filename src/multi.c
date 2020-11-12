@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -23,11 +23,6 @@
 // (so it can treat itself as a normal participant in most places)
 struct usfstl_rpc_connection *USFSTL_NORESTORE_VAR(g_usfstl_multi_ctrl_conn);
 
-void usfstl_multi_sched_ext_req(struct usfstl_scheduler *sched, uint64_t at)
-{
-	multi_rpc_sched_request_conn(g_usfstl_multi_ctrl_conn, at);
-}
-
 void usfstl_multi_init(void)
 {
 	struct usfstl_multi_participant *p;
@@ -42,22 +37,18 @@ void usfstl_multi_init(void)
 
 void usfstl_multi_start_test(void)
 {
-	if (!usfstl_is_multi())
-		return;
-
 	if (usfstl_is_multi_controller())
 		usfstl_multi_start_test_controller();
-	else
+
+	if (usfstl_is_multi_participant())
 		usfstl_multi_start_test_participant();
 }
 
 void usfstl_multi_end_test(enum usfstl_testcase_status status)
 {
-	if (!usfstl_is_multi())
-		return;
-
 	if (usfstl_is_multi_controller())
 		usfstl_multi_end_test_controller(status);
-	else
+
+	if (usfstl_is_multi_participant())
 		usfstl_multi_end_test_participant();
 }

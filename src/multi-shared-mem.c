@@ -188,11 +188,6 @@ void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 	if (!msg_size)
 		return;
 
-	// the controller continues itself, so in that case skip the message
-	// because it was already handled
-	if (msg == g_usfstl_shared_mem_msg)
-		return;
-
 	// the controller keeps the state of each participant
 	for_each_participant(p, i) {
 		// all waiting participants are now outdated

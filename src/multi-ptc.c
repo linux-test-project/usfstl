@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -21,19 +21,27 @@
 // variables for participant
 struct usfstl_test USFSTL_NORESTORE_VAR(g_usfstl_multi_controlled_test);
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_running);
-// the last one is used by the scheduler wait in the controller
-// as well, since it has a dual role and calls itself as a normal
-// participant as well
-bool g_usfstl_multi_test_sched_continue;
+static bool g_usfstl_multi_test_sched_continue;
+
+bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_participant);
+
+static bool usfstl_set_multi_participant_name(struct usfstl_opt *opt,
+					      const char *arg)
+{
+	g_usfstl_multi_test_participant = true;
+	g_usfstl_multi_local_participant.name = arg;
+
+	return true;
+}
 
 /*
  * Set the participant name in g_usfstl_multi_local_participant.name
  * (because that's also set by the user for the multi controller for
  * logging purposes) - we print that on test failures (if not NULL).
  */
-USFSTL_OPT_STR("multi-ptc-name", 0, "name",
-	       g_usfstl_multi_local_participant.name,
-	       "Participant name, set by the controller");
+USFSTL_OPT("multi-ptc-name", 0, "name",
+	   usfstl_set_multi_participant_name, NULL,
+	   "Participant name, set by the controller");
 
 static void usfstl_multi_participant_test_fn(const struct usfstl_test *test, void *tc)
 {
@@ -53,6 +61,12 @@ static void usfstl_multi_participant_test_fn(const struct usfstl_test *test, voi
 	usfstl_task_suspend();
 
 	USFSTL_ASSERT(0, "test task in participant should never resume");
+}
+
+static void usfstl_multi_sched_ext_req(struct usfstl_scheduler *sched,
+				       uint64_t at)
+{
+	multi_rpc_sched_request_conn(g_usfstl_multi_ctrl_conn, at);
 }
 
 static void usfstl_multi_sched_ext_wait_participant(struct usfstl_scheduler *sched)

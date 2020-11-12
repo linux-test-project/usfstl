@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -104,7 +104,7 @@ struct usfstl_logger *usfstl_log_create(const char *name)
 	if (!logger->f) {
 		const char *mode = "w";
 
-		if (usfstl_is_multi())
+		if (usfstl_is_multi_controller() || usfstl_is_multi_participant())
 			mode = "a";
 
 		logger->remote_idx = usfstl_log_create_logfile(name);

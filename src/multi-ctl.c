@@ -1,18 +1,15 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 /*
  * Controller-side code for multi-participant simulation.
  *
- * This is the controller code. Note that the controller is co-located with the
- * test execution & control and the test code itself, so some code here like the
- * usfstl_multi_sched_ext_wait_controller() function needs to be aware of both.
- *
- * Note also, however, that some participant code also runs on the controller,
- * e.g. the controller just unconditionally calls multi_rpc_sched_cont_conn()
- * from running the overall scheduler.
+ * This is the controller code. Note that the controller may be co-located with
+ * the test execution & control and the test code itself, so some code here like
+ * the usfstl_multi_sched_ext_wait_controller() function needs to be aware of
+ * both.
  */
 #include <assert.h>
 #include <unistd.h>
@@ -25,6 +22,8 @@
 #include <usfstl/task.h>
 #include "internal.h"
 #include "multi-rpc.h"
+
+bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_controller);
 
 static bool g_usfstl_debug_subprocesses;
 USFSTL_OPT_FLAG("multi-debug-subprocs", 0, g_usfstl_debug_subprocesses,
@@ -91,6 +90,8 @@ void usfstl_multi_controller_init(void)
 	struct usfstl_multi_participant *p;
 	int i;
 
+	g_usfstl_multi_test_controller = true;
+
 	for_each_participant(p, i)
 		usfstl_multi_ctl_start_participant(p);
 
@@ -104,12 +105,7 @@ void usfstl_multi_controller_init(void)
 		__asm__ __volatile__("int $3");
 	}
 
-	g_usfstl_multi_ctrl_conn = USFSTL_RPC_LOCAL;
 	g_usfstl_top_scheduler = &g_usfstl_multi_sched;
-
-	g_usfstl_multi_ctrl_conn->extra_len = sizeof(struct usfstl_multi_sync);
-	g_usfstl_multi_ctrl_conn->extra_transmit = usfstl_multi_ctl_extra_transmit;
-	g_usfstl_multi_ctrl_conn->extra_received = usfstl_multi_extra_received;
 }
 
 static void usfstl_multi_controller_wait_all(uint32_t flag, bool schedule)
@@ -140,17 +136,71 @@ static void usfstl_multi_controller_wait_all(uint32_t flag, bool schedule)
 	}
 }
 
+static void
+usfstl_multi_controller_update_sync_time(struct usfstl_multi_participant *update)
+{
+	uint64_t time = usfstl_sched_current_time(&g_usfstl_multi_sched);
+	// pick something FAR away (but not considered in the past)
+	// so we don't sync often if nothing really happens
+	uint64_t sync = time + (1ULL << 62);
+	struct usfstl_job *job;
+
+	job = usfstl_sched_next_pending(&g_usfstl_multi_sched, NULL);
+	if (job)
+		sync = job->start;
+
+	if (!update)
+		update = g_usfstl_multi_running_participant;
+	else
+		g_usfstl_multi_running_participant = update;
+
+	// If we synced it to exactly the same time before, don't do it again.
+	if (update->sync_set && update->sync == sync)
+		return;
+
+	multi_rpc_sched_set_sync_conn(update->conn, sync);
+	update->sync_set = 1;
+	update->sync = sync;
+}
+
+static void usfstl_multi_controller_task_callback(struct usfstl_job *job)
+{
+	usfstl_sched_set_sync_time(&g_usfstl_task_scheduler, job->start);
+}
+
+static struct usfstl_job g_usfstl_multi_ctl_task_job = {
+	.name = "local-tasks",
+	.callback = usfstl_multi_controller_task_callback,
+};
+
+static void usfstl_multi_sched_ext_req_controller(struct usfstl_scheduler *sched,
+						  uint64_t at)
+{
+	usfstl_sched_del_job(&g_usfstl_multi_ctl_task_job);
+	g_usfstl_multi_ctl_task_job.start = at;
+	usfstl_sched_add_job(&g_usfstl_multi_sched,
+			     &g_usfstl_multi_ctl_task_job);
+
+	usfstl_multi_controller_update_sync_time(NULL);
+}
+
 static void usfstl_multi_sched_ext_wait_controller(struct usfstl_scheduler *sched)
 {
-	g_usfstl_multi_test_sched_continue = false;
+	struct usfstl_job *ran;
 
 	// save the local view of the shared memory before waiting
 	usfstl_shared_mem_prepare_msg(true);
 
-	while (!g_usfstl_multi_test_sched_continue) {
+	do {
 		usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_WAITING, false);
-		usfstl_sched_next(&g_usfstl_multi_sched);
-	}
+		ran = usfstl_sched_next(&g_usfstl_multi_sched);
+	} while (ran != &g_usfstl_multi_ctl_task_job);
+
+	usfstl_sched_set_time(&g_usfstl_task_scheduler,
+			      usfstl_sched_current_time(&g_usfstl_multi_sched));
+
+	// refresh the local view of the shared memory before continuing
+	usfstl_shared_mem_update_local_view();
 }
 
 void usfstl_multi_start_test_controller(void)
@@ -178,11 +228,10 @@ void usfstl_multi_start_test_controller(void)
 
 	// local scheduler also needs to integrate, set that up here
 	// to avoid reset during globals restore
-	g_usfstl_task_scheduler.external_request = usfstl_multi_sched_ext_req;
+	g_usfstl_task_scheduler.external_request =
+		usfstl_multi_sched_ext_req_controller;
 	g_usfstl_task_scheduler.external_wait =
 		usfstl_multi_sched_ext_wait_controller;
-	g_usfstl_multi_ctrl_conn = USFSTL_RPC_LOCAL;
-	USFSTL_RPC_LOCAL->data = &g_usfstl_multi_local_participant;
 }
 
 void usfstl_multi_end_test_controller(enum usfstl_testcase_status status)
@@ -218,33 +267,6 @@ void usfstl_multi_finish(void)
 		usfstl_rpc_del_connection(p->conn);
 		multi_rpc_exit_conn(p->conn, 0);
 	}
-}
-
-static void
-usfstl_multi_controller_update_sync_time(struct usfstl_multi_participant *update)
-{
-	uint64_t time = usfstl_sched_current_time(&g_usfstl_multi_sched);
-	// pick something FAR away (but not considered in the past)
-	// so we don't sync often if nothing really happens
-	uint64_t sync = time + (1ULL << 62);
-	struct usfstl_job *job;
-
-	job = usfstl_sched_next_pending(&g_usfstl_multi_sched, NULL);
-	if (job)
-		sync = job->start;
-
-	if (!update)
-		update = g_usfstl_multi_running_participant;
-	else
-		g_usfstl_multi_running_participant = update;
-
-	// If we synced it to exactly the same time before, don't do it again.
-	if (update->sync_set && update->sync == sync)
-		return;
-
-	multi_rpc_sched_set_sync_conn(update->conn, sync);
-	update->sync_set = 1;
-	update->sync = sync;
 }
 
 static void usfstl_multi_controller_sched_callback(struct usfstl_job *job)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -148,8 +148,6 @@ void usfstl_multi_end_test(enum usfstl_testcase_status status);
 void usfstl_multi_end_test_controller(enum usfstl_testcase_status status);
 void usfstl_multi_end_test_participant(void);
 
-void usfstl_multi_sched_ext_req(struct usfstl_scheduler *sched, uint64_t at);
-
 void usfstl_multi_controller_init(void);
 int usfstl_multi_participant_run(void);
 
@@ -157,22 +155,17 @@ void usfstl_multi_extra_received(struct usfstl_rpc_connection *conn,
 				 const void *data);
 
 extern struct usfstl_rpc_connection *g_usfstl_multi_ctrl_conn;
-extern bool g_usfstl_multi_test_sched_continue;
-
-static inline bool usfstl_is_multi(void)
-{
-	return g_usfstl_multi_ctrl_conn;
-}
+extern bool g_usfstl_multi_test_participant;
+extern bool g_usfstl_multi_test_controller;
 
 static inline bool usfstl_is_multi_controller(void)
 {
-	return g_usfstl_multi_ctrl_conn == USFSTL_RPC_LOCAL;
+	return g_usfstl_multi_test_controller;
 }
 
 static inline bool usfstl_is_multi_participant(void)
 {
-	return g_usfstl_multi_ctrl_conn &&
-	       g_usfstl_multi_ctrl_conn != USFSTL_RPC_LOCAL;
+	return g_usfstl_multi_test_participant;
 }
 
 /* shared memory */
