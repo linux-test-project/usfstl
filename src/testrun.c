@@ -26,6 +26,7 @@ void *g_usfstl_current_test_case_data;
 int g_usfstl_current_case_num = -1;
 int g_usfstl_current_test_num = -1;
 unsigned int g_usfstl_failure_reason;
+usfstl_abort_handler_t g_usfstl_abort_handler;
 
 void usfstl_out_of_time(void *rip)
 {
@@ -57,6 +58,12 @@ void usfstl_abort(const char *fn, unsigned int line, const char *cond,
 		  const char *msg, ...)
 {
 	va_list va;
+
+	if (g_usfstl_abort_handler) {
+		usfstl_printf("Calling user-defined abort handler\n");
+		fflush(stdout);
+		g_usfstl_abort_handler(fn, line, cond);
+	}
 
 	usfstl_flush_all();
 

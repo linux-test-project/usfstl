@@ -43,6 +43,14 @@ extern int g_usfstl_current_case_num;
  */
 extern struct usfstl_testcase *g_usfstl_current_testcase;
 
+/*
+ * A user may provide an aborthandler, which is invoked by the
+ * test runner in the event an assert was triggered. Useful in the case where
+ * certain tests may wish to prevent certain asserts from failing a test,
+ * under certain conditions, e.g., when running tested code with a fuzzing engine.
+ */
+typedef void (*usfstl_abort_handler_t)(const char *fn, unsigned int line, const char *cond);
+extern usfstl_abort_handler_t g_usfstl_abort_handler;
 
 void usfstl_void_stub(void);
 void usfstl_install_stub(const char *fname, const void *repl,
