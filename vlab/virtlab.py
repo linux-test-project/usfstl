@@ -247,7 +247,7 @@ def start_process(args: List[str], outfile: Union[None, str] = None,
                             stdout=s_out, stdin=s_in, stderr=s_err)
 
 
-def wait_for_socket(which: str, sockname: Optional[str]) -> None:
+def wait_for_socket(which: str, sockname: Optional[str], timeout: int = 2) -> None:
     """
     Unless it is None, wait for the socket to appear, with a timeout
     (which raises a Failure).
@@ -257,7 +257,7 @@ def wait_for_socket(which: str, sockname: Optional[str]) -> None:
     start = time.time()
     while not os.path.exists(sockname):
         time.sleep(0.1)
-        if time.time() - start > 2:
+        if time.time() - start > timeout:
             raise Failure(f"Socket {sockname} for {which} didn't appear!")
 
 
