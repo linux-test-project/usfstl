@@ -18,17 +18,15 @@ struct usfstl_logger {
 	const char *name;
 	FILE *f;
 	uint32_t refcount;
-	int idx;
-	struct usfstl_rpc_log *buf;
-	int bufsize, bufoffs;
+	int idx, remote_idx;
 };
 
 static struct usfstl_logger **USFSTL_NORESTORE_VAR(g_usfstl_loggers);
-static unsigned int USFSTL_NORESTORE_VAR(g_usfstl_loggers_num);
+static int USFSTL_NORESTORE_VAR(g_usfstl_loggers_num);
 
-static uint32_t usfstl_find_or_allocate(const char *name)
+static int usfstl_find_or_allocate(const char *name)
 {
-	uint32_t i;
+	int i;
 
 	for (i = 0; i < g_usfstl_loggers_num; i++) {
 		if (!g_usfstl_loggers[i])
@@ -78,41 +76,50 @@ void usfstl_printf(const char *msg, ...)
 		fflush(stdout);
 }
 
-struct usfstl_logger *usfstl_log_create(const char *name)
+static int32_t usfstl_log_create_logfile(const char *name)
 {
-	uint32_t idx = usfstl_find_or_allocate(name);
-	struct usfstl_logger *logger = g_usfstl_loggers[idx];
-
 	if (usfstl_is_multi_participant()) {
 		struct {
 			struct usfstl_rpc_log_create hdr;
 			char name[1000];
 		} __attribute__((packed)) msg;
-		uint32_t idx;
 
-		USFSTL_ASSERT(!logger->f);
 		memcpy(msg.name, name, sizeof(msg.name));
-		idx = rpc_log_create_conn(g_usfstl_multi_ctrl_conn,
-					  &msg.hdr,
-					  sizeof(msg.hdr) + strlen(msg.name));
-
-		logger->bufsize = 1024;
-		logger->bufoffs = 0;
-		logger->buf = malloc(sizeof(*logger->buf) +
-				     logger->bufsize);
-		USFSTL_ASSERT(logger->buf);
-		memset(logger->buf, 0, sizeof(*logger->buf));
-		logger->buf->idx = idx;
-
-		return logger;
+		return rpc_log_create_conn(g_usfstl_multi_ctrl_conn, &msg.hdr,
+					   sizeof(msg.hdr) + strlen(msg.name));
+	} else {
+		/* just overwrite a possibly existing file */
+		FILE *f = fopen(name, "w");
+		USFSTL_ASSERT(f, "failed to create '%s'", name);
+		fclose(f);
+		return -1;
 	}
+}
+
+struct usfstl_logger *usfstl_log_create(const char *name)
+{
+	int idx = usfstl_find_or_allocate(name);
+	struct usfstl_logger *logger = g_usfstl_loggers[idx];
 
 	if (!logger->f) {
-		logger->f = fopen(name, "w");
+		logger->remote_idx = usfstl_log_create_logfile(name);
+		logger->f = fopen(name, "a");
 		USFSTL_ASSERT(logger->f, "failed to open '%s'", name);
 	}
 
 	return logger;
+}
+
+static void usfstl_log_close(struct usfstl_logger *logger)
+{
+	if (logger->f == stdout)
+		return;
+
+	fclose(logger->f);
+
+	if (usfstl_is_multi_participant())
+		rpc_log_close_conn(g_usfstl_multi_ctrl_conn,
+				   logger->remote_idx);
 }
 
 struct usfstl_logger *usfstl_log_create_stdout(const char *name)
@@ -121,8 +128,8 @@ struct usfstl_logger *usfstl_log_create_stdout(const char *name)
 	struct usfstl_logger *logger = g_usfstl_loggers[idx];
 
 	// may change an existing logger to be stdout
-	if (logger->f && logger->f != stdout)
-		fclose(logger->f);
+	if (logger->f)
+		usfstl_log_close(logger);
 	logger->f = stdout;
 
 	return logger;
@@ -130,7 +137,7 @@ struct usfstl_logger *usfstl_log_create_stdout(const char *name)
 
 void usfstl_log_free(struct usfstl_logger *logger)
 {
-	unsigned int i;
+	int i;
 	bool empty = true;
 
 	logger->refcount--;
@@ -138,12 +145,7 @@ void usfstl_log_free(struct usfstl_logger *logger)
 	if (logger->refcount)
 		return;
 
-	if (logger->buf) {
-		rpc_log_free_conn(g_usfstl_multi_ctrl_conn, logger->buf->idx);
-		free(logger->buf);
-	} else if (logger->f != stdout) {
-		fclose(logger->f);
-	}
+	usfstl_log_close(logger);
 
 	free((void *)logger->name);
 	g_usfstl_loggers[logger->idx] = NULL;
@@ -168,54 +170,7 @@ static void _usfstl_logvf(struct usfstl_logger *logger, const char *msg, va_list
 	if (!logger)
 		return;
 
-	if (logger->buf) {
-		int sz;
-
-		while (true) {
-			int bufoffs = logger->bufoffs;
-
-			if (logger->bufsize - bufoffs == 0) {
-				sz = 1;
-			} else {
-				*(logger->buf->buf + logger->bufsize - 1) = 0;
-				sz = vsnprintf(logger->buf->buf + bufoffs,
-					       logger->bufsize - bufoffs,
-					       msg, ap);
-			}
-			/*
-			 * Some implementations of vsnprintf() can return
-			 * negative values even for out-of-space conditions,
-			 * although they should return the "needed size" in
-			 * that case.
-			 * We work around this by setting the last char of
-			 * the buffer to 0 above, and if we get a negative
-			 * return value and it is non non-zero we can know
-			 * that we need more space.
-			 *
-			 * Since we don't (and cannot) know how much space we
-			 * need just double in this case.
-			 */
-			if (sz < 0 && *(logger->buf->buf + logger->bufsize - 1))
-				sz = logger->bufsize;
-			USFSTL_ASSERT(sz >= 0);
-
-			sz += bufoffs;
-
-			if (sz <= logger->bufsize)
-				break;
-
-			// resize if needed - rounding up
-			logger->bufsize = 1024 * (sz / 1024 + 1);
-			logger->buf = realloc(logger->buf,
-					      sizeof(*logger->buf) +
-						logger->bufsize);
-			USFSTL_ASSERT(logger->buf);
-		}
-
-		logger->bufoffs = sz;
-	} else {
-		vfprintf(logger->f, msg, ap);
-	}
+	vfprintf(logger->f, msg, ap);
 }
 
 static void _usfstl_logf(struct usfstl_logger *logger, const char *msg, ...)
@@ -241,18 +196,12 @@ static void usfstl_log_flush(struct usfstl_logger *logger)
 	if (!logger)
 		return;
 
-	if (logger->buf) {
-		rpc_log_conn(g_usfstl_multi_ctrl_conn, logger->buf,
-			     sizeof(*logger->buf) + logger->bufoffs);
-		logger->bufoffs = 0;
-	} else if (g_usfstl_flush_each_log) {
-		fflush(logger->f);
-	}
+	fflush(logger->f);
 }
 
 void usfstl_flush_all(void)
 {
-	uint32_t i;
+	int i;
 
 	fflush(stdout);
 	fflush(stderr);
@@ -270,7 +219,8 @@ void usfstl_logvf(struct usfstl_logger *logger, const char *pfx,
 	if (!logger)
 		return;
 
-	if (usfstl_is_multi_controller())
+	if (g_usfstl_multi_local_participant.name &&
+	    (usfstl_is_multi_controller() || usfstl_is_multi_participant()))
 		_usfstl_logf(logger, "[%s]", g_usfstl_multi_local_participant.name);
 
 	if (pfx && pfx[0])
@@ -334,7 +284,7 @@ void usfstl_logf_buf(struct usfstl_logger *logger, const char *pfx,
 #define USFSTL_RPC_IMPLEMENTATION
 #include <usfstl/rpc.h>
 
-USFSTL_RPC_METHOD_VAR(uint32_t, rpc_log_create, struct usfstl_rpc_log_create)
+USFSTL_RPC_METHOD_VAR(int, rpc_log_create, struct usfstl_rpc_log_create)
 {
 	unsigned int namelen = insize - sizeof(*in);
 	char name[namelen + 1];
@@ -348,20 +298,9 @@ USFSTL_RPC_METHOD_VAR(uint32_t, rpc_log_create, struct usfstl_rpc_log_create)
 	return logger->idx;
 }
 
-USFSTL_RPC_VOID_METHOD(rpc_log_free, uint32_t)
+USFSTL_RPC_VOID_METHOD(rpc_log_close, int)
 {
 	USFSTL_ASSERT(in < g_usfstl_loggers_num);
 
 	usfstl_log_free(g_usfstl_loggers[in]);
-}
-
-USFSTL_RPC_ASYNC_METHOD_VAR(rpc_log, struct usfstl_rpc_log)
-{
-	struct usfstl_multi_participant *p = conn->data;
-	unsigned int buflen = insize - sizeof(*in);
-
-	USFSTL_ASSERT(in->idx < g_usfstl_loggers_num);
-
-	_usfstl_logf(g_usfstl_loggers[in->idx], "[%s]%.*s",
-		     p->name, buflen, in->buf);
 }

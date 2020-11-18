@@ -49,6 +49,8 @@ static void usfstl_send_response(struct usfstl_rpc_connection *conn, int status)
 		.error = status,
 	};
 
+	usfstl_flush_all();
+
 	rpc_write(conn->conn.fd, &tag, sizeof(tag));
 	rpc_write(conn->conn.fd, &resp, sizeof(resp));
 }
@@ -58,6 +60,8 @@ static void usfstl_rpc_make_call(struct usfstl_rpc_connection *conn,
 				 const void *arg, uint32_t argsize,
 				 void *ret, uint32_t retsize)
 {
+	usfstl_flush_all();
+
 	if (stub->req.argsize & USFSTL_VAR_DATA_SIZE &&
 	    stub->req.retsize & USFSTL_VAR_DATA_SIZE) {
 		void (*vfnv)(struct usfstl_rpc_connection *conn,
