@@ -8,6 +8,22 @@
 #include <usfstl/assert.h>
 #include <usfstl/sched.h>
 #include <usfstl/list.h>
+#include "internal.h"
+
+uint64_t usfstl_sched_current_time(struct usfstl_scheduler *sched)
+{
+	uint64_t current_time;
+
+	if (!sched->external_sync_from || !sched->waiting)
+		return sched->current_time;
+
+	current_time = sched->external_sync_from(sched);
+
+	/* update current time after sync */
+	usfstl_sched_set_time(sched, current_time);
+
+	return current_time;
+}
 
 static bool usfstl_sched_external_request(struct usfstl_scheduler *sched,
 					  uint64_t time)
@@ -172,8 +188,13 @@ struct usfstl_job *usfstl_sched_next(struct usfstl_scheduler *sched)
 	 * If external scheduler is active, we might get here with nothing
 	 * to do, so we just need to wait for an external input/job which
 	 * will add an job to our scheduler in usfstl_sched_add_job().
+	 *
+	 * And due to the fact that we don't have any API for canceling external
+	 * time request, we can request external time which adds a job on the
+	 * external scheduler and cancel internally, and get scheduled to run
+	 * with nothing to do.
 	 */
-	if (usfstl_list_empty(&sched->joblist) && sched->external_request)
+	while (usfstl_list_empty(&sched->joblist) && sched->external_request)
 		usfstl_sched_external_wait(sched);
 
 	while ((job = usfstl_sched_next_pending(sched, NULL))) {
@@ -295,4 +316,86 @@ void usfstl_sched_restore_groups(struct usfstl_scheduler *sched,
 
 	usfstl_sched_restore_blocked_jobs(sched);
 	usfstl_sched_remove_blocked_jobs(sched);
+}
+
+static void usfstl_sched_link_job_callback(struct usfstl_job *job)
+{
+	struct usfstl_scheduler *sched = job->data;
+
+	sched->link.waiting = false;
+}
+
+static uint64_t usfstl_sched_link_external_sync_from(struct usfstl_scheduler *sched)
+{
+	uint64_t parent_time;
+
+	parent_time = usfstl_sched_current_time(sched->link.parent);
+
+	return DIV_ROUND_UP(parent_time - sched->link.offset,
+			    sched->link.tick_ratio);
+}
+
+static void usfstl_sched_link_external_wait(struct usfstl_scheduler *sched)
+{
+	sched->link.waiting = true;
+
+	while (sched->link.waiting)
+		usfstl_sched_next(sched->link.parent);
+
+	usfstl_sched_set_time(sched, usfstl_sched_current_time(sched));
+}
+
+static void usfstl_sched_link_external_request(struct usfstl_scheduler *sched,
+					       uint64_t time)
+{
+	uint64_t parent_time;
+	struct usfstl_job *job = &sched->link.job;
+
+	parent_time = sched->link.tick_ratio * time + sched->link.offset;
+
+	usfstl_sched_del_job(job);
+	job->start = parent_time;
+	usfstl_sched_add_job(sched->link.parent, job);
+}
+
+void usfstl_sched_link(struct usfstl_scheduler *sched,
+		       struct usfstl_scheduler *parent,
+		       uint32_t tick_ratio)
+{
+	struct usfstl_job *job;
+
+	USFSTL_ASSERT(tick_ratio, "a ratio must be set");
+	USFSTL_ASSERT(!sched->link.parent, "must not be linked");
+
+	USFSTL_ASSERT_EQ(sched->external_request, NULL, "%p");
+	sched->external_request = usfstl_sched_link_external_request;
+
+	USFSTL_ASSERT_EQ(sched->external_wait, NULL, "%p");
+	sched->external_wait = usfstl_sched_link_external_wait;
+
+	USFSTL_ASSERT_EQ(sched->external_sync_from, NULL, "%p");
+	sched->external_sync_from = usfstl_sched_link_external_sync_from;
+
+	sched->link.tick_ratio = tick_ratio;
+	sched->link.parent = parent;
+
+	sched->link.job.callback = usfstl_sched_link_job_callback;
+	sched->link.job.data = sched;
+
+	/* current_time = (parent_time - offset) / tick_ratio */
+	sched->link.offset = sched->link.parent->current_time -
+		sched->current_time * sched->link.tick_ratio;
+
+	/* if we have a job already, request to run it */
+	job = usfstl_sched_next_pending(sched, NULL);
+	if (job)
+		usfstl_sched_external_request(sched, job->start);
+}
+
+void usfstl_sched_unlink(struct usfstl_scheduler *sched)
+{
+	USFSTL_ASSERT(sched->link.parent, "must be linked");
+
+	usfstl_sched_del_job(&sched->link.job);
+	memset(&sched->link, 0, sizeof(sched->link));
 }
