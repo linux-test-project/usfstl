@@ -84,7 +84,16 @@ cat >/root/.ssh/environment <<EOF
 PATH=$PATH
 EOF
 
-$(which sshd) -f /tmp/sshd.conf >/dev/console >/dev/null 2>&1 &
+real_cfg="$(dirname $(which sshd))/../etc/ssh/sshd_config"
+if test -f $real_cfg ; then
+	(
+		grep -v sftp /tmp/sshd.conf
+		grep sftp $real_cfg
+	) > /tmp/sshd.conf.tmp
+	mv /tmp/sshd.conf.tmp /tmp/sshd.conf
+fi
+
+$(which sshd) -f /tmp/sshd.conf >/dev/console 2>&1 &
 
 if ! [ -z "${customrootfs+x}" ] ; then
     test -d /tmp/.host/$customrootfs || (
