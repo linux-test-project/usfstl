@@ -16,7 +16,6 @@ mount sys -t sysfs /sys
 mount debug -t debugfs /sys/kernel/debug
 mount tmp -t tmpfs /etc
 mount tmp -t tmpfs /tmp
-mount tmp -t tmpfs /home
 mount tmp -t tmpfs /root
 mount tmp -t tmpfs /var
 
