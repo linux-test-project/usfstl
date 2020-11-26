@@ -66,15 +66,21 @@ static void vu_net_client_handle(struct usfstl_vhost_user_dev *dev,
 
 	sz = iov_len(buf->out_sg, buf->n_out_sg);
 	pkt = malloc(sizeof(*pkt) + sz);
-	memset(pkt, 0, sizeof(*pkt) + sz);
-	pkt->job.start = scheduler.current_time + pktdelay;
-	pkt->job.callback = packet_job_callback;
-	sprintf(pkt->name, "packet from %d", client->idx);
-	pkt->job.name = pkt->name;
+	memset(pkt, 0, sizeof(*pkt));
+
 	pkt->len = sz;
 	pkt->transmitter = client;
 	iov_read(pkt->buf, sz, buf->out_sg, buf->n_out_sg);
-	usfstl_sched_add_job(&scheduler, &pkt->job);
+
+	if (pktdelay) {
+		pkt->job.start = scheduler.current_time + pktdelay;
+		pkt->job.callback = packet_job_callback;
+		sprintf(pkt->name, "packet from %d", client->idx);
+		pkt->job.name = pkt->name;
+		usfstl_sched_add_job(&scheduler, &pkt->job);
+	} else {
+		packet_job_callback(&pkt->job);
+	}
 
 	if (!client->addrvalid && pkt->len >= ETHOFFS + 12) {
 		memcpy(client->addr, pkt->buf + ETHOFFS + 6, 6);
