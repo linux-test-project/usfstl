@@ -151,8 +151,6 @@ static void dump_sched(const char *msg)
 		fflush(stdout);
 }
 
-static void update_sync(struct usfstl_schedule_client *client);
-
 static void free_client(struct usfstl_job *job)
 {
 	struct usfstl_schedule_client *client;
@@ -256,7 +254,6 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		client->job.start = client->offset + msg.time;
 		usfstl_sched_add_job(&scheduler, &client->job);
 		client->n_req++;
-		update_sync(NULL);
 		break;
 	case UM_TIMETRAVEL_START:
 		/*
@@ -419,7 +416,8 @@ static void update_sync(struct usfstl_schedule_client *client)
 
 	dump_sched("sync update");
 
-	USFSTL_ASSERT(!update_sync_running);
+	if (update_sync_running)
+		return;
 
 	update_sync_running = true;
 
@@ -518,6 +516,11 @@ USFSTL_OPT_FLAG("wallclock-network", 0, wallclock_network,
 USFSTL_OPT_INT("debug", 0, "level", debug_level, "debug level");
 USFSTL_OPT_FLAG("flush", 0, flush, "flush debug output after each line");
 
+static void next_time_changed(struct usfstl_scheduler *sched)
+{
+	update_sync(NULL);
+}
+
 int main(int argc, char **argv)
 {
 	struct timespec wallclock;
@@ -540,6 +543,8 @@ int main(int argc, char **argv)
 	net_init();
 	if (path)
 		usfstl_uds_create(path, handle_new_connection, NULL);
+
+	scheduler.next_time_changed = next_time_changed;
 
 	usfstl_sched_start(&scheduler);
 
