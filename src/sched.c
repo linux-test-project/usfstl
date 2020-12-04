@@ -90,6 +90,9 @@ void usfstl_sched_add_job(struct usfstl_scheduler *sched, struct usfstl_job *job
 	 * external scheduler.
 	 */
 	usfstl_sched_external_request(sched, job->start);
+
+	if (sched->next_time_changed)
+		sched->next_time_changed(sched);
 }
 
 bool usfstl_job_scheduled(struct usfstl_job *job)

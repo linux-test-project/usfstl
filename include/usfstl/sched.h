@@ -63,6 +63,7 @@ struct usfstl_scheduler {
 	void (*time_advanced)(struct usfstl_scheduler *, uint64_t delta);
 
 /* private: */
+	void (*next_time_changed)(struct usfstl_scheduler *);
 	uint64_t current_time;
 	uint64_t prev_external_sync, next_external_sync;
 
