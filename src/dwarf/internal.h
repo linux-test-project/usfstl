@@ -57,6 +57,14 @@ POSSIBILITY OF SUCH DAMAGE.  */
 # endif
 #endif
 
+#ifndef ATTRIBUTE_FALLTHROUGH
+# if (GCC_VERSION >= 7000)
+#  define ATTRIBUTE_FALLTHROUGH __attribute__ ((__fallthrough__))
+# else
+#  define ATTRIBUTE_FALLTHROUGH
+# endif
+#endif
+
 #ifndef HAVE_SYNC_FUNCTIONS
 
 /* Define out the sync functions.  These should never be called if
@@ -331,6 +339,31 @@ extern int backtrace_dwarf_add (struct backtrace_state *state,
 				void *data, fileline *fileline_fn,
 				struct dwarf_data **fileline_entry);
 
+/* A data structure to pass to backtrace_syminfo_to_full.  */
+
+struct backtrace_call_full
+{
+  backtrace_full_callback full_callback;
+  backtrace_error_callback full_error_callback;
+  void *full_data;
+  int ret;
+};
+
+/* A backtrace_syminfo_callback that can call into a
+   backtrace_full_callback, used when we have a symbol table but no
+   debug info.  */
+
+extern void backtrace_syminfo_to_full_callback (void *data, uintptr_t pc,
+						const char *symname,
+						uintptr_t symval,
+						uintptr_t symsize);
+
+/* An error callback that corresponds to
+   backtrace_syminfo_to_full_callback.  */
+
+extern void backtrace_syminfo_to_full_error_callback (void *, const char *,
+						      int);
+
 int dwarf_info_by_name(struct backtrace_state *state,
 		       const char *filename, const char *function,
 		       void **ptr, char **rettype, char **args,
@@ -354,5 +387,14 @@ extern int backtrace_uncompress_zdebug (struct backtrace_state *,
 					backtrace_error_callback, void *data,
 					unsigned char **uncompressed,
 					size_t *uncompressed_size);
+
+/* A test-only hook for elf_uncompress_lzma.  */
+
+extern int backtrace_uncompress_lzma (struct backtrace_state *,
+				      const unsigned char *compressed,
+				      size_t compressed_size,
+				      backtrace_error_callback, void *data,
+				      unsigned char **uncompressed,
+				      size_t *uncompressed_size);
 
 #endif
