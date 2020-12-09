@@ -190,10 +190,11 @@ static void remove_client(struct usfstl_schedule_client *client)
 	else
 		client->job.start = scheduler.current_time;
 	client->job.callback = free_client;
-	usfstl_sched_add_job(&scheduler, &client->job);
 
 	if (running_client == client)
 		running_client = NULL;
+
+	usfstl_sched_add_job(&scheduler, &client->job);
 }
 
 static bool write_message(struct usfstl_schedule_client *client,
