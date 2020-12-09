@@ -191,7 +191,8 @@ usfstl_find_repl(const void *_orig)
 		for (i = 0; g_usfstl_current_test->tested_files[i]; i++) {
 			const char *okf = g_usfstl_current_test->tested_files[i];
 
-			if (same_filename(filename + strlen(filename) - strlen(okf), okf))
+			if ((strlen(okf) <= strlen(filename)) &&
+			    (same_filename(filename + strlen(filename) - strlen(okf), okf)))
 				goto hash;
 		}
 	}
