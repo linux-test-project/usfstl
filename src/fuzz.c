@@ -5,7 +5,9 @@
  */
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <assert.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -17,6 +19,17 @@
 static char *g_usfstl_fuzz_repro;
 USFSTL_OPT_STR("fuzz-repro", 0, "filename", g_usfstl_fuzz_repro,
 	       "data file for reproducing a fuzzer problem");
+#ifndef _WIN32
+/* list only helps if we have fork() */
+#include <sys/wait.h>
+static char *g_usfstl_fuzz_repro_list;
+USFSTL_OPT_STR("fuzz-repro-list", 0, "filename", g_usfstl_fuzz_repro_list,
+	       "file containing filenames to run for fuzz reproduction, one per line");
+static int g_usfstl_fuzz_repro_parallel, g_usfstl_fuzz_repro_running;
+USFSTL_OPT_INT("fuzz-repro-parallel", 0, "number-of-jobs",
+	       g_usfstl_fuzz_repro_parallel,
+	       "how many parallel fork()s to run for reproduction");
+#endif
 
 #if USFSTL_USE_FUZZING == 1
 extern int __afl_setup_failure;
@@ -70,6 +83,58 @@ void usfstl_fuzz(const unsigned char **data, size_t *len)
 
 	assert(buf);
 
+#ifndef _WIN32
+	if (g_usfstl_fuzz_repro_list) {
+		FILE *names;
+		char file[4096];
+		pid_t p;
+
+		USFSTL_ASSERT(!g_usfstl_fuzz_repro,
+			      "cannot use both --fuzz-repro/--fuzz-repro-list");
+
+		if (strcmp(g_usfstl_fuzz_repro_list, "-") == 0)
+			names = stdin;
+		else
+			names = fopen(g_usfstl_fuzz_repro_list, "r");
+		USFSTL_ASSERT(names, "failed to open %s",
+			      g_usfstl_fuzz_repro_list);
+
+		while (fgets(file, sizeof(file), names)) {
+			size_t len = strlen(file);
+
+			if (file[len - 1] == '\n')
+				file[len - 1] = 0;
+
+			printf("fuzz-repro: starting %s\n", file);
+
+			fd = open(file, O_RDONLY);
+			USFSTL_ASSERT(fd >= 0);
+			p = fork();
+			USFSTL_ASSERT(p >= 0);
+			if (p == 0)
+				goto fuzz;
+
+			close(fd);
+
+			g_usfstl_fuzz_repro_running++;
+
+			// if needed, wait for one child
+			if (g_usfstl_fuzz_repro_running >= g_usfstl_fuzz_repro_parallel) {
+				wait(NULL);
+				g_usfstl_fuzz_repro_running--;
+			}
+		}
+
+		while (g_usfstl_fuzz_repro_running--)
+			wait(NULL);
+
+		fclose(names);
+
+		// abort the parent test run - easier than detecting last file
+		usfstl_negative_test_succeeded();
+fuzz:;
+	} else
+#endif // _WIN32
 	if (g_usfstl_fuzz_repro) {
 		fd = open(g_usfstl_fuzz_repro, O_RDONLY);
 		assert(fd >= 0);
