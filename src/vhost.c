@@ -218,6 +218,49 @@ static int usfstl_vhost_user_read_msg(int fd, struct msghdr *msghdr)
 	return 0;
 }
 
+static void usfstl_vhost_user_send_msg(struct usfstl_vhost_user_dev_int *dev,
+				       struct vhost_user_msg *msg)
+{
+	size_t msgsz = sizeof(msg->hdr) + msg->hdr.size;
+	bool ack = dev->ext.protocol_features &
+		   (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
+	ssize_t written;
+
+	if (ack)
+		msg->hdr.flags |= VHOST_USER_MSG_FLAGS_NEED_REPLY;
+
+	written = write(dev->req_fd, msg, msgsz);
+	USFSTL_ASSERT_EQ(written, (ssize_t)msgsz, "%zd");
+
+	if (ack) {
+		struct usfstl_loop_entry entry = {
+			.fd = dev->req_fd,
+			.priority = 0x7fffffff, // max
+			.handler = usfstl_vhost_user_readable_handler,
+		};
+		struct iovec msg_iov = {
+			.iov_base = msg,
+			.iov_len = sizeof(*msg),
+		};
+		struct msghdr msghdr = {
+			.msg_iovlen = 1,
+			.msg_iov = &msg_iov,
+		};
+
+		/*
+		 * Wait for the fd to be readable - we may have to
+		 * handle other simulation (time) messages while
+		 * waiting ...
+		 */
+		usfstl_loop_register(&entry);
+		while (entry.fd != -1)
+			usfstl_loop_wait_and_handle();
+		USFSTL_ASSERT_EQ(usfstl_vhost_user_read_msg(dev->req_fd,
+							    &msghdr),
+				 0, "%d");
+	}
+}
+
 static void usfstl_vhost_user_send_virtq_buf(struct usfstl_vhost_user_dev_int *dev,
 					     struct usfstl_vhost_user_buf *buf,
 					     int virtq_idx)
@@ -256,44 +299,8 @@ static void usfstl_vhost_user_send_virtq_buf(struct usfstl_vhost_user_dev_int *d
 				.idx = virtq_idx,
 			},
 		};
-		bool ack = dev->ext.protocol_features &
-			   (1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK);
-		size_t msgsz = sizeof(msg.hdr) + msg.hdr.size;
 
-		if (ack)
-			msg.hdr.flags |= VHOST_USER_MSG_FLAGS_NEED_REPLY;
-
-		written = write(dev->req_fd, &msg, msgsz);
-		USFSTL_ASSERT_EQ(written, (ssize_t)msgsz, "%zd");
-
-		if (ack) {
-			struct usfstl_loop_entry entry = {
-				.fd = dev->req_fd,
-				.priority = 0x7fffffff, // max
-				.handler = usfstl_vhost_user_readable_handler,
-			};
-			struct iovec msg_iov = {
-				.iov_base = &msg,
-				.iov_len = sizeof(msg),
-			};
-			struct msghdr msghdr = {
-				.msg_iovlen = 1,
-				.msg_iov = &msg_iov,
-			};
-
-			/*
-			 * Wait for the fd to be readable - we may have to
-			 * handle other simulation (time) messages while
-			 * waiting ...
-			 */
-			usfstl_loop_register(&entry);
-			while (entry.fd != -1)
-				usfstl_loop_wait_and_handle();
-			USFSTL_ASSERT_EQ(usfstl_vhost_user_read_msg(dev->req_fd,
-								    &msghdr),
-				       0, "%d");
-		}
-
+		usfstl_vhost_user_send_msg(dev, &msg);
 		return;
 	}
 
@@ -785,6 +792,23 @@ void usfstl_vhost_user_dev_notify(struct usfstl_vhost_user_dev *extdev,
 
 	usfstl_vhost_user_send_virtq_buf(dev, buf, virtq_idx);
 	usfstl_vhost_user_free_buf(buf);
+}
+
+void usfstl_vhost_user_config_changed(struct usfstl_vhost_user_dev *dev)
+{
+	struct usfstl_vhost_user_dev_int *idev;
+	struct vhost_user_msg msg = {
+		.hdr.request = VHOST_USER_SLAVE_CONFIG_CHANGE_MSG,
+		.hdr.flags = VHOST_USER_VERSION,
+	};
+
+	idev = container_of(dev, struct usfstl_vhost_user_dev_int, entry);
+
+	if (!(idev->ext.protocol_features &
+			(1ULL << VHOST_USER_PROTOCOL_F_CONFIG)))
+		return;
+
+	usfstl_vhost_user_send_msg(idev, &msg);
 }
 
 void *usfstl_vhost_user_to_va(struct usfstl_vhost_user_dev *extdev, uint64_t addr)

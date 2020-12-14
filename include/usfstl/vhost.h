@@ -128,6 +128,12 @@ void usfstl_vhost_user_dev_notify(struct usfstl_vhost_user_dev *dev,
 				  const uint8_t *buf, size_t buflen);
 
 /**
+ * usfstl_vhost_user_config_changed - notify host of a config change event
+ * @dev: device to send to
+ */
+void usfstl_vhost_user_config_changed(struct usfstl_vhost_user_dev *dev);
+
+/**
  * usfstl_vhost_user_to_va - translate address
  * @dev: device to translate address for
  * @addr: guest-side virtual addr
