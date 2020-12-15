@@ -131,7 +131,7 @@ void usfstl_fuzz(const unsigned char **data, size_t *len)
 		fclose(names);
 
 		// abort the parent test run - easier than detecting last file
-		usfstl_negative_test_succeeded();
+		exit(0);
 fuzz:;
 	} else
 #endif // _WIN32
