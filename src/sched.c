@@ -396,6 +396,10 @@ void usfstl_sched_unlink(struct usfstl_scheduler *sched)
 {
 	USFSTL_ASSERT(sched->link.parent, "must be linked");
 
+	sched->external_sync_from = NULL;
+	sched->external_wait = NULL;
+	sched->external_request = NULL;
+
 	usfstl_sched_del_job(&sched->link.job);
 	memset(&sched->link, 0, sizeof(sched->link));
 }
