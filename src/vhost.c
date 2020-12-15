@@ -802,7 +802,7 @@ void usfstl_vhost_user_config_changed(struct usfstl_vhost_user_dev *dev)
 		.hdr.flags = VHOST_USER_VERSION,
 	};
 
-	idev = container_of(dev, struct usfstl_vhost_user_dev_int, entry);
+	idev = container_of(dev, struct usfstl_vhost_user_dev_int, ext);
 
 	if (!(idev->ext.protocol_features &
 			(1ULL << VHOST_USER_PROTOCOL_F_CONFIG)))
