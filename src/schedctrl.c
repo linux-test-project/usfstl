@@ -80,6 +80,28 @@ static void usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
 
 	USFSTL_ASSERT_EQ((int)ctrl->acked, 0, "%d");
 
+	/*
+	 * Race alert!
+	 *
+	 * UM_TIMETRAVEL_WAIT basically passes the run "token" to the
+	 * controller, which passes it to another participant of the
+	 * simulation. This other participant might immediately send
+	 * us another message on a different channel, e.g. if this
+	 * code is used in a vhost-user device.
+	 *
+	 * If here we were to use use usfstl_loop_wait_and_handle(),
+	 * we could actually get and process the vhost-user message
+	 * before the ACK for the WAIT message here, depending on the
+	 * (host) kernel's message ordering and select() handling etc.
+	 *
+	 * To avoid this, directly read the ACK message for the WAIT,
+	 * without handling any other sockets (first).
+	 */
+	if (op == UM_TIMETRAVEL_WAIT) {
+		usfstl_sched_ctrl_sock_read(ctrl->fd, ctrl);
+		USFSTL_ASSERT(ctrl->acked);
+	}
+
 	while (!ctrl->acked)
 		usfstl_loop_wait_and_handle();
 	ctrl->acked = 0;
