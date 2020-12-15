@@ -24,43 +24,6 @@ static void _usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
 			 (int)sizeof(msg), "%d");
 }
 
-static void usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
-				       enum um_timetravel_ops op,
-				       uint64_t time)
-{
-	static uint32_t seq, old_expected;
-
-	do {
-		seq++;
-	} while (seq == 0);
-
-	_usfstl_sched_ctrl_send_msg(ctrl, op, time, seq);
-	old_expected = ctrl->expected_ack_seq;
-	ctrl->expected_ack_seq = seq;
-
-	USFSTL_ASSERT_EQ((int)ctrl->acked, 0, "%d");
-
-	while (!ctrl->acked)
-		usfstl_loop_wait_and_handle();
-	ctrl->acked = 0;
-	ctrl->expected_ack_seq = old_expected;
-
-	if (op == UM_TIMETRAVEL_GET) {
-		if (ctrl->frozen) {
-			uint64_t local;
-
-			local = ctrl->sched->current_time * ctrl->nsec_per_tick;
-			ctrl->offset = ctrl->ack_time - local;
-		} else {
-			uint64_t time;
-
-			time = DIV_ROUND_UP(ctrl->ack_time - ctrl->offset,
-					    ctrl->nsec_per_tick);
-			usfstl_sched_set_time(ctrl->sched, time);
-		}
-	}
-}
-
 static void usfstl_sched_ctrl_sock_read(int fd, void *data)
 {
 	struct usfstl_sched_ctrl *ctrl = data;
@@ -99,6 +62,43 @@ static void usfstl_sched_ctrl_sock_read(int fd, void *data)
 	}
 
 	_usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_ACK, 0, msg.seq);
+}
+
+static void usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
+				       enum um_timetravel_ops op,
+				       uint64_t time)
+{
+	static uint32_t seq, old_expected;
+
+	do {
+		seq++;
+	} while (seq == 0);
+
+	_usfstl_sched_ctrl_send_msg(ctrl, op, time, seq);
+	old_expected = ctrl->expected_ack_seq;
+	ctrl->expected_ack_seq = seq;
+
+	USFSTL_ASSERT_EQ((int)ctrl->acked, 0, "%d");
+
+	while (!ctrl->acked)
+		usfstl_loop_wait_and_handle();
+	ctrl->acked = 0;
+	ctrl->expected_ack_seq = old_expected;
+
+	if (op == UM_TIMETRAVEL_GET) {
+		if (ctrl->frozen) {
+			uint64_t local;
+
+			local = ctrl->sched->current_time * ctrl->nsec_per_tick;
+			ctrl->offset = ctrl->ack_time - local;
+		} else {
+			uint64_t time;
+
+			time = DIV_ROUND_UP(ctrl->ack_time - ctrl->offset,
+					    ctrl->nsec_per_tick);
+			usfstl_sched_set_time(ctrl->sched, time);
+		}
+	}
 }
 
 static void usfstl_sched_ctrl_request(struct usfstl_scheduler *sched, uint64_t time)
