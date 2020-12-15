@@ -623,12 +623,14 @@ poweroff -f
 
         wmediumd_vhost_conns = 0
         wmediumd_api_conns = 0
+        controller_conns = 0
         for node in nodes:
             for pnode in node.plugins.values():
                 if pnode is None:
                     continue
                 wmediumd_vhost_conns += pnode.wmediumd_vhost_connections
                 wmediumd_api_conns += pnode.wmediumd_api_connections
+                controller_conns += pnode.time_socket_connections
 
         ctrl_args = [Paths.controller, f'--net={self.runtime.net}']
         if args.dbg:
@@ -644,6 +646,7 @@ poweroff -f
             clients = len(nodes)
             if wmediumd_vhost_conns + wmediumd_api_conns > 1:
                 clients += 1
+            clients += controller_conns
             ctrl_args.extend([f'--time={self.runtime.clock}',
                               f'--clients={clients}'])
 
