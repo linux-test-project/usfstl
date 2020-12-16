@@ -709,15 +709,14 @@ poweroff -f
             if args.dbg:
                 gdb_log: List[str] = []
                 for process in itertools.chain(self.killprocesses, self.processes):
-                    gdb_log += [f'pid: {process.pid}']
-                    gdb: List[str] = ['gdb', '--pid', str(process.pid)]
+                    gdb_log += [f'\npid: {process.pid} ({os.path.basename(process.args[0])})']
+                    gdb: List[str] = ['gdb']
                     if os.path.basename(process.args[0]) == 'linux':
-                        scripts = os.path.join(Paths.linux, 'scripts', 'gdb')
-                        scripts = os.path.realpath(scripts)
-                        gdb = [f'PYTHONPATH={scripts}:$PYTHONPATH'] + gdb
-                        gdb += [f'-ex "source {os.path.join(scripts, "vmlinux-gdb.py")}"']
-                    gdb_log += [f'\tgdb: {" ".join(gdb)}']
-                    gdb_log += [f'\targs: {list(process.args)}']
+                        linux_gdb = os.path.join(os.path.dirname(__file__), 'linux.gdb')
+                        gdb += [f'-ex "source {linux_gdb}"']
+                    gdb.extend(['--pid', str(process.pid)])
+                    gdb_log += [f'\t{" ".join(gdb)}']
+                    gdb_log += [f'\tcmd: {" ".join(process.args)}']
 
                 gdb_log_str = "\n".join(gdb_log)
                 print(gdb_log_str)
