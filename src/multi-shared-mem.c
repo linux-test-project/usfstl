@@ -102,7 +102,14 @@ static bool usfstl_shared_mem_merge_local_section(
 
 	// if not found, create it
 	if (!section)
+	{
 		section = usfstl_shared_mem_add_msg_section(s->name, buf_size);
+		// verify that the section is initially zeroed and consider it unchanged
+		memset(section->buf, 0, buf_size);
+		USFSTL_ASSERT(memcmp(section->buf, buf, buf_size) == 0,
+			"section '%s' initially not zeroed", s->name);
+		return false;
+	}
 	// else, compare it to know whether it changed
 	else if (memcmp(section->buf, buf, buf_size) == 0)
 		return false;
