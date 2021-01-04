@@ -204,9 +204,9 @@ void usfstl_multi_end_test_controller(enum usfstl_testcase_status status)
 	for_each_participant(p, i)
 		multi_rpc_test_end_conn(p->conn, status);
 
-	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_FINISHED, true);
-
 	g_usfstl_multi_test_running = false;
+
+	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_FINISHED, true);
 }
 
 void usfstl_multi_finish(void)
