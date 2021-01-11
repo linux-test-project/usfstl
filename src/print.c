@@ -102,8 +102,13 @@ struct usfstl_logger *usfstl_log_create(const char *name)
 	struct usfstl_logger *logger = g_usfstl_loggers[idx];
 
 	if (!logger->f) {
+		const char *mode = "w";
+
+		if (usfstl_is_multi())
+			mode = "a";
+
 		logger->remote_idx = usfstl_log_create_logfile(name);
-		logger->f = fopen(name, "a");
+		logger->f = fopen(name, mode);
 		USFSTL_ASSERT(logger->f, "failed to open '%s'", name);
 	}
 
@@ -191,9 +196,9 @@ void usfstl_logf(struct usfstl_logger *logger, const char *pfx, const char *msg,
 	va_end(ap);
 }
 
-static void usfstl_log_flush(struct usfstl_logger *logger)
+static void usfstl_log_flush_if_needed(struct usfstl_logger *logger)
 {
-	if (!logger)
+	if (!g_usfstl_flush_each_log)
 		return;
 
 	fflush(logger->f);
@@ -209,7 +214,7 @@ void usfstl_flush_all(void)
 	for (i = 0; i < g_usfstl_loggers_num; i++) {
 		if (!g_usfstl_loggers[i])
 			continue;
-		usfstl_log_flush(g_usfstl_loggers[i]);
+		fflush(g_usfstl_loggers[i]->f);
 	}
 }
 
@@ -230,7 +235,7 @@ void usfstl_logvf(struct usfstl_logger *logger, const char *pfx,
 	if (msg[strlen(msg)-1] != '\n')
 		_usfstl_logf(logger, "\n");
 
-	usfstl_log_flush(logger);
+	usfstl_log_flush_if_needed(logger);
 }
 
 void usfstl_logf_buf(struct usfstl_logger *logger, const char *pfx,
@@ -270,7 +275,7 @@ void usfstl_logf_buf(struct usfstl_logger *logger, const char *pfx,
 	if (buf_item_format[strlen(buf_item_format) - 1] != '\n')
 		_usfstl_logf(logger, "\n");
 
-	usfstl_log_flush(logger);
+	usfstl_log_flush_if_needed(logger);
 }
 
 #define USFSTL_RPC_CALLEE_STUB
