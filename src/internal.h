@@ -32,6 +32,9 @@ static inline uint32_t swap32(uint32_t v)
 	(_a + _b - 1) / _b;	\
 })
 
+/* main */
+extern bool g_usfstl_list_tests;
+
 /* print */
 extern bool g_usfstl_flush_each_log;
 void usfstl_vprintf(const char *msg, va_list ap);

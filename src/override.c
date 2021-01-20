@@ -50,6 +50,8 @@ void usfstl_install_stub(const char *fname, const void *repl, const char *__repl
 	char replname[1000], replfile[1000];
 	unsigned int i, replline;
 
+	USFSTL_ASSERT(!g_usfstl_list_tests);
+
 	/* reset the hash if we change the stubs */
 	memset(&g_usfstl_hash, 0, sizeof(g_usfstl_hash));
 
@@ -156,7 +158,11 @@ usfstl_find_repl(const void *_orig)
 	char filename[1000];
 	unsigned int i;
 
-	if (!g_usfstl_current_test)
+	/*
+	 * Might get called outside a test context - do nothing.
+	 * Or from a generator function if g_usfstl_list_tests.
+	 */
+	if (!g_usfstl_current_test || g_usfstl_list_tests)
 		return _orig;
 
 	fname[0] = '\0';

@@ -51,7 +51,7 @@ static int USFSTL_NORESTORE_VAR(g_usfstl_requirements_fd) = -1;
 static char *g_usfstl_requirements_file;
 bool g_usfstl_skip_known_failing;
 bool g_usfstl_flush_each_log;
-static bool g_usfstl_list_tests;
+bool g_usfstl_list_tests;
 
 #ifndef USFSTL_LIBRARY
 static bool g_usfstl_list_asserts;
@@ -234,18 +234,17 @@ int usfstl_init(int argc, char **argv)
 	if (ret)
 		return ret;
 
+	if (g_usfstl_list_tests)
+		return 0;
+
 	usfstl_dwarf_init(argv[0]);
 
 	if (g_usfstl_assert_coverage_file)
 		usfstl_init_reached_assert_log();
 
-	if (!g_usfstl_list_tests)
-		usfstl_call_initializers();
-
+	usfstl_call_initializers();
 	usfstl_save_globals(argv[0]);
-
-	if (!g_usfstl_list_tests)
-		usfstl_multi_init();
+	usfstl_multi_init();
 
 	return 0;
 }
