@@ -4209,7 +4209,7 @@ _dwarf_iter_global_variables(struct dwarf_data *ddata,
 		buf_ptr = &unit_buf;
 	}
 
-	while (unit_buf.left > 0) {
+	while (buf_ptr->left > 0) {
 		code = read_uleb128(buf_ptr);
 		if (code == 0)
 			return;
