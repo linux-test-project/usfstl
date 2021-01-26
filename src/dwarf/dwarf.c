@@ -1132,6 +1132,7 @@ read_location_attr(struct dwarf_buf *buf, struct attr_val *val)
 {
 	unsigned char buffer_length = read_byte(buf);
 	enum dwarf_location_operation operation = read_byte(buf);
+	int remaining = 0;
 	buffer_length -= 1;
 
 	if (operation != DW_OP_addr) {
@@ -1141,7 +1142,14 @@ read_location_attr(struct dwarf_buf *buf, struct attr_val *val)
 
 	val->encoding = ATTR_VAL_ADDRESS;
 	assert(buffer_length <= sizeof(val->u.uint));
+	/* hackaround: if we have this it's probably a DW_OP_stack_value ... */
+	if (buffer_length == 5)
+	{
+	  buffer_length = 4;
+	  remaining = 1;
+	}
 	val->u.uint = read_address(buf, buffer_length);
+	advance(buf, remaining);
 	return 1;
 }
 
