@@ -51,6 +51,7 @@ static struct restore_info *usfstl_read_restore_info(const char *program)
 	struct restore_info *info, *iter, *out = NULL;
 	uintptr_t base = usfstl_dwarf_get_base_address();
 	ssize_t r;
+	uintptr_t prev = 0;
 
 	assert(snprintf(buf, sizeof(buf), "%s.globals", program) < (int)sizeof(buf));
 
@@ -71,6 +72,10 @@ static struct restore_info *usfstl_read_restore_info(const char *program)
 
 	for (iter = info; iter->ptr != 0; iter++) {
 		unsigned long ptr = iter->ptr + base;
+
+		/* ensure that the list is sorted */
+		USFSTL_ASSERT((unsigned long)ptr > prev);
+		prev = ptr;
 
 		if (!should_restore(ptr))
 			continue;
