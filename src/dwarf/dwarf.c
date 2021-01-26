@@ -3688,6 +3688,7 @@ read_function_entry (struct backtrace_state *state, struct dwarf_data *ddata,
       int have_linkage_name;
       const unsigned char *function_data = unit_buf->buf;
       size_t function_max_len = unit_buf->left;
+      int prototyped = 0;
 
       code = read_uleb128 (unit_buf);
       if (code == 0)
@@ -3831,6 +3832,10 @@ read_function_entry (struct backtrace_state *state, struct dwarf_data *ddata,
 		  update_pcrange (&abbrev->attrs[i], &val, &pcrange);
 		  break;
 
+		case DW_AT_prototyped:
+		  prototyped = 1;
+		  break;
+
 		default:
 		  break;
 		}
@@ -3845,6 +3850,9 @@ read_function_entry (struct backtrace_state *state, struct dwarf_data *ddata,
 			  error_callback, data);
 	  is_function = 0;
 	}
+
+      if (is_function && prototyped)
+        add_function_ptr (state, ddata, function, error_callback, data, vec_function_ptr);
 
       if (is_function)
 	{
@@ -3863,8 +3871,9 @@ read_function_entry (struct backtrace_state *state, struct dwarf_data *ddata,
 	    }
 	  else
 	    {
-	      backtrace_free (state, function, sizeof *function,
-			      error_callback, data);
+	      if (!prototyped) /* not added to functions vector above */
+	        backtrace_free (state, function, sizeof *function,
+			        error_callback, data);
 	      is_function = 0;
 	    }
 	}
@@ -3925,9 +3934,6 @@ read_function_entry (struct backtrace_state *state, struct dwarf_data *ddata,
 		}
 	    }
 	}
-
-      if (is_function)
-        add_function_ptr (state, ddata, function, error_callback, data, vec_function_ptr);
     }
 
   return 1;
