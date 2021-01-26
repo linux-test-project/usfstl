@@ -86,7 +86,7 @@ static void usfstl_resolve_static_references(void)
 {
 	unsigned int n = &__stop_static_reference_data - __start_static_reference_data, i;
 	const struct usfstl_static_reference *ref;
-	bool found = false;
+	uint32_t found = 0;
 	bool all_resolved = true;
 
 	/* check first if iterating dwarf data is worthwhile (takes a while) */
@@ -94,17 +94,21 @@ static void usfstl_resolve_static_references(void)
 		ref = __start_static_reference_data[i];
 		if (!ref)
 			continue;
-		found = true;
+		found |= 1 << ref->reference_type;
 		break;
 	}
 
 	if (!found)
 		return;
 
-	dwarf_iter_global_variables(g_usfstl_backtrace_state, usfstl_resolve_static_variable,
-				    error_callback, NULL);
-	dwarf_iter_functions(g_usfstl_backtrace_state, usfstl_resolve_static_function,
-			     error_callback, NULL);
+	if (found & (1 << USFSTL_STATIC_REFERENCE_VARIABLE))
+		dwarf_iter_global_variables(g_usfstl_backtrace_state,
+					    usfstl_resolve_static_variable,
+					    error_callback, NULL);
+	if (found & (1 << USFSTL_STATIC_REFERENCE_FUNCTION))
+		dwarf_iter_functions(g_usfstl_backtrace_state,
+				     usfstl_resolve_static_function,
+				     error_callback, NULL);
 
 	for (i = 0; i < n; i++) {
 		ref = __start_static_reference_data[i];
