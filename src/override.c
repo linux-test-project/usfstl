@@ -21,7 +21,7 @@
 
 static struct {
 	const void *orig, *repl;
-} g_usfstl_hash[HASH_SIZE];
+} USFSTL_NORESTORE_VAR(g_usfstl_hash[HASH_SIZE]);
 
 static inline int HASH_PTR(const void *ptr)
 {
@@ -39,8 +39,8 @@ static inline int HASH_PTR(const void *ptr)
 static struct {
 	const char *name;
 	const void *repl;
-} g_usfstl_overrides[MAX_OVERRIDES] = {};
-static unsigned int g_usfstl_num_overrides;
+} USFSTL_NORESTORE_VAR(g_usfstl_overrides[MAX_OVERRIDES]) = {};
+static unsigned int USFSTL_NORESTORE_VAR(g_usfstl_num_overrides);
 
 void find_info(const char *filename, const char *funcname,
 	       const char **rettype, const char **args)
