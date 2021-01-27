@@ -94,7 +94,6 @@ static void usfstl_resolve_static_references(void)
 		if (!ref)
 			continue;
 		found |= 1 << ref->reference_type;
-		break;
 	}
 
 	if (!found)
