@@ -83,18 +83,13 @@ static void usfstl_resolve_static_function(const char *filename, const char *var
 
 static void usfstl_resolve_static_references(void)
 {
-	unsigned int n = &__stop_static_reference_data - __start_static_reference_data, i;
 	const struct usfstl_static_reference *ref;
 	uint32_t found = 0;
 	bool all_resolved = true;
 
 	/* check first if iterating dwarf data is worthwhile (takes a while) */
-	for (i = 0; i < n; i++) {
-		ref = __start_static_reference_data[i];
-		if (!ref)
-			continue;
+	for_each_unresolved_static_reference(ref)
 		found |= 1 << ref->reference_type;
-	}
 
 	if (!found)
 		return;
@@ -108,11 +103,7 @@ static void usfstl_resolve_static_references(void)
 				     usfstl_resolve_static_function,
 				     error_callback, NULL);
 
-	for (i = 0; i < n; i++) {
-		ref = __start_static_reference_data[i];
-
-		if (!ref)
-			continue;
+	for_each_unresolved_static_reference(ref) {
 		if (*ref->ptr)
 			continue;
 
