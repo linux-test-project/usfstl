@@ -13,7 +13,7 @@
 #include <usfstl/uthash.h>
 #include "internal.h"
 
-#define MAX_OVERRIDES_SHIFT 10
+#define MAX_OVERRIDES_SHIFT 14
 
 #define MAX_OVERRIDES (1 << MAX_OVERRIDES_SHIFT)
 #define HASH_SIZE_SHIFT (MAX_OVERRIDES_SHIFT + 1)
