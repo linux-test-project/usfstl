@@ -10,17 +10,31 @@
 #include <stdbool.h>
 #include <usfstl/test.h>
 #include <usfstl/log.h>
+#include <usfstl/uthash.h>
 #include "internal.h"
 
-// keep this a power of two - optimise the "hash function"
-#define MAX_OVERRIDES 1024
+#define MAX_OVERRIDES_SHIFT 10
 
-#define HASH_SIZE (MAX_OVERRIDES*2)
+#define MAX_OVERRIDES (1 << MAX_OVERRIDES_SHIFT)
+#define HASH_SIZE_SHIFT (MAX_OVERRIDES_SHIFT + 1)
+#define HASH_SIZE (1 << HASH_SIZE_SHIFT)
+
 static struct {
 	const void *orig, *repl;
 } g_usfstl_hash[HASH_SIZE];
-/* shift down a bit since functions are typically aligned */
-#define HASH_PTR(orig) ((((uintptr_t)orig) >> 4) % HASH_SIZE)
+
+static inline int HASH_PTR(const void *ptr)
+{
+	int ret;
+
+	/*
+	 * We need the hash to be fast (we call it a lot) but also
+	 * well distributed ... HASH_BER() is the fastest overall
+	 * in my (rather unscientific) test.
+	 */
+	HASH_BER((const void *)&ptr, sizeof(ptr), ret);
+	return (ret ^ (ret >> HASH_SIZE_SHIFT)) & (HASH_SIZE - 1);
+}
 
 static struct {
 	const char *name;
