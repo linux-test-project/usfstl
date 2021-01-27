@@ -4104,12 +4104,21 @@ report_inlined_functions (uintptr_t pc, struct function *function,
 
 static int consume_children(struct dwarf_data *ddata, struct unit *u,
 			    struct dwarf_buf *unit_buf,
+			    unsigned long sibling_delta,
 			    backtrace_error_callback error_callback, void *data)
 {
+	if (sibling_delta) {
+		unsigned long already_consumed = unit_buf->buf - u->unit_data + u->unit_data_offset;
+
+		advance(unit_buf, sibling_delta - already_consumed);
+		return 0;
+	}
+
 	while (unit_buf->left > 0) {
 		uint64_t code;
 		const struct abbrev *abbrev;
 		size_t i;
+		unsigned long sibling = 0;
 
 		code = read_uleb128(unit_buf);
 		if (code == 0)
@@ -4127,10 +4136,19 @@ static int consume_children(struct dwarf_data *ddata, struct unit *u,
 					    unit_buf, u->is_dwarf64, u->version, u->addrsize,
 					    &ddata->dwarf_sections, ddata->altlink, &val))
 			    return 0;
+
+			switch (abbrev->attrs[i].name) {
+			case DW_AT_sibling:
+				if (val.encoding == ATTR_VAL_REF_UNIT)
+					sibling = val.u.uint;
+				break;
+			default:
+				break;
+			}
 		}
 
 		if (abbrev->has_children)
-			consume_children(ddata, u, unit_buf, error_callback, data);
+			consume_children(ddata, u, unit_buf, sibling, error_callback, data);
 	}
 
 	return 0;
@@ -4777,6 +4795,7 @@ static void form_array(struct dwarf_data *ddata, struct unit *u,
 		int64_t size = -1;
 		int64_t ref = -1;
 		const struct abbrev *abbrev;
+		unsigned long sibling = 0;
 		size_t i;
 
 		code = read_uleb128(unit_buf);
@@ -4805,6 +4824,10 @@ static void form_array(struct dwarf_data *ddata, struct unit *u,
 				if (val.encoding == ATTR_VAL_REF_UNIT)
 					ref = val.u.uint;
 				break;
+			case DW_AT_sibling:
+				if (val.encoding == ATTR_VAL_REF_UNIT)
+					sibling = val.u.uint;
+				break;
 			default:
 				break;
 			}
@@ -4823,7 +4846,7 @@ static void form_array(struct dwarf_data *ddata, struct unit *u,
 		append(&args, &args_maxlen, "]");
 
 		if (abbrev->has_children)
-			consume_children(ddata, u, unit_buf, error_callback, data);
+			consume_children(ddata, u, unit_buf, sibling, error_callback, data);
 	}
 }
 
@@ -4978,6 +5001,7 @@ static void form_args_string(struct dwarf_data *ddata, struct unit *u,
 		uint64_t code;
 		int64_t ref = -1;
 		const struct abbrev *abbrev;
+		unsigned long sibling = 0;
 		size_t i;
 
 		code = read_uleb128(unit_buf);
@@ -4997,9 +5021,18 @@ static void form_args_string(struct dwarf_data *ddata, struct unit *u,
 					    &ddata->dwarf_sections, ddata->altlink, &val))
 				return;
 
-			if (abbrev->attrs[i].name == DW_AT_type &&
-			    val.encoding == ATTR_VAL_REF_UNIT)
-				ref = val.u.uint;
+			switch (abbrev->attrs[i].name) {
+			case DW_AT_type:
+				if (val.encoding == ATTR_VAL_REF_UNIT)
+					ref = val.u.uint;
+				break;
+			case DW_AT_sibling:
+				if (val.encoding == ATTR_VAL_REF_UNIT)
+					sibling = val.u.uint;
+				break;
+			default:
+				break;
+			}
 		}
 
 		if (abbrev->tag == DW_TAG_formal_parameter) {
@@ -5013,7 +5046,7 @@ static void form_args_string(struct dwarf_data *ddata, struct unit *u,
 		}
 
 		if (abbrev->has_children)
-			consume_children(ddata, u, unit_buf, error_callback, data);
+			consume_children(ddata, u, unit_buf, sibling, error_callback, data);
 	}
 
 	if (!*args)
