@@ -75,6 +75,9 @@ static void usfstl_resolve_static_function(const char *filename, const char *var
 		if (strcmp(reference->name, varname))
 			continue;
 
+		if (*reference->ptr)
+			continue;
+
 		assert(dwarf_info_by_name(g_usfstl_backtrace_state, filename,
 					  varname, reference->ptr, &tp, &args,
 					  error_callback, NULL) == 0);
