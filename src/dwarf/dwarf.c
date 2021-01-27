@@ -631,6 +631,8 @@ struct function
   size_t function_data_len;
 
   uintptr_t low_pc;
+
+  char *args, *ret;
 };
 
 /* An address range for a function.  This maps a PC value to a
@@ -5174,18 +5176,25 @@ static int dwarf_lookup_function(struct backtrace_state *state, struct dwarf_dat
 
 		if (ptr)
 			*ptr = (void *)(*fn)->low_pc;
-		fn_buf.buf = (*fn)->function_data;
-		fn_buf.left = (*fn)->function_data_len;
-		dwarf_form_type_strings(ddata, unit, &fn_buf,
-					rettype ? rettype_buf : NULL,
-					args ? args_buf : NULL,
-					rettype ? sizeof(rettype_buf) : 0,
-					args ? sizeof(args_buf) : 0,
-					error_callback, data);
-		if (rettype && rettype_buf[0])
-			*rettype = backtrace_strdup(state, rettype_buf, error_callback, data);
-		if (args && args_buf[0])
-			*args = backtrace_strdup(state, args_buf, error_callback, data);
+
+		if ((rettype && !(*fn)->ret) || (args && !(*fn)->args)) {
+			fn_buf.buf = (*fn)->function_data;
+			fn_buf.left = (*fn)->function_data_len;
+
+			dwarf_form_type_strings(ddata, unit, &fn_buf,
+						rettype_buf,
+						args_buf,
+						sizeof(rettype_buf),
+						sizeof(args_buf),
+						error_callback, data);
+			(*fn)->ret = backtrace_strdup(state, rettype_buf, error_callback, data);
+			(*fn)->args = backtrace_strdup(state, args_buf, error_callback, data);
+		}
+
+		if (rettype && (*fn)->ret[0])
+			*rettype = backtrace_strdup(state, (*fn)->ret, error_callback, data);
+		if (args && (*fn)->args[0])
+			*args = backtrace_strdup(state, (*fn)->args, error_callback, data);
 		return 0;
 	}
 
