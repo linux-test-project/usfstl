@@ -168,7 +168,7 @@ usfstl_find_repl(const void *_orig)
 	fname[0] = '\0';
 	filename[0] = '\0';
 
-	for (i = HASH_PTR(orig); i < HASH_SIZE; i++) {
+	for (i = HASH_PTR(orig); i < HASH_SIZE && g_usfstl_hash[i].orig; i++) {
 		if (g_usfstl_hash[i].orig == orig)
 			return g_usfstl_hash[i].repl;
 	}
