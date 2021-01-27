@@ -180,6 +180,10 @@ void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 	struct usfstl_multi_participant *p;
 	int i;
 
+	// ignore messages after test completion, as usfstl_alloc memory was freed
+	if (!g_usfstl_multi_test_running)
+		return;
+
 	// an empty message indicates no change
 	if (!msg_size)
 		return;
