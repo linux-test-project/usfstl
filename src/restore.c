@@ -104,29 +104,6 @@ static struct restore_info *usfstl_read_restore_info(const char *program)
 	return info;
 }
 
-#ifdef __clang__
-void restore_memcpy(uint8_t *dst, const uint8_t *src, size_t sz)
-{
-	size_t i;
-	uint64_t *d = (uint64_t *)dst;
-	const uint64_t *s = (const uint64_t *)src;
-	size_t qword_sz = sz / 8;
-
-	for (i = 0; i < qword_sz; i++)
-		d[i] = s[i];
-
-	// copy the remainder
-	if (sz & 4)
-		*(uint32_t *)&dst[sz & ~0x7] = *(const uint32_t *)&src[sz & ~0x7];
-	if (sz & 2)
-		*(uint16_t *)&dst[sz & ~0x3] = *(const uint16_t *)&src[sz & ~0x3];
-	if (sz & 1)
-		*(uint8_t *)&dst[sz & ~0x1] = *(const uint8_t *)&src[sz & ~0x1];
-}
-#else
-#define restore_memcpy memcpy
-#endif
-
 static void *usfstl_save_restore_data(struct restore_info *info)
 {
 #if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2
@@ -148,7 +125,7 @@ static void *usfstl_save_restore_data(struct restore_info *info)
 
 	iter = info;
 	while (iter->ptr || iter->size) {
-		restore_memcpy(data, (void *)(uintptr_t)iter->ptr, iter->size);
+		memcpy(data, (void *)(uintptr_t)iter->ptr, iter->size);
 		data += iter->size;
 		iter++;
 	}
@@ -166,7 +143,7 @@ static void usfstl_restore_data(struct restore_info *info, const void *_data)
 	const unsigned char *data = _data;
 
 	while (iter->ptr || iter->size) {
-		restore_memcpy((void *)(uintptr_t)iter->ptr, data, iter->size);
+		memcpy((void *)(uintptr_t)iter->ptr, data, iter->size);
 		data += iter->size;
 		iter++;
 	}

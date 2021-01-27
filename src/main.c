@@ -245,6 +245,7 @@ int usfstl_init(int argc, char **argv)
 	usfstl_call_initializers();
 	usfstl_save_globals(argv[0]);
 	usfstl_multi_init();
+	usfstl_no_asan_string_init();
 
 	return 0;
 }

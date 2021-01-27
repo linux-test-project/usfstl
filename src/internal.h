@@ -204,4 +204,16 @@ extern size_t g_usfstl_fuzz_datasz;
 /* allocator */
 void usfstl_free_all(void);
 
+/* no-asan string functions */
+#ifdef USFSTL_WANT_NO_ASAN_STRING
+extern int (*usfstl_no_asan_strcmp)(const char *s1, const char *s2);
+#define strcmp usfstl_no_asan_strcmp
+extern void *(*usfstl_no_asan_memcpy)(void *dest, const void *src, size_t n);
+#define memcpy usfstl_no_asan_memcpy
+
+void usfstl_no_asan_string_init(void);
+#else
+static inline void usfstl_no_asan_string_init(void) {}
+#endif // USFSTL_WANT_NO_ASAN_STRING
+
 #endif // _USFSTL_INTERNAL_H_

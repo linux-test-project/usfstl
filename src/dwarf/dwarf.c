@@ -43,6 +43,7 @@ POSSIBILITY OF SUCH DAMAGE.  */
 
 #include "backtrace.h"
 #include "internal.h"
+#include "../internal.h"
 
 /* DWARF constants.  */
 
