@@ -61,7 +61,7 @@ void usfstl_install_stub(const char *fname, const void *repl, const char *__repl
 {
 	const char *orig_ret, *orig_args;
 	const char *repl_ret, *repl_args;
-	char replname[1000], replfile[1000];
+	const char *replname = NULL, *replfile = NULL;
 	unsigned int i, replline;
 
 	USFSTL_ASSERT(!g_usfstl_list_tests);
@@ -70,7 +70,7 @@ void usfstl_install_stub(const char *fname, const void *repl, const char *__repl
 	memset(&g_usfstl_hash, 0, sizeof(g_usfstl_hash));
 
 	if (repl) {
-		usfstl_get_function_info(repl, replname, replfile, &replline);
+		usfstl_get_function_info_ptr(repl, &replname, &replfile, &replline);
 
 		if (repl == &usfstl_void_stub) {
 			repl_ret = "void";
@@ -168,8 +168,7 @@ usfstl_find_repl(const void *_orig)
 	/* 5 is the size of the generated call instruction (x86) */
 	const void *orig = (char *)_orig - 5;
 	const void *repl = _orig;
-	char fname[1000];
-	char filename[1000];
+	const char *fname = NULL, *filename = NULL;
 	unsigned int i;
 
 	/*
@@ -179,17 +178,14 @@ usfstl_find_repl(const void *_orig)
 	if (!g_usfstl_current_test || g_usfstl_list_tests)
 		return _orig;
 
-	fname[0] = '\0';
-	filename[0] = '\0';
-
 	for (i = HASH_PTR(orig); i < HASH_SIZE && g_usfstl_hash[i].orig; i++) {
 		if (g_usfstl_hash[i].orig == orig)
 			return g_usfstl_hash[i].repl;
 	}
 
-	usfstl_get_function_info(orig, fname, filename, NULL);
-	assert(*fname);
-	assert(*filename);
+	usfstl_get_function_info_ptr(orig, &fname, &filename, NULL);
+	assert(fname && *fname);
+	assert(filename && *filename);
 
 	for (i = 0; i < g_usfstl_num_overrides; i++) {
 		if (!strcmp(g_usfstl_overrides[i].name, fname)) {

@@ -30,10 +30,10 @@ usfstl_abort_handler_t g_usfstl_abort_handler;
 
 void usfstl_out_of_time(void *rip)
 {
-	char funcname[1000] = {}, filename[1000] = {};
+	const char *funcname = NULL, *filename = NULL;
 	unsigned int line;
 
-	usfstl_get_function_info(rip, funcname, filename, &line);
+	usfstl_get_function_info_ptr(rip, &funcname, &filename, &line);
 
 	usfstl_printf("\n!!!! test timeout in %s() at %s:%d !!!!\n",
 		      funcname, filename, line);

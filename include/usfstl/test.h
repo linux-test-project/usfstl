@@ -22,6 +22,15 @@ void usfstl_get_function_info(const void *ptr, char *funcname,
 			      char *filename, unsigned int *lineno);
 
 /*
+ * usfstl_get_function_info_ptr - get information about function
+ *
+ * Similar to usfstl_get_function_info(), but 'returns' a pointer
+ * to the funcname/filename to avoid strcpy().
+ */
+void usfstl_get_function_info_ptr(const void *ptr, const char **funcname,
+				  const char **filename, unsigned int *lineno);
+
+/*
  * Test project name, really just derived from the binary that's running.
  * Could be overwritten by an initializer, but not later than that.
  */

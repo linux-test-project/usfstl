@@ -134,8 +134,8 @@ void usfstl_dwarf_init(const char *self)
 }
 
 struct func_data {
-	char *filename;
-	char *funcname;
+	const char **filename;
+	const char **funcname;
 	unsigned int *lineno;
 };
 
@@ -146,16 +146,16 @@ static int fileline_cb(void *_data, uintptr_t pc,
 	struct func_data *data = _data;
 
 	if (data->filename && filename)
-		strcpy(data->filename, filename);
+		*data->filename = filename;
 	if (data->funcname && function)
-		strcpy(data->funcname, function);
+		*data->funcname = function;
 	if (data->lineno)
 		*data->lineno = lineno;
 	return 0;
 }
 
-void usfstl_get_function_info(const void *fn, char *funcname,
-			      char *filename, unsigned int *lineno)
+void usfstl_get_function_info_ptr(const void *fn, const char **funcname,
+				  const char **filename, unsigned int *lineno)
 {
 	struct func_data data = {
 		.filename = filename,
@@ -164,6 +164,18 @@ void usfstl_get_function_info(const void *fn, char *funcname,
 	};
 
 	g_usfstl_fileline_fn(g_usfstl_backtrace_state, (intptr_t)fn, fileline_cb, error_callback, &data);
+}
+
+void usfstl_get_function_info(const void *ptr, char *funcname,
+			      char *filename, unsigned int *lineno)
+{
+	const char *_funcname = NULL, *_filename = NULL;
+
+	usfstl_get_function_info_ptr(ptr, &_funcname, &_filename, lineno);
+	if (_funcname && funcname)
+		strcpy(funcname, _funcname);
+	if (_filename && filename)
+		strcpy(filename, _filename);
 }
 
 uintptr_t usfstl_dwarf_get_base_address(void)
