@@ -94,6 +94,7 @@
 #  - USFSTL_SKIP_ASAN_STR   = skip ASAN on certain string functions used by the
 #                             framework itself, set this to 1 if compiling the binary
 #                             with ASAN but not the framework, to speed things up
+#  - USFSTL_PERF_ARGS       = arguments for running perf, defaults to "-g"
 #
 # As the next step, include this file (core.mak), which will give you
 # the necessary targets like "build" and "run".
@@ -295,7 +296,8 @@ build: $(addprefix $(USFSTL_TEST_BIN_PATH)/,$(addsuffix /$(_USFSTL_TEST_BINARY).
 RUN=
 _ARGS_GDB=--multi-debug-subprocs
 GDB=gdb --args
-PERF=perf record -g
+USFSTL_PERF_ARGS ?= -g
+PERF=perf record $(USFSTL_PERF_ARGS)
 LIST=
 _ARGS_LIST=--list | sed 's/^\(.*\):.*/CFG=%:\1/'
 RUNCFG=
