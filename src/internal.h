@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <setjmp.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <usfstl/test.h>
 #include <usfstl/ctx.h>
 #include <usfstl/rpc.h>
@@ -210,6 +211,8 @@ extern int (*usfstl_no_asan_strcmp)(const char *s1, const char *s2);
 #define strcmp usfstl_no_asan_strcmp
 extern void *(*usfstl_no_asan_memcpy)(void *dest, const void *src, size_t n);
 #define memcpy usfstl_no_asan_memcpy
+extern int (*usfstl_no_asan_snprintf)(char *str, size_t size, const char *format, ...);
+#define snprintf usfstl_no_asan_snprintf
 
 void usfstl_no_asan_string_init(void);
 #else

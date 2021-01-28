@@ -52,6 +52,11 @@ void *_usfstl_no_asan_memcpy(void *dest, const void *src, size_t n)
 void *(*usfstl_no_asan_memcpy)(void *dest, const void *src, size_t n) =
 	_usfstl_no_asan_memcpy;
 
+// use the real snprintf, override not needed for correctness
+#undef snprintf
+int (*usfstl_no_asan_snprintf)(char *str, size_t size, const char *format, ...) =
+	snprintf;
+
 #ifdef __linux__
 #include <assert.h>
 #include <dlfcn.h>
@@ -79,6 +84,10 @@ void usfstl_no_asan_string_init(void)
 		sym = dlsym(lib, "memcpy");
 		if (sym)
 			usfstl_no_asan_memcpy = sym;
+
+		sym = dlsym(lib, "snprintf");
+		if (sym)
+			usfstl_no_asan_snprintf = sym;
 	}
 }
 #else
