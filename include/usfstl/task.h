@@ -255,13 +255,14 @@ extern void (*g_usfstl_task_enter)(void);
  * struct usfstl_sem - usfstl semaphore
  * @name: name given to the semaphore, will be copied to the
  *	scheduler job if a task is waiting for this with
- *	a timeout
+ *	a timeout (max 50 chars or will be cut off)
  */
 struct usfstl_sem {
 	const char *name;
 /* private: */
 	struct usfstl_list waiters;
 	uint32_t ctr;
+	char _name[52];
 };
 
 /**

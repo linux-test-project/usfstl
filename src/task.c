@@ -349,22 +349,21 @@ static void usfstl_sem_init_if_needed(struct usfstl_sem *sem)
 bool usfstl_sem_timedwait(struct usfstl_sem *sem, uint64_t timeout)
 {
 	struct usfstl_task *task = usfstl_task_current();
-	char semname[50] = {};
 
 	USFSTL_ASSERT(task, "can only call usfstl_sem_timedwait() while in task");
 
 	usfstl_sem_init_if_needed(sem);
 
-	if (sem->name)
-		snprintf(semname, sizeof(semname) - 1, "!%s", sem->name);
+	if (!sem->_name[0]) {
+		snprintf(sem->_name, sizeof(sem->_name) - 1, "!%s",
+			 sem->name ?: "");
+		sem->_name[sizeof(sem->_name) - 1] = 0;
+	}
 
 	if (!sem->ctr) {
 		struct usfstl_task *tmp;
 
-		if (sem->name)
-			task->job.name = semname + 1;
-		else
-			task->job.name = NULL;
+		task->job.name = sem->_name + 1;
 
 		if (timeout != NO_TIMEOUT) {
 			/* run again when desired */
@@ -441,14 +440,10 @@ void usfstl_sem_post(struct usfstl_sem *sem)
 		task->job.start =
 			usfstl_sched_current_time(&g_usfstl_task_scheduler);
 		// Trick!
-		// The name here points to the stack on the task that's
-		// waiting (semname in usfstl_sem_timedwait()) and there we
-		// put an exclamation mark in front but set the pointer
-		// to the later byte, indicating that the task is waiting
-		// for the semaphore. Now we "uncover" the ! to show that
-		// the semaphore has been signaled.
-		if (task->job.name)
-			task->job.name -= 1;
+		// The name here points to the sem name prefixed with an
+		// additional "!" so here we can "uncover" that to show
+		// that the semaphore has been signaled.
+		task->job.name -= 1;
 		// re-add the job for the signal
 		usfstl_sched_add_job(&g_usfstl_task_scheduler, &task->job);
 
