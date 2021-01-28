@@ -57,7 +57,6 @@ void __fentry__(void);
 extern void *g_usfstl_recurse;
 
 /* overrides */
-void usfstl_reset_overrides(void);
 const void *__attribute__((no_instrument_function, noinline))
 usfstl_find_repl(const void *_orig);
 

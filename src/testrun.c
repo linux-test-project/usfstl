@@ -129,10 +129,8 @@ enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
 	enum usfstl_testcase_status status;
 	char dummy;
 
-	if (execute) {
-		usfstl_reset_overrides();
+	if (execute)
 		usfstl_restore_globals();
-	}
 
 	g_usfstl_current_test = test;
 	g_usfstl_current_case_num = case_num;
