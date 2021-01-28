@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <usfstl/test.h>
+#include <usfstl/log.h>
 #include "internal.h"
 #include "dwarf/backtrace.h"
 #include "dwarf/internal.h"
@@ -36,6 +37,10 @@ static void error_callback(void *data, const char *msg, int error_number)
 	fprintf(stderr, "error %d: %s\n", error_number, msg);
 	assert(0);
 }
+
+#define for_each_static_reference(p) \
+	for (unsigned int i = 0; i < static_reference_count(); i++) \
+		if ((p = __start_static_reference_data[i]))
 
 #define for_each_unresolved_static_reference(p) \
 	for (unsigned int i = 0; i < static_reference_count(); i++) \
@@ -84,6 +89,56 @@ static void usfstl_resolve_static_function(const char *filename, const char *var
 	}
 }
 
+static void usfstl_check_proto(const char *filename, const char *refname,
+			       const char *orig_ret, const char *fptr_ret,
+			       const char *orig_args, const char *fptr_args)
+{
+	unsigned int len = strlen(fptr_ret), pos = len - 1;
+	char buf[len + 1];
+
+	strcpy(buf, fptr_ret);
+
+	USFSTL_ASSERT(buf[pos] == '*',
+		      "usfstl malfunction: fptr ret must be pointer");
+	buf[pos] = ' ';
+	while (buf[pos] == ' ') {
+		buf[pos] = 0;
+		pos--;
+	}
+
+	if (strcmp(orig_ret, buf) == 0 && strcmp(orig_args, fptr_args) == 0)
+		return;
+
+	usfstl_printf("ERROR: %s: wrong prototype for static function %s\n",
+		      filename, refname);
+	usfstl_printf("original: %s %s(%s)\n", orig_ret, refname, orig_args);
+	usfstl_printf("static:   %s %s(%s)\n", buf, refname, fptr_args);
+	fflush(stdout);
+	abort();
+}
+
+static void
+usfstl_check_static_prototype(const struct usfstl_static_reference *ref)
+{
+	const char *orig_ret, *orig_args;
+	const char *fptr_ret, *fptr_args;
+	char fnbuf[25 + strlen(ref->name)];
+
+	/* this marks having a checker static function in this file */
+	if (!ref->filename)
+		return;
+
+	USFSTL_ASSERT(usfstl_get_func_info(NULL, ref->name,
+					   &orig_ret, &orig_args) == 0);
+
+	sprintf(fnbuf, "_usfstl_stf_proto_%s", ref->name);
+	USFSTL_ASSERT(usfstl_get_func_info(ref->filename, fnbuf,
+					   &fptr_ret, &fptr_args) == 0);
+
+	usfstl_check_proto(ref->filename, ref->name, orig_ret, fptr_ret,
+			   orig_args, fptr_args);
+}
+
 static void usfstl_resolve_static_references(void)
 {
 	const struct usfstl_static_reference *ref;
@@ -106,7 +161,10 @@ static void usfstl_resolve_static_references(void)
 				     usfstl_resolve_static_function,
 				     error_callback, NULL);
 
-	for_each_unresolved_static_reference(ref) {
+	for_each_static_reference(ref) {
+		if (ref->reference_type == USFSTL_STATIC_REFERENCE_FUNCTION)
+			usfstl_check_static_prototype(ref);
+
 		if (*ref->ptr)
 			continue;
 

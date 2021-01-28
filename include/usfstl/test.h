@@ -444,19 +444,8 @@ enum usfstl_static_reference_type {
 };
 
 /*
- * Using this, you can call even a static function in the unit test.
- *
- * Let's say your tested module contains:
- *
- *   static void my_function(int cmd, void *data);
- *
- * Then you can write:
- *
- *   USFSTL_STATIC_TEST_FN(void, my_function, int, void *);
- *
- * in the test case, and call the function as normal:
- *
- *   my_function(7, NULL);
+ * Common static reference code, see USFSTL_STATIC_TEST_FN
+ * and USFSTL_STATIC_TEST_VARIABLE
  */
 struct usfstl_static_reference {
 	void **ptr;
@@ -477,10 +466,36 @@ struct usfstl_static_reference {
 	&usfstl_static_reference_##_name
 
 
-
+/*
+ * Using this, you can call even a static function in the unit test.
+ *
+ * Let's say your tested module contains:
+ *
+ *   static void my_function(int cmd, void *data);
+ *
+ * Then you can write:
+ *
+ *   USFSTL_STATIC_TEST_FN_CHK(void, my_function, int cmd, void *data);
+ *
+ * in the test case, and call the function as normal:
+ *
+ *   my_function(7, NULL);
+ *
+ * With the _CHK version, the argument names must be given, but the return
+ * and argument types of the function are checked at runtime, so prefer it.
+ * The form USFSTL_STATIC_TEST_FN() version is supported for backward
+ * compatibility.
+ */
 #define USFSTL_STATIC_TEST_FN(ret, _name, ...)					\
 	static ret (*_name)(__VA_ARGS__);					\
-	USFSTL_STATIC_TEST_REFERENCE(_name, USFSTL_STATIC_REFERENCE_FUNCTION, NULL)
+	USFSTL_STATIC_TEST_REFERENCE(_name, USFSTL_STATIC_REFERENCE_FUNCTION,	\
+				     NULL)
+#define USFSTL_STATIC_TEST_FN_CHK(ret, _name, ...)				\
+	static ret (*_name)(__VA_ARGS__);					\
+	static ret * __attribute__((used))					\
+	_usfstl_stf_proto_ ## _name(__VA_ARGS__) { return NULL; }		\
+	USFSTL_STATIC_TEST_REFERENCE(_name, USFSTL_STATIC_REFERENCE_FUNCTION,	\
+				     __FILE__)
 
 /*
  * This macro provides access to static module variables. If for example a module
