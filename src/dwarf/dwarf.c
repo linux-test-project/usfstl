@@ -61,6 +61,7 @@ enum dwarf_tag {
   DW_TAG_subroutine_type = 0x15,
   DW_TAG_structure_type = 0x13,
   DW_TAG_union_type = 0x17,
+  DW_TAG_unspecified_parameters = 0x18,
   DW_TAG_typedef = 0x16,
   DW_TAG_enumeration_type = 0x04,
   DW_TAG_variable = 0x34,
@@ -5038,7 +5039,8 @@ static void form_args_string(struct dwarf_data *ddata, struct unit *u,
 			}
 		}
 
-		if (abbrev->tag == DW_TAG_formal_parameter) {
+		switch (abbrev->tag) {
+		case DW_TAG_formal_parameter:
 			if (!first)
 				append(&args, &args_maxlen, ", ");
 			else
@@ -5046,6 +5048,16 @@ static void form_args_string(struct dwarf_data *ddata, struct unit *u,
 			if (ref != -1)
 				form_type_string(ddata, u, ref, args, args, args_maxlen,
 						 error_callback, data);
+			break;
+		case DW_TAG_unspecified_parameters:
+			if (!first)
+				append(&args, &args_maxlen, ", ");
+			else
+				first = 0;
+			append(&args, &args_maxlen, "...");
+			break;
+		default:
+			break;
 		}
 
 		if (abbrev->has_children)
