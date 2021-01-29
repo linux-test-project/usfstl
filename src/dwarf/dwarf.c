@@ -635,6 +635,9 @@ struct function
   uintptr_t low_pc;
 
   char *args, *ret;
+
+  /* backlink to the unit */
+  struct unit *unit;
 };
 
 /* An address range for a function.  This maps a PC value to a
@@ -725,6 +728,9 @@ struct unit
 
   struct function **functions;
   size_t functions_count;
+
+  /* backlink to the ddata */
+  struct dwarf_data *ddata;
 };
 
 /* An address range for a compilation unit.  This maps a PC value to a
@@ -3722,6 +3728,7 @@ read_function_entry (struct backtrace_state *state, struct dwarf_data *ddata,
 	  memset (function, 0, sizeof *function);
 	  function->function_data = function_data;
 	  function->function_data_len = function_max_len;
+	  function->unit = u;
 	}
 
       memset (&pcrange, 0, sizeof pcrange);
@@ -4662,6 +4669,7 @@ build_dwarf_data (struct backtrace_state *state,
   struct unit **units;
   size_t units_count;
   struct dwarf_data *fdata;
+  size_t i;
 
   if (!build_address_map (state, base_address, dwarf_sections, is_bigendian,
 			  altlink, error_callback, data, &addrs_vec,
@@ -4696,6 +4704,9 @@ build_dwarf_data (struct backtrace_state *state,
   fdata->dwarf_sections = *dwarf_sections;
   fdata->is_bigendian = is_bigendian;
   memset (&fdata->fvec, 0, sizeof fdata->fvec);
+
+  for (i = 0; i < units_count; i++)
+    units[i]->ddata = fdata;
 
   return fdata;
 }
@@ -5134,15 +5145,12 @@ static char *backtrace_strdup(struct backtrace_state *state, const char *str,
 	return result;
 }
 
-static int dwarf_lookup_function(struct backtrace_state *state, struct dwarf_data *ddata,
-				 const char *filename, const char *function,
-				 void **ptr, char **rettype, char **args,
-				 backtrace_error_callback error_callback, void *data)
+void dwarf_info_by_iterdata(struct backtrace_state *state, struct function *fn,
+			    void **ptr, char **rettype, char **args,
+			    backtrace_error_callback error_callback, void *data)
 {
-	struct unit *unit;
-	struct function **functions, **fn;
-	struct line *lines;
-	size_t functions_count;
+	struct unit *unit = fn->unit;
+	struct dwarf_data *ddata = unit->ddata;
 	char rettype_buf[1000] = { 0 };
 	char args_buf[1000] = { 0 };
 	struct dwarf_buf fn_buf = {
@@ -5152,6 +5160,39 @@ static int dwarf_lookup_function(struct backtrace_state *state, struct dwarf_dat
 		.error_callback = error_callback,
 		.data = data,
 	};
+
+	if (ptr)
+		*ptr = (void *)fn->low_pc;
+
+	if ((rettype && !fn->ret) || (args && !fn->args)) {
+		fn_buf.buf = fn->function_data;
+		fn_buf.left = fn->function_data_len;
+
+		dwarf_form_type_strings(ddata, unit, &fn_buf,
+					rettype_buf,
+					args_buf,
+					sizeof(rettype_buf),
+					sizeof(args_buf),
+					error_callback, data);
+		fn->ret = backtrace_strdup(state, rettype_buf, error_callback, data);
+		fn->args = backtrace_strdup(state, args_buf, error_callback, data);
+	}
+
+	if (rettype && fn->ret[0])
+		*rettype = backtrace_strdup(state, fn->ret, error_callback, data);
+	if (args && fn->args[0])
+		*args = backtrace_strdup(state, fn->args, error_callback, data);
+}
+
+static int dwarf_lookup_function(struct backtrace_state *state, struct dwarf_data *ddata,
+				 const char *filename, const char *function,
+				 void **ptr, char **rettype, char **args,
+				 backtrace_error_callback error_callback, void *data)
+{
+	struct unit *unit;
+	struct function **functions, **fn;
+	struct line *lines;
+	size_t functions_count;
 	size_t u;
 
 	for (u = 0; u < ddata->units_count; u++) {
@@ -5187,27 +5228,8 @@ static int dwarf_lookup_function(struct backtrace_state *state, struct dwarf_dat
 		if (!fn)
 			continue;
 
-		if (ptr)
-			*ptr = (void *)(*fn)->low_pc;
-
-		if ((rettype && !(*fn)->ret) || (args && !(*fn)->args)) {
-			fn_buf.buf = (*fn)->function_data;
-			fn_buf.left = (*fn)->function_data_len;
-
-			dwarf_form_type_strings(ddata, unit, &fn_buf,
-						rettype_buf,
-						args_buf,
-						sizeof(rettype_buf),
-						sizeof(args_buf),
-						error_callback, data);
-			(*fn)->ret = backtrace_strdup(state, rettype_buf, error_callback, data);
-			(*fn)->args = backtrace_strdup(state, args_buf, error_callback, data);
-		}
-
-		if (rettype && (*fn)->ret[0])
-			*rettype = backtrace_strdup(state, (*fn)->ret, error_callback, data);
-		if (args && (*fn)->args[0])
-			*args = backtrace_strdup(state, (*fn)->args, error_callback, data);
+		dwarf_info_by_iterdata(state, *fn, ptr, rettype, args,
+				       error_callback, data);
 		return 0;
 	}
 
@@ -5255,7 +5277,8 @@ int dwarf_info_by_name(struct backtrace_state *state,
 
 static void _dwarf_iter_functions(struct backtrace_state *state,
 				  struct dwarf_data *ddata,
-				  void (*callback)(const char *filename, const char *function),
+				  void (*callback)(const char *filename, const char *function,
+						   struct function *fn),
 				  backtrace_error_callback error_callback, void *data)
 {
 	struct unit *unit;
@@ -5285,7 +5308,7 @@ static void _dwarf_iter_functions(struct backtrace_state *state,
 		functions_count = unit->functions_count;
 
 		for (i = 0; i < functions_count; i++)
-			callback(unit->filename, functions[i]->name);
+			callback(unit->filename, functions[i]->name, functions[i]);
 	}
 }
 
@@ -5317,7 +5340,8 @@ void dwarf_iter_global_variables(struct backtrace_state *state,
 }
 
 void dwarf_iter_functions(struct backtrace_state *state,
-			  void (*callback)(const char *filename, const char *function),
+			  void (*callback)(const char *filename, const char *function,
+					   struct function *fn),
 			  backtrace_error_callback error_callback, void *data)
 {
 	for_each_dwarf_data(state, ddata)

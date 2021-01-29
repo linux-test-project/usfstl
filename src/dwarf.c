@@ -67,7 +67,9 @@ static void usfstl_resolve_static_variable(const char *varname, const char *file
 	}
 }
 
-static void usfstl_resolve_static_function(const char *filename, const char *varname)
+static void usfstl_resolve_static_function(const char *filename,
+					   const char *varname,
+					   struct function *fn)
 {
 	const struct usfstl_static_reference *reference;
 
@@ -83,9 +85,9 @@ static void usfstl_resolve_static_function(const char *filename, const char *var
 		if (*reference->ptr)
 			continue;
 
-		assert(dwarf_info_by_name(g_usfstl_backtrace_state, filename,
-					  varname, reference->ptr, &tp, &args,
-					  error_callback, NULL) == 0);
+		dwarf_info_by_iterdata(g_usfstl_backtrace_state, fn,
+				       reference->ptr, &tp, &args,
+				       error_callback, NULL);
 	}
 }
 

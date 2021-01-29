@@ -328,6 +328,9 @@ struct dwarf_sections
 
 struct dwarf_data;
 
+/* internal function data */
+struct function;
+
 /* Add file/line information for a DWARF module.  */
 
 extern int backtrace_dwarf_add (struct backtrace_state *state,
@@ -364,6 +367,9 @@ extern void backtrace_syminfo_to_full_callback (void *data, uintptr_t pc,
 extern void backtrace_syminfo_to_full_error_callback (void *, const char *,
 						      int);
 
+void dwarf_info_by_iterdata(struct backtrace_state *state, struct function *fn,
+			    void **ptr, char **rettype, char **args,
+			    backtrace_error_callback error_callback, void *data);
 int dwarf_info_by_name(struct backtrace_state *state,
 		       const char *filename, const char *function,
 		       void **ptr, char **rettype, char **args,
@@ -374,7 +380,8 @@ void dwarf_iter_global_variables(struct backtrace_state *state,
 				 backtrace_error_callback error_callback, void *data);
 
 void dwarf_iter_functions(struct backtrace_state *state,
-			  void (*callback)(const char *filename, const char *function),
+			  void (*callback)(const char *filename, const char *function,
+					   struct function *fn),
 			  backtrace_error_callback error_callback, void *data);
 
 uintptr_t dwarf_get_base_address(struct backtrace_state *state);
