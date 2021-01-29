@@ -415,6 +415,8 @@ endif
 $(_USFSTL_LIB_PATH)/%.o: $(USFSTL_PATH)/src/%.c | $(_USFSTL_LIB_PATH)/dwarf/ $(USFSTL_LOGDIR)
 	@echo " CC   usfstl/$(notdir $<)" $(USFSTL_LOG_USFSTL)
 	$(S)$(_USFSTL_CC) -c -MMD -MP $(_USFSTL_CC_INC) $(_USFSTL_CC_OPT) -o $@ $< $(USFSTL_LOG_USFSTL)
+$(_USFSTL_LIB_PATH)/entry.o: $(USFSTL_PATH)/src/entry.S | $(_USFSTL_LIB_PATH)/dwarf/ $(USFSTL_LOGDIR)
+$(_USFSTL_LIB_PATH)/entry.o: $(USFSTL_PATH)/src/entry-*.s
 $(_USFSTL_LIB_PATH)/%.o: $(USFSTL_PATH)/src/%.S | $(_USFSTL_LIB_PATH)/dwarf/ $(USFSTL_LOGDIR)
 	@echo " AS   usfstl/$(notdir $<)" $(USFSTL_LOG_USFSTL)
 	$(S)$(_USFSTL_CC) -c $(_USFSTL_AS_OPT) $(_USFSTL_CC_INC) $< -o $@ $(USFSTL_LOG_USFSTL)
