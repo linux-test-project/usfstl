@@ -5275,6 +5275,42 @@ int dwarf_info_by_name(struct backtrace_state *state,
 	return -1;
 }
 
+static void _dwarf_iter_funclist(struct function **functions,
+				 ssize_t functions_count,
+				 const char *function,
+				 void (*callback)(const char *filename, const char *function,
+						  struct function *fn, void *cbdata),
+				 void *cbdata)
+{
+	struct function **fn;
+	ssize_t i;
+
+	/* no filter - iterate all */
+	if (!function) {
+		for (i = 0; i < functions_count; i++)
+			callback(functions[i]->unit->filename, functions[i]->name,
+				 functions[i], cbdata);
+		return;
+	}
+
+	fn = (struct function **) bsearch (function, functions, functions_count,
+					   sizeof (struct function *), function_name_search);
+	if (!fn)
+		return;
+	for (i = fn - functions; i >= 0; i--) {
+		if (strcmp(function, functions[i]->name))
+			break;
+		callback(functions[i]->unit->filename, functions[i]->name,
+			 functions[i], cbdata);
+	}
+	for (i = fn - functions + 1; i < functions_count; i++) {
+		if (strcmp(function, functions[i]->name))
+			break;
+		callback(functions[i]->unit->filename, functions[i]->name,
+			 functions[i], cbdata);
+	}
+}
+
 static void _dwarf_iter_functions(struct backtrace_state *state, struct dwarf_data *ddata,
 				  const char *function,
 				  void (*callback)(const char *filename, const char *function,
@@ -5283,13 +5319,11 @@ static void _dwarf_iter_functions(struct backtrace_state *state, struct dwarf_da
 				  backtrace_error_callback error_callback, void *data)
 {
 	struct unit *unit;
-	struct function **functions, **fn;
+	struct function **functions;
 	struct line *lines;
 	size_t functions_count, u;
 
 	for (u = 0; u < ddata->units_count; u++) {
-		ssize_t i;
-
 		unit = ddata->units[u];
 
 		if (state->threaded)
@@ -5310,30 +5344,7 @@ static void _dwarf_iter_functions(struct backtrace_state *state, struct dwarf_da
 
 		functions_count = unit->functions_count;
 
-		/* no filter - iterate all */
-		if (!function) {
-			for (i = 0; i < (ssize_t)functions_count; i++)
-				callback(unit->filename, functions[i]->name,
-					 functions[i], cbdata);
-			continue;
-		}
-
-		fn = (struct function **) bsearch (function, functions, functions_count,
-						   sizeof (struct function *), function_name_search);
-		if (!fn)
-			continue;
-		for (i = fn - functions; i >= 0; i--) {
-			if (strcmp(function, functions[i]->name))
-				break;
-			callback(unit->filename, functions[i]->name,
-				 functions[i], cbdata);
-		}
-		for (i = fn - functions + 1; i < (ssize_t)functions_count; i++) {
-			if (strcmp(function, functions[i]->name))
-				break;
-			callback(unit->filename, functions[i]->name,
-				 functions[i], cbdata);
-		}
+		_dwarf_iter_funclist(functions, functions_count, function, callback, cbdata);
 	}
 }
 
@@ -5370,8 +5381,67 @@ void dwarf_iter_functions(struct backtrace_state *state, const char *function,
 			  void *cbdata,
 			  backtrace_error_callback error_callback, void *data)
 {
+	struct function **next;
+
+	if (state->functions == (void *)-1)
+		return;
+
+	if (state->functions) {
+		_dwarf_iter_funclist(state->functions, state->functions_count, function,
+				     callback, cbdata);
+		return;
+	}
+
 	for_each_dwarf_data(state, ddata)
 		_dwarf_iter_functions(state, ddata, function, callback, cbdata, error_callback, data);
+
+	/* and if that worked for the first time, build a complete list */
+
+	for_each_dwarf_data(state, ddata) {
+		struct function **functions;
+
+		for (size_t u = 0; u < ddata->units_count; u++) {
+			struct unit *unit = ddata->units[u];
+
+			if (state->threaded)
+				functions = (struct function **) backtrace_atomic_load_pointer (&unit->functions);
+			else
+				functions = unit->functions;
+
+			if (functions == (void *)-1)
+				continue;
+
+			state->functions_count += unit->functions_count;
+		}
+	}
+
+	state->functions = backtrace_alloc(state,
+					   state->functions_count *
+						sizeof(struct function *),
+					   error_callback, data);
+	next = state->functions;
+
+	for_each_dwarf_data(state, ddata) {
+		struct function **functions;
+
+		for (size_t u = 0; u < ddata->units_count; u++) {
+			struct unit *unit = ddata->units[u];
+
+			if (state->threaded)
+				functions = (struct function **) backtrace_atomic_load_pointer (&unit->functions);
+			else
+				functions = unit->functions;
+
+			if (functions == (void *)-1 || !unit->functions_count)
+				continue;
+
+			memcpy(next, functions, sizeof(struct function *) * unit->functions_count);
+			next += unit->functions_count;
+		}
+	}
+
+	backtrace_qsort(state->functions, state->functions_count,
+			sizeof (struct function *), function_ptr_compare);
 }
 
 uintptr_t dwarf_get_base_address(struct backtrace_state *state)

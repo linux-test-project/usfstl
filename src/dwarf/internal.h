@@ -161,6 +161,10 @@ struct backtrace_state
   int lock_alloc;
   /* The freelist when using mmap.  */
   struct backtrace_freelist_struct *freelist;
+
+  /* combined function vector for faster search */
+  struct function **functions;
+  size_t functions_count;
 };
 
 /* Open a file for reading.  Returns -1 on error.  If DOES_NOT_EXIST
