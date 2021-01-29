@@ -5275,18 +5275,21 @@ int dwarf_info_by_name(struct backtrace_state *state,
 	return -1;
 }
 
-static void _dwarf_iter_functions(struct backtrace_state *state,
-				  struct dwarf_data *ddata,
+static void _dwarf_iter_functions(struct backtrace_state *state, struct dwarf_data *ddata,
+				  const char *function,
 				  void (*callback)(const char *filename, const char *function,
-						   struct function *fn),
+						   struct function *fn, void *cbdata),
+				  void *cbdata,
 				  backtrace_error_callback error_callback, void *data)
 {
 	struct unit *unit;
-	struct function **functions;
+	struct function **functions, **fn;
 	struct line *lines;
-	size_t functions_count, i, u;
+	size_t functions_count, u;
 
 	for (u = 0; u < ddata->units_count; u++) {
+		ssize_t i;
+
 		unit = ddata->units[u];
 
 		if (state->threaded)
@@ -5307,8 +5310,30 @@ static void _dwarf_iter_functions(struct backtrace_state *state,
 
 		functions_count = unit->functions_count;
 
-		for (i = 0; i < functions_count; i++)
-			callback(unit->filename, functions[i]->name, functions[i]);
+		/* no filter - iterate all */
+		if (!function) {
+			for (i = 0; i < (ssize_t)functions_count; i++)
+				callback(unit->filename, functions[i]->name,
+					 functions[i], cbdata);
+			continue;
+		}
+
+		fn = (struct function **) bsearch (function, functions, functions_count,
+						   sizeof (struct function *), function_name_search);
+		if (!fn)
+			continue;
+		for (i = fn - functions; i >= 0; i--) {
+			if (strcmp(function, functions[i]->name))
+				break;
+			callback(unit->filename, functions[i]->name,
+				 functions[i], cbdata);
+		}
+		for (i = fn - functions + 1; i < (ssize_t)functions_count; i++) {
+			if (strcmp(function, functions[i]->name))
+				break;
+			callback(unit->filename, functions[i]->name,
+				 functions[i], cbdata);
+		}
 	}
 }
 
@@ -5339,13 +5364,14 @@ void dwarf_iter_global_variables(struct backtrace_state *state,
 	}
 }
 
-void dwarf_iter_functions(struct backtrace_state *state,
+void dwarf_iter_functions(struct backtrace_state *state, const char *function,
 			  void (*callback)(const char *filename, const char *function,
-					   struct function *fn),
+					   struct function *fn, void *cbdata),
+			  void *cbdata,
 			  backtrace_error_callback error_callback, void *data)
 {
 	for_each_dwarf_data(state, ddata)
-		_dwarf_iter_functions(state, ddata, callback, error_callback, data);
+		_dwarf_iter_functions(state, ddata, function, callback, cbdata, error_callback, data);
 }
 
 uintptr_t dwarf_get_base_address(struct backtrace_state *state)

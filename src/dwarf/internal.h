@@ -379,9 +379,11 @@ void dwarf_iter_global_variables(struct backtrace_state *state,
 				 void (*callback)(const char *varname, const char* filename, void *var_pointer),
 				 backtrace_error_callback error_callback, void *data);
 
-void dwarf_iter_functions(struct backtrace_state *state,
+/* function can be NULL for all, or a name to filter for while iterating */
+void dwarf_iter_functions(struct backtrace_state *state, const char *function,
 			  void (*callback)(const char *filename, const char *function,
-					   struct function *fn),
+					   struct function *fn, void *cbdata),
+			  void *cbdata,
 			  backtrace_error_callback error_callback, void *data);
 
 uintptr_t dwarf_get_base_address(struct backtrace_state *state);

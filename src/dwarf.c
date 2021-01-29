@@ -67,28 +67,34 @@ static void usfstl_resolve_static_variable(const char *varname, const char *file
 	}
 }
 
+struct usfstl_resolve_cbdata {
+	const struct usfstl_static_reference *ref;
+	char *ret;
+	char *args;
+};
+
 static void usfstl_resolve_static_function(const char *filename,
 					   const char *varname,
-					   struct function *fn)
+					   struct function *fn,
+					   void *cbdata)
 {
-	const struct usfstl_static_reference *reference;
+	struct usfstl_resolve_cbdata *cbd = cbdata;
+	const struct usfstl_static_reference *reference = cbd->ref;
+	void *ptr = NULL;
 
-	for_each_unresolved_static_reference(reference) {
-		char *tp, *args;
+	if (reference->reference_type != USFSTL_STATIC_REFERENCE_FUNCTION)
+		return;
 
-		if (reference->reference_type != USFSTL_STATIC_REFERENCE_FUNCTION)
-			continue;
+	if (*reference->ptr && cbd->ret && cbd->args)
+		return;
 
-		if (strcmp(reference->name, varname))
-			continue;
+	dwarf_info_by_iterdata(g_usfstl_backtrace_state, fn, &ptr,
+			       reference->filename ? &cbd->ret : NULL,
+			       reference->filename ? &cbd->args : NULL,
+			       error_callback, NULL);
 
-		if (*reference->ptr)
-			continue;
-
-		dwarf_info_by_iterdata(g_usfstl_backtrace_state, fn,
-				       reference->ptr, &tp, &args,
-				       error_callback, NULL);
-	}
+	if (ptr)
+		*reference->ptr = ptr;
 }
 
 static void usfstl_check_proto(const char *filename, const char *refname,
@@ -120,25 +126,22 @@ static void usfstl_check_proto(const char *filename, const char *refname,
 }
 
 static void
-usfstl_check_static_prototype(const struct usfstl_static_reference *ref)
+usfstl_check_static_prototype(struct usfstl_resolve_cbdata *cb)
 {
-	const char *orig_ret, *orig_args;
 	const char *fptr_ret, *fptr_args;
-	char fnbuf[25 + strlen(ref->name)];
+	char fnbuf[25 + strlen(cb->ref->name)];
 
 	/* this marks having a checker static function in this file */
-	if (!ref->filename)
+	if (!cb->ref->filename)
 		return;
 
-	USFSTL_ASSERT(usfstl_get_func_info(NULL, ref->name,
-					   &orig_ret, &orig_args) == 0);
-
-	sprintf(fnbuf, "_usfstl_stf_proto_%s", ref->name);
-	USFSTL_ASSERT(usfstl_get_func_info(ref->filename, fnbuf,
+	sprintf(fnbuf, "_usfstl_stf_proto_%s", cb->ref->name);
+	USFSTL_ASSERT(usfstl_get_func_info(cb->ref->filename, fnbuf,
 					   &fptr_ret, &fptr_args) == 0);
 
-	usfstl_check_proto(ref->filename, ref->name, orig_ret, fptr_ret,
-			   orig_args, fptr_args);
+	usfstl_check_proto(cb->ref->filename, cb->ref->name,
+			   cb->ret ?: "void", fptr_ret,
+			   cb->args ?: "void", fptr_args);
 }
 
 static void usfstl_resolve_static_references(void)
@@ -158,14 +161,17 @@ static void usfstl_resolve_static_references(void)
 		dwarf_iter_global_variables(g_usfstl_backtrace_state,
 					    usfstl_resolve_static_variable,
 					    error_callback, NULL);
-	if (found & (1 << USFSTL_STATIC_REFERENCE_FUNCTION))
-		dwarf_iter_functions(g_usfstl_backtrace_state,
-				     usfstl_resolve_static_function,
-				     error_callback, NULL);
 
 	for_each_static_reference(ref) {
-		if (ref->reference_type == USFSTL_STATIC_REFERENCE_FUNCTION)
-			usfstl_check_static_prototype(ref);
+		if (ref->reference_type == USFSTL_STATIC_REFERENCE_FUNCTION) {
+			struct usfstl_resolve_cbdata cb = {
+				.ref = ref,
+			};
+			dwarf_iter_functions(g_usfstl_backtrace_state, ref->name,
+					     usfstl_resolve_static_function, &cb,
+					     error_callback, NULL);
+			usfstl_check_static_prototype(&cb);
+		}
 
 		if (*ref->ptr)
 			continue;
