@@ -495,7 +495,7 @@ struct usfstl_static_reference {
 	static ret * __attribute__((used))					\
 	_usfstl_stf_proto_ ## _name(__VA_ARGS__) { return NULL; }		\
 	USFSTL_STATIC_TEST_REFERENCE(_name, USFSTL_STATIC_REFERENCE_FUNCTION,	\
-				     __FILE__)
+				     __FILE__ /* the file marks for _CHK() */)
 
 /*
  * This macro provides access to static module variables. If for example a module
