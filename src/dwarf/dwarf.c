@@ -4325,7 +4325,7 @@ dwarf_read_function_info (struct backtrace_state *state, struct dwarf_data *ddat
       u->function_addrs = function_addrs;
       u->function_addrs_count = function_addrs_count;
       u->lines = *lines;
-      u->functions = fptrvec.vec.base;
+      u->functions = fptrvec.vec.base ?: (void *)-1;
       u->functions_count = fptrvec.count;
     }
   else
@@ -4337,7 +4337,7 @@ dwarf_read_function_info (struct backtrace_state *state, struct dwarf_data *ddat
       backtrace_atomic_store_pointer (&u->lines, *lines);
       backtrace_atomic_store_size_t (&u->functions_count,
                                      fptrvec.count);
-      backtrace_atomic_store_pointer (&u->functions, fptrvec.vec.base);
+      backtrace_atomic_store_pointer (&u->functions, fptrvec.vec.base ?: (void *)-1);
     }
 
   return new_data;
