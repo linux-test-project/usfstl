@@ -389,7 +389,8 @@ USFSTL_TEST_LINK_OPT += -lws2_32
 else
 OBJS += watchdog-posix.o rpc-posix.o multi-posix.o wallclock.o
 ifneq ($(USFSTL_VHOST_USER),)
-OBJS += vhost.o uds.o
+# include PCI since it just requires vhost, no point separating
+OBJS += vhost.o uds.o pci.o
 endif # USFSTL_VHOST_USER
 ifneq ($(USFSTL_SCHED_CTRL),)
 OBJS += uds.o schedctrl.o
