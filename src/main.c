@@ -306,7 +306,7 @@ int main(int argc, char **argv)
 	int tcidx, i, test = -1;
 	int ctr = 0;
 	int ret = 0;
-	int succeeded = 0, failed = 0;
+	int succeeded = 0, failed = 0, failing_succeeded = 0;
 	uint64_t tm;
 
 	tm = get_monotonic_time_ms();
@@ -325,7 +325,7 @@ int main(int argc, char **argv)
 
 	for (tcidx = 0; &__start_usfstl_tests[tcidx] < &__stop_usfstl_tests; tcidx++) {
 		const struct usfstl_test *tc = __start_usfstl_tests[tcidx];
-		unsigned int tc_succeeded = 0, tc_failed = 0;
+		unsigned int tc_succeeded = 0, tc_failed = 0, tc_failing_succeeded = 0;
 
 		if (!tc)
 			continue;
@@ -358,10 +358,18 @@ int main(int argc, char **argv)
 				continue;
 
 			if (status != USFSTL_STATUS_SUCCESS) {
-				ret = 1;
 				tc_failed++;
+				if (!((g_usfstl_current_testcase && g_usfstl_current_testcase->failing) ||
+				      tc->failing))
+					ret = 1;
 			} else {
-				tc_succeeded++;
+				if ((g_usfstl_current_testcase && g_usfstl_current_testcase->failing) ||
+				    tc->failing) {
+					ret = 1;
+					tc_failing_succeeded++;
+				} else {
+					tc_succeeded++;
+				}
 			}
 		}
 
@@ -372,6 +380,7 @@ int main(int argc, char **argv)
 
 		failed += tc_failed;
 		succeeded += tc_succeeded;
+		failing_succeeded += tc_failing_succeeded;
 
 		write_summary(tc->name, tc_succeeded, tc_failed);
 		write_requirements(tc, tc_succeeded, tc_failed);
@@ -387,7 +396,12 @@ int main(int argc, char **argv)
 
 	usfstl_multi_finish();
 
-	printf("\nRan %d tests, %d failed.\n", succeeded + failed, failed);
+	if (failing_succeeded)
+		printf("\nRan %d tests, %d failed (%d marked as failing passed).\n",
+		       succeeded + failed + failing_succeeded, failed, failing_succeeded);
+	else
+		printf("\nRan %d tests, %d failed.\n", succeeded + failed, failed);
+
 	write_summary("TOTAL", succeeded, failed);
 	close_summary();
 	close_requirements();
