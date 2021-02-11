@@ -1136,30 +1136,23 @@ free_abbrevs (struct backtrace_state *state, struct abbrevs *abbrevs,
    by the DWARF specification (See section 2.16). When evaluated, this expression can
    be used to determine the address of either a local or global variable. Since
    we are parsing this attribute only for the sake of retrieving the addresses of static
-   global variables, we only evaluate expressions describing a global address */
+   global variables, we only evaluate expressions describing a single (global) address */
 static int
-read_location_attr(struct dwarf_buf *buf, struct attr_val *val)
+read_location_attr(struct dwarf_buf *buf, struct attr_val *val,
+		   int addrsize)
 {
 	unsigned char buffer_length = read_byte(buf);
 	enum dwarf_location_operation operation = read_byte(buf);
-	int remaining = 0;
+
 	buffer_length -= 1;
 
-	if (operation != DW_OP_addr) {
+	if (operation != DW_OP_addr || buffer_length != addrsize) {
 		val->encoding = ATTR_VAL_EXPR;
 		return advance (buf, buffer_length);
 	}
 
 	val->encoding = ATTR_VAL_ADDRESS;
-	assert(buffer_length <= sizeof(val->u.uint));
-	/* hackaround: if we have this it's probably a DW_OP_stack_value ... */
-	if (buffer_length == 5)
-	{
-	  buffer_length = 4;
-	  remaining = 1;
-	}
-	val->u.uint = read_address(buf, buffer_length);
-	advance(buf, remaining);
+	val->u.uint = read_address(buf, addrsize);
 	return 1;
 }
 
@@ -1221,7 +1214,7 @@ read_attribute (enum dwarf_attribute attr_name,
       // same way, by attempting to parse their data as an expression location. According to the DWARF standard, the
       // DW_AT_location attribute should always be parsed as an expression location.
       if (attr_name == DW_AT_location) {
-        return read_location_attr(buf, val);
+        return read_location_attr(buf, val, addrsize);
       } else {
         val->encoding = ATTR_VAL_BLOCK;
         return advance (buf, read_byte (buf));
@@ -1319,7 +1312,7 @@ read_attribute (enum dwarf_attribute attr_name,
       val->u.uint = read_offset (buf, is_dwarf64);
       return 1;
     case DW_FORM_exprloc:
-      return read_location_attr(buf, val);
+      return read_location_attr(buf, val, addrsize);
     case DW_FORM_flag_present:
       val->encoding = ATTR_VAL_UINT;
       val->u.uint = 1;
