@@ -114,7 +114,7 @@
 #                             to get proper logging into place
 #
 # Finally, your Makefile needs to provide the following targets:
-#  - $(USFSTL_BIN_PATH)/%/$(USFSTL_TESTED_LIB):
+#  - $(USFSTL_BIN_PATH)/tested-%/$(USFSTL_TESTED_LIB):
 #	To build your tested library. Note that you need to build at least with
 #	-fno-inline-small-functions, otherwise the stubbing system cannot work
 #	right. Consider -O0.
@@ -244,7 +244,7 @@ USFSTL_TEST_CFG = $(call test_cfg,$(if $(_USFSTL_ONECFG),$(_USFSTL_ONECFG),$@))
 ifeq ($(USFSTL_LOG_TO_FILES),1)
 extract_cfg = $(word 1,$(subst /, ,$(subst $(USFSTL_BIN_PATH)/$2,,$1)))
 support_cfg = $(call extract_cfg,$1,support-)
-tested_cfg = $(call extract_cfg,$1,)
+tested_cfg = $(call extract_cfg,$1,tested-)
 test_cfg_prefix = $(word 1,$(subst /, ,$*))
 _USFSTL_LOGFILE_TESTED   = $(USFSTL_LOGDIR)/tested-$(call tested_cfg,$@).txt
 _USFSTL_LOGFILE_SUPPORT  = $(USFSTL_LOGDIR)/support-$(call support_cfg,$@).txt
@@ -325,7 +325,7 @@ list-cfg: build $(addprefix run-LIST@,$(USFSTL_RUN_CONFIGS))
 
 .PHONY: clean
 clean:
-	$(S)rm -rf $(foreach _USFSTL_ONECFG,$(USFSTL_TEST_CONFIGS),$(eval _CFG=$(USFSTL_BIN_PATH)/$(USFSTL_TESTED_LIB_CFG)/)$(_CFG))
+	$(S)rm -rf $(foreach _USFSTL_ONECFG,$(USFSTL_TEST_CONFIGS),$(eval _CFG=$(USFSTL_BIN_PATH)/tested-$(USFSTL_TESTED_LIB_CFG)/)$(_CFG))
 	$(S)rm -rf $(foreach _USFSTL_ONECFG,$(USFSTL_TEST_CONFIGS),$(eval _CFG=$(USFSTL_BIN_PATH)/support-$(USFSTL_SUPPORT_LIB_CFG)/)$(_CFG))
 	$(S)rm -rf $(USFSTL_TEST_BIN_PATH) $(_USFSTL_LIB_PATH)
 	$(S)rm -f *.gcno gmon.out
@@ -334,7 +334,7 @@ clean:
 usfstl: $(_USFSTL_LIB)
 
 .PHONY: tested
-tested: $(foreach _USFSTL_ONECFG,$(USFSTL_TEST_CONFIGS),$(eval _CFG=$(USFSTL_BIN_PATH)/$(USFSTL_TESTED_LIB_CFG)/$(USFSTL_TESTED_LIB).md5)$(_CFG))
+tested: $(foreach _USFSTL_ONECFG,$(USFSTL_TEST_CONFIGS),$(eval _CFG=$(USFSTL_BIN_PATH)/tested-$(USFSTL_TESTED_LIB_CFG)/$(USFSTL_TESTED_LIB).md5)$(_CFG))
 
 .PHONY: support
 support: $(foreach _USFSTL_ONECFG,$(USFSTL_TEST_CONFIGS),$(eval _CFG=$(USFSTL_BIN_PATH)/support-$(USFSTL_SUPPORT_LIB_CFG)/$(USFSTL_SUPPORT_LIB).md5)$(_CFG))
@@ -455,7 +455,7 @@ ifneq ($(USFSTL_DONTKEEP_LIB),1)
 .PRECIOUS: $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a
 endif
 $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a: $(USFSTL_TEST_BIN_PATH)/tested.c \
-                                                $(USFSTL_BIN_PATH)/$(USFSTL_TESTED_LIB_CFG)/$(USFSTL_TESTED_LIB).md5 \
+                                                $(USFSTL_BIN_PATH)/tested-$(USFSTL_TESTED_LIB_CFG)/$(USFSTL_TESTED_LIB).md5 \
 						$(USFSTL_BIN_PATH)/support-$(USFSTL_SUPPORT_LIB_CFG)/$(USFSTL_SUPPORT_LIB).md5 \
 						$(_USFSTL_LIB) \
 						| $(USFSTL_TEST_BIN_PATH)/%/ $(USFSTL_LOGDIR)
@@ -485,7 +485,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY): $(USFSTL_EXTRA_TEST_C_FILES) \
 # and that is used by another inline that should be tested
 .PRECIOUS: $(USFSTL_TEST_BIN_PATH)/%.o.tmp
 $(USFSTL_TEST_BIN_PATH)/%.o.tmp: $(USFSTL_TESTSRC_DIR)$$(notdir %).c \
-				 $(USFSTL_BIN_PATH)/$(USFSTL_TESTED_LIB_CFG)/$(USFSTL_TESTED_LIB).md5 \
+				 $(USFSTL_BIN_PATH)/tested-$(USFSTL_TESTED_LIB_CFG)/$(USFSTL_TESTED_LIB).md5 \
 				 | $(USFSTL_LOGDIR) $$(dir $(USFSTL_TEST_BIN_PATH)/%)
 	@echo " CC   $(dir $*)$(notdir $<)" $(USFSTL_LOG_TEST)
 	$(S)$(USFSTL_TEST_PRE_CC_CMD) $(CC) -MMD -MP -pg -mfentry -c $(_USFSTL_CC_INC) $(USFSTL_TEST_CC_OPT) $(_USFSTL_TESTCODE_DEFINES) $< -o $@ $(USFSTL_LOG_TEST)
