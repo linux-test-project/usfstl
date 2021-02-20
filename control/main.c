@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
+#define _GNU_SOURCE 1 /* for struct ucred */
 #include <stddef.h>
 #include <errno.h>
 #include <stdio.h>
@@ -18,6 +19,7 @@
 #include <usfstl/opt.h>
 #include <usfstl/uds.h>
 #include <linux/um_timetravel.h>
+#include <sys/socket.h>
 #include "main.h"
 
 static int clients;
@@ -498,6 +500,9 @@ static void handle_new_connection(int fd, void *data)
 {
 	struct usfstl_schedule_client *client;
 	static int ctr;
+	struct ucred ucred;
+	socklen_t ucred_sz = sizeof(ucred);
+	int ret;
 
 	client = malloc(sizeof(*client));
 	assert(client);
@@ -511,7 +516,12 @@ static void handle_new_connection(int fd, void *data)
 	client->job.group = 1;
 	usfstl_loop_register(&client->conn);
 	client->waiting_for = -1;
-	DBG_CLIENT(0, client, "connected");
+
+	ret = getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_sz);
+	if (ret == 0)
+		DBG_CLIENT(0, client, "connected (pid=%d)", ucred.pid);
+	else
+		DBG_CLIENT(0, client, "connected");
 }
 
 static char *path;
