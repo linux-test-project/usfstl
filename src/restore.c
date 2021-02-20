@@ -101,6 +101,8 @@ static struct restore_info *usfstl_read_restore_info(const char *program)
 	out->ptr = 0;
 	out->size = 0;
 
+	close(fd);
+
 	return info;
 }
 
