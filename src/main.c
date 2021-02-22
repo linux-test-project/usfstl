@@ -367,6 +367,8 @@ int main(int argc, char **argv)
 				    tc->failing) {
 					ret = 1;
 					tc_failing_succeeded++;
+					printf("\n!!!! test '%s' case #%d is marked as a failing test but passed now\n\n",
+					       tc->name, i);
 				} else {
 					tc_succeeded++;
 				}
