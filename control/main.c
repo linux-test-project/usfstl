@@ -51,10 +51,17 @@ void usfstl_abort(const char *fn, unsigned int line,
 	assert(0);
 }
 
+enum usfstl_schedule_client_state {
+	USCS_CONNECTED = 0,
+	USCS_START_REQUESTED,
+	USCS_STARTED,
+};
+
 struct usfstl_schedule_client {
 	struct usfstl_job job;
 	struct usfstl_loop_entry conn;
-	bool started, sync_set;
+	enum usfstl_schedule_client_state state;
+	bool sync_set;
 	uint64_t sync;
 	uint64_t n_req, n_wait, n_update;
 	uint64_t last_message;
@@ -87,8 +94,9 @@ static char *client_ts(struct usfstl_schedule_client *client)
 {
 	static char buf[21] = {};
 
-	if (!client->started)
+	if (client->state != USCS_STARTED)
 		return "tbd";
+
 	if (!client->offset)
 		return "=";
 
@@ -167,7 +175,7 @@ static void remove_client(struct usfstl_schedule_client *client)
 	usfstl_sched_del_job(&client->job);
 	usfstl_loop_unregister(&client->conn);
 	close(client->conn.fd);
-	if (client->started)
+	if (client->state == USCS_STARTED)
 		clients--;
 	DBG_CLIENT(0, client,
 		   "removed (req: %"PRIu64", wait: %"PRIu64", update: %"PRIu64")",
@@ -249,7 +257,7 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 	case UM_TIMETRAVEL_ACK:
 		return UM_TIMETRAVEL_ACK;
 	case UM_TIMETRAVEL_REQUEST:
-		USFSTL_ASSERT(client->started,
+		USFSTL_ASSERT(client->state == USCS_STARTED,
 			      "Client must not request runtime while not started!");
 		usfstl_sched_del_job(&client->job);
 		client->job.start = client->offset + msg.time;
@@ -273,6 +281,7 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		 */
 		process_start = true;
 		client->start_seq = msg.seq;
+		client->state = USCS_START_REQUESTED;
 		return UM_TIMETRAVEL_START;
 	case UM_TIMETRAVEL_WAIT:
 		USFSTL_ASSERT(client == running_client || !running_client,
@@ -285,12 +294,12 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		}
 		break;
 	case UM_TIMETRAVEL_GET:
-		USFSTL_ASSERT(client->started,
+		USFSTL_ASSERT(client->state == USCS_STARTED,
 			      "Client must not retrieve time while not started!");
 		val = scheduler.current_time - client->offset;
 		break;
 	case UM_TIMETRAVEL_GET_TOD:
-		USFSTL_ASSERT(client->started,
+		USFSTL_ASSERT(client->state == USCS_STARTED,
 			      "Client must not retrieve TOD while not started!");
 		val = wallclock_time_at_start + scheduler.current_time;
 		break;
@@ -433,7 +442,7 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 {
 	client->offset = scheduler.current_time;
 	write_message(client, UM_TIMETRAVEL_ACK, client->start_seq, 0);
-	client->started = true;
+	client->state = USCS_STARTED;
 	wait_for(client, UM_TIMETRAVEL_WAIT);
 	clients++;
 }
@@ -457,7 +466,7 @@ static void process_starting_clients(void)
 
 			client = container_of(entry, struct usfstl_schedule_client, conn);
 
-			if (client->started)
+			if (client->state != USCS_START_REQUESTED)
 				continue;
 
 			process_start = false;
