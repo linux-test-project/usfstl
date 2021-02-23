@@ -23,7 +23,7 @@ USFSTL_TEST_CONFIGS := A B
 
 include $(USFSTL_PATH)/core.mak
 
-.PRECIOUS: $(USFSTL_BIN_PATH)/%/
+.PRECIOUS: $(USFSTL_BIN_PATH)/tested-%/
 $(USFSTL_BIN_PATH)/%/:
 	mkdir -p $@
 .PRECIOUS: $(USFSTL_BIN_PATH)/support-%/
@@ -36,7 +36,7 @@ $(USFSTL_BIN_PATH)/support-%/:
 .PHONY: phony
 
 .PRECIOUS: $(USFSTL_BIN_PATH)/%/$(USFSTL_TESTED_LIB)
-$(USFSTL_BIN_PATH)/%/$(USFSTL_TESTED_LIB): phony | $(USFSTL_BIN_PATH)/%/
+$(USFSTL_BIN_PATH)/tested-%/$(USFSTL_TESTED_LIB): phony | $(USFSTL_BIN_PATH)/tested-%/
 	make -C ../lib/					\
 		CONFIG=$*				\
 		OUTDIR=$(abspath $(dir $@))		\
