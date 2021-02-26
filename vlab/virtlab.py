@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2020-2021 Intel Corporation
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -107,6 +107,21 @@ class Plugin:
         """
         Return a shell script fragment to run on controller (first machine)
         startup.
+        """
+        return ""
+
+    def nodestop(self, runtime: VlabRuntimeData) -> str:
+        # pylint: disable=unused-argument, no-self-use
+        """
+        Return a shell script fragment to run on each node at node shutdown
+        (except for the controller).
+        """
+        return ""
+
+    def ctrlstop(self, runtime: VlabRuntimeData) -> str:
+        # pylint: disable=unused-argument, no-self-use
+        """
+        Return a shell script fragment to run on the controller at shutdown.
         """
         return ""
 
@@ -589,8 +604,16 @@ class Vlab:
 {NEWLINE.join(plugin.earlystart(self.runtime) for plugin in self.args.plugins)}
 ''')
 
+        nodestop = os.path.join(tmpdir, 'stop.sh')
+        open(nodestop, 'w').write(f'''#!/bin/sh
+
+{NEWLINE.join(plugin.nodestop(self.runtime) for plugin in self.args.plugins)}
+''')
+
         nodestart = os.path.join(tmpdir, 'node.sh')
         open(nodestart, 'w').write(f'''#!/bin/sh
+
+chmod +x /tmp/.host/{nodestop}
 
 {NEWLINE.join(plugin.nodestart(self.runtime) for plugin in self.args.plugins)}
 
@@ -610,8 +633,12 @@ code=$?
 status=$(sed 's/.*status=\([^ ]*\)\( .*\|$\)/\1/;t;d' /proc/cmdline)
 echo $code > $status
 
+{NEWLINE.join([f"ssh -Fnone -oStrictHostKeyChecking=no {node.addr} /tmp/.host/{nodestop}" for node in nodes[1:]])}
+
 {NEWLINE.join([f"echo power off {node.addr} ; ssh -Fnone -oStrictHostKeyChecking=no {node.addr} poweroff -f &" for node in nodes[1:]])}
 {"echo waiting 5 seconds for shutdown; sleep 5" if len(nodes) > 1 else ""}
+
+{NEWLINE.join(plugin.ctrlstop(self.runtime) for plugin in self.args.plugins)}
 
 poweroff -f
 ''')
