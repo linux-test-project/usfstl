@@ -75,6 +75,13 @@ class PluginNode:
         """
         self._started = True
 
+    def postrun(self, node: Node, vlabinst: Vlab, node_logdir: str) -> None:
+        # pylint: disable=unused-argument
+        """
+        Do any necessary work after the vlab run concluded and all nodes
+        have been shut down again.
+        """
+
 class Plugin:
     """
     Base vlab plugin
@@ -778,6 +785,14 @@ poweroff -f
                     pgrp = os.getpgid(process.pid)
                     os.killpg(pgrp, signal.SIGKILL)
             os.system('reset -I >/dev/null 2>&1 || true')
+
+            for node in nodes:
+                node_logdir = os.path.join(self.runtime.logdir, node.name)
+
+                for pnode in node.plugins.values():
+                    if pnode is None:
+                        continue
+                    pnode.postrun(node, self, node_logdir)
 
         if not args.interactive:
             assert statusfile is not None

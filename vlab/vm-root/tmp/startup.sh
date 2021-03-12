@@ -81,6 +81,7 @@ ln -s /tmp/.host$tmpdir/hosts /etc/hosts
 
 cat >/root/.ssh/environment <<EOF
 PATH=$PATH
+TMPDIR=$tmpdir
 EOF
 
 real_cfg="$(dirname $(which sshd))/../etc/ssh/sshd_config"
@@ -109,6 +110,7 @@ if [ "$addr" != "" ] ; then
 fi
 
 export HOME=/root/
+export TMPDIR=$tmpdir
 
 touch /var/log/syslog
 ( while true ; do socat unix-listen:/dev/log file:/var/log/syslog ; done) &
