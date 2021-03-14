@@ -385,7 +385,7 @@ $(USFSTL_BIN_PATH)/%/:
 OBJS = print.o main.o override.o dwarf.o testrun.o restore.o fuzz.o opt.o
 OBJS += ctx-$(USFSTL_CONTEXT_BACKEND).o ctx-common.o sched.o task.o rpc.o
 OBJS += multi.o multi-rpc.o multi-ctl.o multi-ptc.o multi-shared-mem.o rpc-rpc.o loop.o alloc.o
-OBJS += assert-profiling.o string.o
+OBJS += assert-profiling.o string.o rand.o
 ASM_OBJS = entry.o
 DWARF_OBJS = dwarf/dwarf.o dwarf/sort.o dwarf/state.o dwarf/fileline.o
 DWARF_READ_OBJS = dwarf/posix.o dwarf/backtrace.o
