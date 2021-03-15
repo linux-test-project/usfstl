@@ -375,7 +375,7 @@ bool usfstl_sem_timedwait(struct usfstl_sem *sem, uint64_t timeout)
 
 		/* keep priority-sorted list */
 		usfstl_for_each_list_item(tmp, &sem->waiters, sem_entry) {
-			if (usfstl_task_get_priority(tmp) >=
+			if (usfstl_task_get_priority(tmp) <
 			    usfstl_task_get_priority(task))
 				break;
 		}
