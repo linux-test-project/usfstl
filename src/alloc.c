@@ -59,8 +59,8 @@ static void usfstl_alloc_remove(void *ptr)
 	for (i = 0; i < g_n_usfstl_allocations; i++) {
 		if (g_usfstl_allocations[i] == ptr) {
 			g_usfstl_allocations[i] = NULL;
-			/* if freeing at all, optimise for short-lived */
-			g_usfstl_allocations_next_idx = i;
+			if (i < g_usfstl_allocations_next_idx)
+				g_usfstl_allocations_next_idx = i;
 			return;
 		}
 	}
