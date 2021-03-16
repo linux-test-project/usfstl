@@ -90,15 +90,14 @@ void *usfstl_calloc(size_t nmemb, size_t size)
 
 void *usfstl_realloc(void *ptr, size_t size)
 {
-	void *ret = realloc(ptr, size);
-
-	if (ret == ptr || !ret)
-		return ret;
-
 	usfstl_alloc_remove(ptr);
-	usfstl_alloc_track(ret);
 
-	return ret;
+	ptr = realloc(ptr, size);
+
+	if (ptr)
+		usfstl_alloc_track(ptr);
+
+	return ptr;
 }
 
 char *usfstl_strdup(const char *s)
@@ -129,8 +128,8 @@ char *usfstl_strndup(const char *s, size_t n)
 
 void usfstl_free(void *ptr)
 {
-	free(ptr);
 	usfstl_alloc_remove(ptr);
+	free(ptr);
 }
 
 void usfstl_free_all(void)
