@@ -220,7 +220,6 @@ void usfstl_sched_ctrl_sync_from(struct usfstl_sched_ctrl *ctrl)
 void usfstl_sched_ctrl_stop(struct usfstl_sched_ctrl *ctrl)
 {
 	USFSTL_ASSERT_EQ(ctrl, ctrl->sched->ext.ctrl, "%p");
-	usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_WAIT, -1);
 	usfstl_uds_disconnect(ctrl->fd);
 	ctrl->sched->ext.ctrl = NULL;
 	ctrl->sched->external_request = NULL;
