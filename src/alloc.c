@@ -64,6 +64,7 @@ static void usfstl_alloc_remove(void *ptr)
 			return;
 		}
 	}
+	USFSTL_ASSERT(0, "didn't find the pointer to remove (freeing a non-usfstl-alloc'ed pointer?)");
 }
 
 void *usfstl_malloc(size_t size)
