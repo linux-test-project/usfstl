@@ -220,7 +220,7 @@ static bool write_message(struct usfstl_schedule_client *client,
 	DBG_TX(2, client, &msg);
 	ret = write(client->conn.fd, &msg, sizeof(msg));
 
-	if (ret < 0 && errno == EPIPE) {
+	if (ret < 0) {
 		remove_client(client);
 		return false;
 	}
@@ -235,10 +235,12 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 	int ret;
 
 	ret = read(client->conn.fd, &msg, sizeof(msg));
-	if (ret == 0) {
+	if (ret <= 0) {
 		remove_client(client);
 		return -1;
 	}
+
+	USFSTL_ASSERT_EQ(ret, (int)sizeof(msg), "%d");
 
 	/* set up the client's name */
 	if (msg.op == UM_TIMETRAVEL_START && msg.time != (uint64_t)-1) {
@@ -246,8 +248,6 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 			   (uint64_t)msg.time);
 		sprintf(client->name, "id:%" PRIx64, (uint64_t)msg.time);
 	}
-
-	assert(ret == sizeof(msg));
 
 	if (client->waiting_for == msg.op)
 		nesting--;
