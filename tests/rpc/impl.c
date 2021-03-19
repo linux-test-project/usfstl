@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -91,4 +91,9 @@ USFSTL_RPC_ASYNC_METHOD_VAR(callme7, struct log)
 	printf("running on %s, async logging message: %.*s\n",
 	       program_invocation_name + 2,
 	       (int32_t)(insize - sizeof(*in)), in->msg);
+}
+
+/* for rpc flushing - we don't use log stuff here */
+void usfstl_flush_all(void)
+{
 }
