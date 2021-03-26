@@ -93,6 +93,8 @@ struct usfstl_scheduler {
 	uint64_t current_time;
 	uint64_t prev_external_sync, next_external_sync;
 
+	const char *name;
+
 	struct usfstl_list joblist;
 	struct usfstl_list pending_jobs;
 	struct usfstl_job *allowed_job;
@@ -123,10 +125,11 @@ struct usfstl_scheduler {
 	} ext;
 };
 
-#define USFSTL_SCHEDULER(name)						\
-	struct usfstl_scheduler name = {				\
-		.joblist = USFSTL_LIST_INIT(name.joblist),		\
-		.pending_jobs = USFSTL_LIST_INIT(name.pending_jobs),	\
+#define USFSTL_SCHEDULER(_name)						\
+	struct usfstl_scheduler _name = {				\
+		.name = #_name,						\
+		.joblist = USFSTL_LIST_INIT(_name.joblist),		\
+		.pending_jobs = USFSTL_LIST_INIT(_name.pending_jobs),	\
 	}
 
 #define usfstl_time_check(x) \
@@ -147,19 +150,20 @@ struct usfstl_scheduler {
 
 /**
  * USFSTL_ASSERT_TIME_CMP - assert that the time comparison holds
+ * @sched: scheduler to print out
  * @a: first time
  * @op: comparison operator
  * @b: second time
  */
-#define USFSTL_ASSERT_TIME_CMP(a, op, b) do {				\
+#define USFSTL_ASSERT_TIME_CMP(sched, a, op, b) do {			\
 	uint64_t _a = a;						\
 	uint64_t _b = b;						\
 	if (!usfstl_time_cmp(_a, op, _b))				\
 		usfstl_abort(__FILE__, __LINE__,			\
 			     "usfstl_time_cmp(" #a ", " #op ", " #b ")",\
-			     "  " #a " = %" PRIu64 "\n"			\
+			     "scheduler: %s\n  " #a " = %" PRIu64 "\n"	\
 			     "  " #b " = %" PRIu64 "\n",		\
-			     _a, _b);					\
+			     sched->name, _a, _b);			\
 } while (0)
 
 /**

@@ -71,9 +71,10 @@ void usfstl_sched_add_job(struct usfstl_scheduler *sched, struct usfstl_job *job
 {
 	struct usfstl_job *tmp;
 
-	USFSTL_ASSERT_TIME_CMP(job->start, >=, sched->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, job->start, >=, sched->current_time);
 	USFSTL_ASSERT(!usfstl_job_scheduled(job),
-		      "cannot add a job that's already scheduled");
+		      "%s: cannot add a job that's already scheduled",
+		      sched->name);
 	USFSTL_ASSERT_CMP(job->group, <, 32, "%u");
 
 	if ((1 << job->group) & sched->blocked_groups &&
@@ -132,7 +133,7 @@ void _usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
 		return;
 
 	// check that we at least don't move backwards
-	USFSTL_ASSERT_TIME_CMP(time, >=, sched->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, time, >=, sched->current_time);
 
 	delta = time - sched->current_time;
 	sched->current_time = time;
@@ -151,15 +152,15 @@ void usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
 	 */
 	USFSTL_ASSERT(usfstl_list_empty(&sched->joblist) ||
 		      usfstl_time_cmp(time, <=, sched->prev_external_sync),
-		      "scheduler time moves further (to %" PRIu64 ") than requested (%" PRIu64 ")",
-		      time, sched->prev_external_sync);
+		      "scheduler %s time moves further (to %" PRIu64 ") than requested (%" PRIu64 ")",
+		      sched->name, time, sched->prev_external_sync);
 
 	_usfstl_sched_set_time(sched, time);
 }
 
 static void usfstl_sched_forward(struct usfstl_scheduler *sched, uint64_t until)
 {
-	USFSTL_ASSERT_TIME_CMP(until, >=, sched->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, until, >=, sched->current_time);
 
 	if (usfstl_sched_external_request(sched, until)) {
 		usfstl_sched_external_wait(sched);
@@ -250,12 +251,13 @@ struct usfstl_job *usfstl_sched_next(struct usfstl_scheduler *sched)
 	 * simulation has basically ended in an undefined state, even
 	 * the main thread can no longer make progress.
 	 */
-	USFSTL_ASSERT(0, "scheduling while there's nothing to do");
+	USFSTL_ASSERT(0, "scheduling on %s while there's nothing to do",
+		      sched->name);
 }
 
 void usfstl_sched_set_sync_time(struct usfstl_scheduler *sched, uint64_t time)
 {
-	USFSTL_ASSERT_TIME_CMP(time, >=, sched->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, time, >=, sched->current_time);
 	sched->next_external_sync = time;
 	sched->next_external_sync_set = 1;
 }
@@ -317,8 +319,8 @@ void usfstl_sched_block_groups(struct usfstl_scheduler *sched, uint32_t groups,
 
 	// it makes no sense to allow a job unless its group is blocked
 	USFSTL_ASSERT(!job || (1 << job->group) & groups,
-		    "allowed job group %d must be part of blocked groups (0x%x\n)",
-		    job->group, groups);
+		      "%s: allowed job group %d must be part of blocked groups (0x%x\n)",
+		      sched->name, job->group, groups);
 
 	sched->blocked_groups |= groups;
 	sched->allowed_job = job;
