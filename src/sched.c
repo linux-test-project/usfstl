@@ -19,6 +19,15 @@ uint64_t usfstl_sched_current_time(struct usfstl_scheduler *sched)
 
 	current_time = sched->external_sync_from(sched);
 
+	/*
+	 * This is valid ... We could have had a next_external_sync
+	 * set and actually used it, so if our parent scheduler is
+	 * still in our past then don't sync backwards and rely on
+	 * whatever mechanism syncs it to do that when appropriate.
+	 */
+	if (usfstl_time_cmp(current_time, <, sched->current_time))
+		return sched->current_time;
+
 	/* update current time after sync */
 	usfstl_sched_set_time(sched, current_time);
 
