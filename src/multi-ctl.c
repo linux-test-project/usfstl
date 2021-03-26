@@ -48,20 +48,7 @@ static void usfstl_multi_ctl_extra_transmit(struct usfstl_rpc_connection *conn,
 {
 	struct usfstl_multi_sync *sync = data;
 
-	/*
-	 * We're the master, so we just send direct RPC calls to the other
-	 * participants, and we need to send it the later time, depending
-	 * on what happened - did somebody else run? then the multi-sched
-	 * will have the later time, if we ran or are running, the task
-	 * scheduler has it.
-	 */
-
-	if (usfstl_time_cmp(g_usfstl_task_scheduler.current_time,
-			    >,
-			    g_usfstl_multi_sched.current_time))
-		sync->time = g_usfstl_task_scheduler.current_time;
-	else
-		sync->time = g_usfstl_multi_sched.current_time;
+	sync->time = usfstl_sched_current_time(&g_usfstl_task_scheduler);
 }
 
 static void usfstl_multi_ctl_start_participant(struct usfstl_multi_participant *p)
@@ -203,6 +190,11 @@ static void usfstl_multi_sched_ext_wait_controller(struct usfstl_scheduler *sche
 	usfstl_shared_mem_update_local_view();
 }
 
+static uint64_t usfstl_multi_sched_sync_from(struct usfstl_scheduler *sched)
+{
+	return usfstl_sched_current_time(&g_usfstl_multi_sched);
+}
+
 void usfstl_multi_start_test_controller(void)
 {
 	struct usfstl_multi_participant *p;
@@ -232,6 +224,8 @@ void usfstl_multi_start_test_controller(void)
 		usfstl_multi_sched_ext_req_controller;
 	g_usfstl_task_scheduler.external_wait =
 		usfstl_multi_sched_ext_wait_controller;
+	g_usfstl_task_scheduler.external_sync_from =
+		usfstl_multi_sched_sync_from;
 }
 
 void usfstl_multi_end_test_controller(enum usfstl_testcase_status status)
