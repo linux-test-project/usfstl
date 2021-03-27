@@ -249,6 +249,10 @@ void usfstl_logf_buf(struct usfstl_logger *logger, const char *pfx,
 	if (!logger)
 		return;
 
+	if (g_usfstl_multi_local_participant.name &&
+	    (usfstl_is_multi_controller() || usfstl_is_multi_participant()))
+		_usfstl_logf(logger, "[%s]", g_usfstl_multi_local_participant.name);
+
 	if (pfx && pfx[0])
 		_usfstl_logf(logger, "%s", pfx);
 	va_start(ap, format);
