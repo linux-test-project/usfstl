@@ -212,9 +212,9 @@ endif # afl-gcc
 
 export AFL_QUIET=1
 export AFL_DONT_OPTIMIZE=1
-_USFSTL_LIB_PATH := $(USFSTL_BIN_PATH)/usfstl-fuzz$(USFSTL_FUZZING)/
 endif # USFSTL_FUZZING != 1
 endif # USFSTL_FUZZING != repro
+_USFSTL_LIB_PATH := $(USFSTL_BIN_PATH)/usfstl-fuzz$(USFSTL_FUZZING)/
 endif # USFSTL_FUZZING != (empty)
 
 _USFSTL_CC := $(CC)
