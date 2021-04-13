@@ -131,6 +131,7 @@ void rpc_read(usfstl_fd_t fd, void *buf, size_t nbyte);
 extern struct usfstl_multi_participant *__start_usfstl_rpcp[];
 extern struct usfstl_multi_participant *__stop_usfstl_rpcp[];
 extern bool g_usfstl_multi_test_running;
+extern struct usfstl_scheduler g_usfstl_multi_sched;
 
 #define for_each_participant(p, i)					\
 	for (i = 0; &__start_usfstl_rpcp[i] < __stop_usfstl_rpcp; i++)	\
@@ -150,9 +151,6 @@ void usfstl_multi_end_test_participant(void);
 
 void usfstl_multi_controller_init(void);
 int usfstl_multi_participant_run(void);
-
-void usfstl_multi_extra_received(struct usfstl_rpc_connection *conn,
-				 const void *data);
 
 extern struct usfstl_rpc_connection *g_usfstl_multi_ctrl_conn;
 extern bool g_usfstl_multi_test_participant;

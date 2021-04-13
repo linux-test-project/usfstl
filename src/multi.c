@@ -19,6 +19,8 @@
 #include "internal.h"
 #include "multi-rpc.h"
 
+USFSTL_SCHEDULER(g_usfstl_multi_sched);
+
 // connection to the controller, set to USFSTL_RPC_LOCAL for itself
 // (so it can treat itself as a normal participant in most places)
 struct usfstl_rpc_connection *USFSTL_NORESTORE_VAR(g_usfstl_multi_ctrl_conn);

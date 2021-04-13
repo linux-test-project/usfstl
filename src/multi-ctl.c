@@ -41,14 +41,24 @@ struct usfstl_multi_participant g_usfstl_multi_local_participant = {
 static struct usfstl_multi_participant *g_usfstl_multi_running_participant =
 	&g_usfstl_multi_local_participant;
 
-static USFSTL_SCHEDULER(g_usfstl_multi_sched);
-
 static void usfstl_multi_ctl_extra_transmit(struct usfstl_rpc_connection *conn,
 					    void *data)
 {
 	struct usfstl_multi_sync *sync = data;
 
 	sync->time = usfstl_sched_current_time(&g_usfstl_task_scheduler);
+}
+
+static void usfstl_multi_ctl_extra_received(struct usfstl_rpc_connection *conn,
+					    const void *data)
+{
+	const struct usfstl_multi_sync *sync = data;
+
+	if (!g_usfstl_multi_test_running)
+		return;
+
+	if (usfstl_sched_current_time(&g_usfstl_task_scheduler) != sync->time)
+		usfstl_sched_set_time(&g_usfstl_task_scheduler, sync->time);
 }
 
 static void usfstl_multi_ctl_start_participant(struct usfstl_multi_participant *p)
@@ -68,7 +78,7 @@ setup:
 	p->conn->data = p;
 	p->conn->extra_len = sizeof(struct usfstl_multi_sync);
 	p->conn->extra_transmit = usfstl_multi_ctl_extra_transmit;
-	p->conn->extra_received = usfstl_multi_extra_received;
+	p->conn->extra_received = usfstl_multi_ctl_extra_received;
 	usfstl_rpc_add_connection(p->conn);
 }
 

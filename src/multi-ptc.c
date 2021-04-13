@@ -84,8 +84,10 @@ void usfstl_multi_start_test_participant(void)
 {
 	g_usfstl_test_aborted = false;
 
-	g_usfstl_task_scheduler.external_request = usfstl_multi_sched_ext_req;
-	g_usfstl_task_scheduler.external_wait =
+	usfstl_sched_link(&g_usfstl_task_scheduler, &g_usfstl_multi_sched, 1);
+
+	g_usfstl_multi_sched.external_request = usfstl_multi_sched_ext_req;
+	g_usfstl_multi_sched.external_wait =
 		usfstl_multi_sched_ext_wait_participant;
 }
 
@@ -99,26 +101,26 @@ static void usfstl_multi_ptc_extra_transmit(struct usfstl_rpc_connection *conn,
 {
 	struct usfstl_multi_sync *sync = data;
 
-	sync->time = usfstl_sched_current_time(&g_usfstl_task_scheduler);
+	sync->time = usfstl_sched_current_time(&g_usfstl_multi_sched);
 }
 
-void usfstl_multi_extra_received(struct usfstl_rpc_connection *conn,
-				 const void *data)
+static void usfstl_multi_ptc_extra_received(struct usfstl_rpc_connection *conn,
+					    const void *data)
 {
 	const struct usfstl_multi_sync *sync = data;
 
 	if (!g_usfstl_multi_test_running)
 		return;
 
-	if (usfstl_sched_current_time(&g_usfstl_task_scheduler) != sync->time)
-		usfstl_sched_set_time(&g_usfstl_task_scheduler, sync->time);
+	if (usfstl_sched_current_time(&g_usfstl_multi_sched) != sync->time)
+		usfstl_sched_set_time(&g_usfstl_multi_sched, sync->time);
 }
 
 int usfstl_multi_participant_run(void)
 {
 	g_usfstl_multi_ctrl_conn->extra_len = sizeof(struct usfstl_multi_sync);
 	g_usfstl_multi_ctrl_conn->extra_transmit = usfstl_multi_ptc_extra_transmit;
-	g_usfstl_multi_ctrl_conn->extra_received = usfstl_multi_extra_received;
+	g_usfstl_multi_ctrl_conn->extra_received = usfstl_multi_ptc_extra_received;
 
 	usfstl_rpc_add_connection(g_usfstl_multi_ctrl_conn);
 
@@ -252,5 +254,5 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_set_sync, uint64_t /* time */)
 {
-	usfstl_sched_set_sync_time(&g_usfstl_task_scheduler, in);
+	usfstl_sched_set_sync_time(&g_usfstl_multi_sched, in);
 }
