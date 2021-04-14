@@ -237,6 +237,7 @@ USFSTL_RPC_VOID_METHOD(multi_rpc_exit, uint32_t /* dummy */)
 {
 	assert(!g_usfstl_multi_test_running);
 	g_usfstl_multi_ctrl_conn = NULL;
+	usfstl_multi_finish();
 }
 
 USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
