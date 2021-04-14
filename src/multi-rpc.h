@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -48,7 +48,6 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_set_sync, uint64_t /* time */);
 
 /* participant -> controller */
-USFSTL_RPC_VOID_METHOD(multi_rpc_test_started, uint32_t /* dummy */);
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_request, uint64_t /* time */);
 USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      multi_rpc_sched_wait,

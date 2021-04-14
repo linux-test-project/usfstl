@@ -46,17 +46,9 @@ USFSTL_OPT("multi-ptc-name", 0, "name",
 static void usfstl_multi_participant_test_fn(const struct usfstl_test *test, void *tc)
 {
 	/*
-	 * Tell the controller that we're done with startup; this
-	 * is not always needed, only if we didn't request runtime
-	 * from the controller, but still are done and waiting for
-	 * input (not for being scheduled.)
-	 */
-	multi_rpc_test_started_conn(g_usfstl_multi_ctrl_conn, 0);
-
-	/*
-	 * Other than that, do nothing. We never return from this,
-	 * we longjmp() directly back to usfstl_execute_test() when
-	 * the test completes, regardless of its outcome.
+	 * Do nothing. We never return from this, we longjmp() directly back
+	 * to usfstl_execute_test() when the test completes, regardless of
+	 * its outcome.
 	 */
 	usfstl_task_suspend();
 

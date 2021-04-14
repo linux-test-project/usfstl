@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -23,11 +23,10 @@
 #include "test.h"
 
 enum usfstl_multi_participant_flags {
-	USFSTL_MULTI_PARTICIPANT_STARTED		= 1 << 0,
-	USFSTL_MULTI_PARTICIPANT_WAITING		= 1 << 1,
-	USFSTL_MULTI_PARTICIPANT_FINISHED		= 1 << 2,
+	USFSTL_MULTI_PARTICIPANT_WAITING		= 1 << 0,
+	USFSTL_MULTI_PARTICIPANT_FINISHED		= 1 << 1,
 	/* indicates that the (local/remote) participant's view of the shared mem is outdated */
-	USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED	= 1 << 3,
+	USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED	= 1 << 2,
 };
 
 /**

@@ -216,7 +216,7 @@ void usfstl_multi_start_test_controller(void)
 		multi_rpc_test_start_conn(p->conn, &msg.hdr,
 					  sizeof(msg.hdr) + strlen(msg.name));
 
-	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_STARTED, false);
+	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_WAITING, false);
 
 	// local scheduler also needs to integrate, set that up here
 	// to avoid reset during globals restore
@@ -285,23 +285,9 @@ static void usfstl_multi_controller_sched_callback(struct usfstl_job *job)
 #define USFSTL_RPC_IMPLEMENTATION
 #include <usfstl/rpc.h>
 
-USFSTL_RPC_VOID_METHOD(multi_rpc_test_started, uint32_t /* dummy */)
-{
-	struct usfstl_multi_participant *p = conn->data;
-
-	p->flags |= USFSTL_MULTI_PARTICIPANT_STARTED;
-}
-
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_request, uint64_t /* time */)
 {
 	struct usfstl_multi_participant *p = conn->data;
-
-	/*
-	 * If it requests runtime, it also started enough to be scheduled,
-	 * it might need to actually schedule before finishing the test's
-	 * pre() function.
-	 */
-	p->flags |= USFSTL_MULTI_PARTICIPANT_STARTED;
 
 	usfstl_sched_del_job(&p->job);
 	p->job.name = p->name;
