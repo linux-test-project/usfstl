@@ -78,13 +78,13 @@ static void usfstl_multi_sched_ext_wait_participant(struct usfstl_scheduler *sch
 
 	while (!g_usfstl_multi_test_sched_continue)
 		usfstl_rpc_handle();
+
+	usfstl_shared_mem_update_local_view();
 }
 
 void usfstl_multi_start_test_participant(void)
 {
 	g_usfstl_test_aborted = false;
-
-	usfstl_sched_link(&g_usfstl_task_scheduler, &g_usfstl_multi_sched, 1);
 
 	g_usfstl_multi_sched.external_request = usfstl_multi_sched_ext_req;
 	g_usfstl_multi_sched.external_wait =
@@ -245,8 +245,6 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      struct usfstl_shared_mem_msg)
 {
 	usfstl_shared_mem_handle_msg(in, insize);
-	// refresh the local view of the shared memory before continuing
-	usfstl_shared_mem_update_local_view();
 
 	g_usfstl_multi_test_sched_continue = true;
 
@@ -256,6 +254,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_set_sync, uint64_t /* time */)
 {
 	usfstl_sched_set_sync_time(&g_usfstl_multi_sched, in);
+	usfstl_multi_controller_update_sync_time(NULL);
 }
 
 USFSTL_RPC_VOID_METHOD(usfstl_multi_rpc_print_participants, int /* indent */)

@@ -39,6 +39,19 @@ void usfstl_multi_init(void)
 
 void usfstl_multi_start_test(void)
 {
+	// ensure there won't be an unexpected offset
+	USFSTL_ASSERT_EQ(usfstl_sched_current_time(&g_usfstl_task_scheduler),
+			 (uint64_t)0ULL, "%"PRIu64);
+	USFSTL_ASSERT_EQ(usfstl_sched_current_time(&g_usfstl_multi_sched),
+			 (uint64_t)0ULL, "%"PRIu64);
+
+	if (usfstl_is_multi_controller() || usfstl_is_multi_participant()) {
+		usfstl_sched_link(&g_usfstl_task_scheduler,
+				  &g_usfstl_multi_sched, 1);
+
+		g_usfstl_top_scheduler = &g_usfstl_multi_sched;
+	}
+
 	if (usfstl_is_multi_controller())
 		usfstl_multi_start_test_controller();
 

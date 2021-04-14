@@ -150,6 +150,8 @@ void usfstl_multi_end_test_controller(enum usfstl_testcase_status status);
 void usfstl_multi_end_test_participant(void);
 
 void usfstl_multi_controller_init(void);
+void
+usfstl_multi_controller_update_sync_time(struct usfstl_multi_participant *update);
 void usfstl_multi_controller_print_participants(int indent);
 int usfstl_multi_participant_run(void);
 
