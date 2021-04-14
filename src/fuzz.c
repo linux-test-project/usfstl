@@ -155,7 +155,7 @@ fuzz:;
 
 		if (bufsz - offs == 0) {
 			bufsz *= 2;
-			buf = realloc(buf, bufsz);
+			buf = usfstl_realloc(buf, bufsz);
 			assert(buf);
 		}
 	}
