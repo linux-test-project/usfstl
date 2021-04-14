@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -410,6 +410,7 @@ void usfstl_sched_link(struct usfstl_scheduler *sched,
 
 	sched->link.job.callback = usfstl_sched_link_job_callback;
 	sched->link.job.data = sched;
+	sched->link.job.name = sched->name;
 
 	/* current_time = (parent_time - offset) / tick_ratio */
 	sched->link.offset = sched->link.parent->current_time -
