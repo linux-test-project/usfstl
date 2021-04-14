@@ -150,6 +150,7 @@ void usfstl_multi_end_test_controller(enum usfstl_testcase_status status);
 void usfstl_multi_end_test_participant(void);
 
 void usfstl_multi_controller_init(void);
+void usfstl_multi_controller_print_participants(int indent);
 int usfstl_multi_participant_run(void);
 
 extern struct usfstl_rpc_connection *g_usfstl_multi_ctrl_conn;

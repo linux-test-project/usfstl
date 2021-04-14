@@ -82,6 +82,18 @@ setup:
 	usfstl_rpc_add_connection(p->conn);
 }
 
+void usfstl_multi_controller_print_participants(int indent)
+{
+	struct usfstl_multi_participant *p;
+	int i;
+
+	for_each_participant(p, i) {
+		printf("%-*s# %s:\n%-*sgdb -p %u\n\n", indent, "", p->name, indent, "", p->pid);
+
+		usfstl_multi_rpc_print_participants_conn(p->conn, indent + 2);
+	}
+}
+
 void usfstl_multi_controller_init(void)
 {
 	struct usfstl_multi_participant *p;
@@ -95,8 +107,7 @@ void usfstl_multi_controller_init(void)
 	if (g_usfstl_debug_subprocesses) {
 		printf("\nThe following subprocesses were started, you can attach as follows:\n\n");
 
-		for_each_participant(p, i)
-			printf("# %s:\ngdb -p %u\n\n", p->name, p->pid);
+		usfstl_multi_controller_print_participants(0);
 
 		// debug trap - we only support x86 anyway right now
 		__asm__ __volatile__("int $3");

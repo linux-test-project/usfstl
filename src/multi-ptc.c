@@ -256,3 +256,8 @@ USFSTL_RPC_VOID_METHOD(multi_rpc_sched_set_sync, uint64_t /* time */)
 {
 	usfstl_sched_set_sync_time(&g_usfstl_multi_sched, in);
 }
+
+USFSTL_RPC_VOID_METHOD(usfstl_multi_rpc_print_participants, int /* indent */)
+{
+	usfstl_multi_controller_print_participants(in);
+}

@@ -46,6 +46,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      multi_rpc_sched_cont,
 		      struct usfstl_shared_mem_msg);
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_set_sync, uint64_t /* time */);
+USFSTL_RPC_VOID_METHOD(usfstl_multi_rpc_print_participants, int /* indent */);
 
 /* participant -> controller */
 USFSTL_RPC_VOID_METHOD(multi_rpc_sched_request, uint64_t /* time */);
