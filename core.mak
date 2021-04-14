@@ -180,6 +180,9 @@ endif
 ifeq ($(USFSTL_FUZZER),afl-gcc)
 _USFSTL_AFL := 1
 endif
+ifeq ($(USFSTL_FUZZER),afl-gcc-fast)
+_USFSTL_AFL := 1
+endif
 ifeq ($(USFSTL_FUZZER),afl-clang-fast)
 _USFSTL_AFL := 1
 endif
@@ -205,7 +208,12 @@ _USFSTL_FUZZING := 3
 export CC=clang-9
 USFSTL_CC_OPT += -fsanitize=fuzzer
 else
+ifeq ($(USFSTL_FUZZER),afl-gcc-fast)
+export CC=afl-gcc-fast
+_USFSTL_FUZZING := 5
+else
 $(error wrong USFSTL_FUZZER option)
+endif # afl-gcc-fast
 endif # libfuzzer
 endif # afl-clang-fast
 endif # afl-gcc

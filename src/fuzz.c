@@ -75,7 +75,7 @@ void usfstl_fuzz(const unsigned char **data, size_t *len)
 {
 #ifdef USFSTL_USE_FUZZING
 	size_t bufsz = 1024;
-#if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2 || USFSTL_USE_FUZZING == 4
+#if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2 || USFSTL_USE_FUZZING == 4 || USFSTL_USE_FUZZING == 5
 	size_t bytes, offs = 0;
 #endif
 	int fd = 0; /* stdin */
@@ -147,7 +147,7 @@ fuzz:;
 #if USFSTL_USE_FUZZING == 3
 	*data = g_usfstl_fuzz_data;
 	*len = g_usfstl_fuzz_datasz;
-#elif USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2 || USFSTL_USE_FUZZING == 4
+#elif USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2 || USFSTL_USE_FUZZING == 4 || USFSTL_USE_FUZZING == 5
 	__AFL_INIT();
 
 	while ((bytes = read(fd, buf + offs, bufsz - offs)) > 0) {
