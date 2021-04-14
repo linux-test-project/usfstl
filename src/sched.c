@@ -153,16 +153,17 @@ void _usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
 
 void usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
 {
+	struct usfstl_job *job = usfstl_sched_next_pending(sched, NULL);
+
 	/*
 	 * also check that we're not getting set to something later than what
 	 * we requested, that'd be a bug since we want to run something at an
 	 * earlier time than what we just got set to; unless we have nothing
 	 * to do and thus don't care at all.
 	 */
-	USFSTL_ASSERT(usfstl_list_empty(&sched->joblist) ||
-		      usfstl_time_cmp(time, <=, sched->prev_external_sync),
-		      "scheduler %s time moves further (to %" PRIu64 ") than requested (%" PRIu64 ")",
-		      sched->name, time, sched->prev_external_sync);
+	USFSTL_ASSERT(!job || usfstl_time_cmp(time, <=, job->start),
+		      "scheduler %s time moves further (to %" PRIu64 ") than first job (%s at %" PRIu64 ")",
+		      sched->name, time, job->name, job->start);
 
 	_usfstl_sched_set_time(sched, time);
 }
