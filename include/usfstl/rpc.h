@@ -151,7 +151,6 @@ struct usfstl_rpc_connection {
 };
 
 #define USFSTL_RPC_TAG_REQUEST	0x7573323e
-#define USFSTL_RPC_TAG_ASYNC	0x7573327e
 #define USFSTL_RPC_TAG_RESPONSE	0x7573323c
 #define USFSTL_VAR_DATA_SIZE	0x80000000
 
@@ -169,7 +168,6 @@ struct usfstl_rpc_response {
 struct usfstl_rpc_stub {
 	struct usfstl_rpc_request req;
 	void *fn;
-	unsigned int async:1;
 };
 
 void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
@@ -184,15 +182,12 @@ extern struct usfstl_rpc_connection *g_usfstl_rpc_default_connection;
 
 extern struct usfstl_rpc_connection g_usfstl_rpc_local;
 #define USFSTL_RPC_LOCAL (&g_usfstl_rpc_local)
-#define USFSTL_RPC_ASYNC ((void *)1)
 #endif
 #define _USFSTL_RPC_H_
 
 #undef _USFSTL_RPC_METHOD
 #undef _USFSTL_RPC_VOID_METHOD
-#undef _USFSTL_RPC_ASYNC_METHOD
 #undef _USFSTL_RPC_METHOD_VAR
-#undef _USFSTL_RPC_ASYNC_METHOD_VAR
 #undef _USFSTL_RPC_VAR_METHOD
 #undef _USFSTL_RPC_VAR_METHOD_VAR
 #if defined(USFSTL_RPC_CALLEE_STUB)
@@ -234,23 +229,6 @@ __attribute__((section("usfstl_rpcstub"))) = {				\
 },									\
 * const _usfstl_rpc_stub_##_name					\
 __attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
-#define _USFSTL_RPC_ASYNC_METHOD(_name, _in, _p, _np, _d)		\
-static void								\
-_usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
-			   const _in *arg, void *ret)			\
-{									\
-	ret = ret; /* it is intentionally unused */			\
-	_impl_ ## _name(conn, _np arg);					\
-}									\
-static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
-__attribute__((section("usfstl_rpcstub"))) = {				\
-	.req.name = #_name "--" #_in #_p,				\
-	.req.argsize = sizeof(_in),					\
-	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
-	.async = 1,							\
-},									\
-* const _usfstl_rpc_stub_##_name					\
-__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
 #define _USFSTL_RPC_METHOD_VAR(_out, _name, _in)			\
 static void								\
 _usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
@@ -267,23 +245,6 @@ __attribute__((section("usfstl_rpcstub"))) = {				\
 	.req.argsize = USFSTL_VAR_DATA_SIZE | sizeof(_in),		\
 	.req.retsize = sizeof(_out),					\
 	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
-},									\
-* const _usfstl_rpc_stub_##_name					\
-__attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
-#define _USFSTL_RPC_ASYNC_METHOD_VAR(_name, _in)			\
-static void								\
-_usfstl_rpc_stubfn_##_name(struct usfstl_rpc_connection *conn,		\
-			   const _in *arg,				\
-			   const uint32_t argsz)			\
-{									\
-	_impl_ ## _name(conn, arg, argsz);				\
-}									\
-static const struct usfstl_rpc_stub usfstl_rpc_stub_##_name		\
-__attribute__((section("usfstl_rpcstub"))) = {				\
-	.req.name = #_name "--" #_in "*",				\
-	.req.argsize = USFSTL_VAR_DATA_SIZE | sizeof(_in),		\
-	.fn = (void *)_usfstl_rpc_stubfn_##_name,			\
-	.async = 1,							\
 },									\
 * const _usfstl_rpc_stub_##_name					\
 __attribute__((section("usfstl_rpc"), used)) = &usfstl_rpc_stub_##_name
@@ -373,27 +334,6 @@ void _name ## _conn(struct usfstl_rpc_connection *conn,			\
 	usfstl_rpc_call(conn, #_name "--" #_in #_p,			\
 		      _d _arg, sizeof(_in), 0, NULL, 0, 0);		\
 }
-#define _USFSTL_RPC_ASYNC_METHOD(_name, _in, _p, _np, _d)		\
-void _name(const _in _p arg)						\
-{									\
-	const _in _p _arg = arg;					\
-									\
-	usfstl_rpc_call(g_usfstl_rpc_default_connection,		\
-			#_name "--" #_in #_p,				\
-			_d _arg, sizeof(_in), 0, USFSTL_RPC_ASYNC,	\
-			0, 0);\
-}									\
-void _name ## _conn(struct usfstl_rpc_connection *conn,			\
-		    const _in _p arg)					\
-{									\
-	const _in _p _arg = arg;					\
-									\
-	if (!conn)							\
-		conn = g_usfstl_rpc_default_connection;			\
-									\
-	usfstl_rpc_call(conn, #_name "--" #_in #_p,			\
-		      _d _arg, sizeof(_in), 0, USFSTL_RPC_ASYNC, 0, 0);	\
-}
 #define _USFSTL_RPC_METHOD_VAR(_out, _name, _in)			\
 _out _name(const _in *arg, const uint32_t argsz)			\
 {									\
@@ -419,24 +359,6 @@ _out _name ## _conn(struct usfstl_rpc_connection *conn,			\
 		      &ret, sizeof(_out), 0);				\
 									\
 	return ret;							\
-}
-#define _USFSTL_RPC_ASYNC_METHOD_VAR(_name, _in)			\
-void _name(const _in *arg, const uint32_t argsz)			\
-{									\
-	usfstl_rpc_call(g_usfstl_rpc_default_connection,		\
-		      #_name "--" #_in "*",				\
-		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
-		      USFSTL_RPC_ASYNC, 0, 0);				\
-}									\
-void _name ## _conn(struct usfstl_rpc_connection *conn,			\
-		    const _in *arg, const uint32_t argsz)		\
-{									\
-	if (!conn)							\
-		conn = g_usfstl_rpc_default_connection;			\
-									\
-	usfstl_rpc_call(conn, #_name "--" #_in "*",			\
-		      arg, sizeof(_in), argsz | USFSTL_VAR_DATA_SIZE,	\
-		      USFSTL_RPC_ASYNC, 0, 0);				\
 }
 #define _USFSTL_RPC_VAR_METHOD(_out, _name, _in, _p, _np, _d)		\
 void _name(const _in _p arg, _out *ret, const uint32_t retsz)		\
@@ -486,13 +408,8 @@ void _name ## _conn(struct usfstl_rpc_connection *conn,			\
 _out _impl_ ## _name(struct usfstl_rpc_connection *conn, const _in _p in)
 #define _USFSTL_RPC_VOID_METHOD(_name, _in, _p, _np, _d)		\
 void _impl_ ## _name(struct usfstl_rpc_connection *conn, const _in _p in)
-#define _USFSTL_RPC_ASYNC_METHOD(_name, _in, _p, _np, _d)		\
-void _impl_ ## _name(struct usfstl_rpc_connection *conn, const _in _p in)
 #define _USFSTL_RPC_METHOD_VAR(_out, _name, _in)			\
 _out _impl_ ## _name(struct usfstl_rpc_connection *conn,		\
-		     const _in *in, const uint32_t insize)
-#define _USFSTL_RPC_ASYNC_METHOD_VAR(_name, _in)			\
-void _impl_ ## _name(struct usfstl_rpc_connection *conn,		\
 		     const _in *in, const uint32_t insize)
 #define _USFSTL_RPC_VAR_METHOD(_out, _name, _in, _p, _np, _d)		\
 void _impl_ ## _name(struct usfstl_rpc_connection *conn,		\
@@ -511,21 +428,11 @@ _out _impl_ ## _name(struct usfstl_rpc_connection *, const _in _p in)
 void _name ## _conn(struct usfstl_rpc_connection *, const _in _p in);	\
 void _name(const _in _p in);						\
 void _impl_ ## _name(struct usfstl_rpc_connection *, const _in _p in)
-#define _USFSTL_RPC_ASYNC_METHOD(_name, _in, _p, _np, _d)		\
-void _name ## _conn(struct usfstl_rpc_connection *, const _in _p in);	\
-void _name(const _in _p in);						\
-void _impl_ ## _name(struct usfstl_rpc_connection *, const _in _p in)
 #define _USFSTL_RPC_METHOD_VAR(_out, _name, _in)			\
 _out _name ## _conn(struct usfstl_rpc_connection *,			\
 		    const _in *in, const uint32_t insize);		\
 _out _name(const _in *in, const uint32_t insize);			\
 _out _impl_ ## _name(struct usfstl_rpc_connection *,			\
-		     const _in *in, const uint32_t insize)
-#define _USFSTL_RPC_ASYNC_METHOD_VAR(_name, _in)			\
-void _name ## _conn(struct usfstl_rpc_connection *,			\
-		    const _in *in, const uint32_t insize);		\
-void _name(const _in *in, const uint32_t insize);			\
-void _impl_ ## _name(struct usfstl_rpc_connection *,			\
 		     const _in *in, const uint32_t insize)
 #define _USFSTL_RPC_VAR_METHOD(_out, _name, _in, _p, _np, _d)		\
 void _name ## _conn(struct usfstl_rpc_connection *,			\
@@ -551,16 +458,10 @@ void _impl_ ## _name(struct usfstl_rpc_connection *,			\
 	_USFSTL_RPC_METHOD(_out, _name, _in,*,,)
 #define USFSTL_RPC_VOID_METHOD(_name, _in)				\
 	_USFSTL_RPC_VOID_METHOD(_name, _in,,*,&)
-#define USFSTL_RPC_ASYNC_METHOD(_name, _in)				\
-	_USFSTL_RPC_ASYNC_METHOD(_name, _in,,*,&)
 #define USFSTL_RPC_VOID_METHOD_P(_name, _in)				\
 	_USFSTL_RPC_VOID_METHOD(_name, _in,*,,)
-#define USFSTL_RPC_ASYNC_METHOD_P(_name, _in)				\
-	_USFSTL_RPC_ASYNC_METHOD(_name, _in,*,,)
 #define USFSTL_RPC_METHOD_VAR(_out, _name, _in)				\
 	_USFSTL_RPC_METHOD_VAR(_out, _name, _in)
-#define USFSTL_RPC_ASYNC_METHOD_VAR(_name, _in)				\
-	_USFSTL_RPC_ASYNC_METHOD_VAR(_name, _in)
 #define USFSTL_RPC_VAR_METHOD(_out, _name, _in)				\
 	_USFSTL_RPC_VAR_METHOD(_out, _name, _in,,*,&)
 #define USFSTL_RPC_VAR_METHOD_P(_out, _name, _in)			\

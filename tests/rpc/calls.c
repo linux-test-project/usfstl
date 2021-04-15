@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -32,10 +32,4 @@ void calls(void)
 	printf("%.*s\n", (int)(sizeof(ret) - sizeof(ret.hdr)), ret.hdr.msg);
 	numformatp(&in, &ret.hdr, sizeof(ret));
 	printf("%.*s\n", (int)(sizeof(ret) - sizeof(ret.hdr)), ret.hdr.msg);
-
-	// async
-	callme5(101);
-	in.bar = 101;
-	callme6(&in);
-	callme7(&ret.hdr, sizeof(ret));
 }

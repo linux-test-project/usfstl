@@ -76,23 +76,6 @@ USFSTL_RPC_VAR_METHOD_VAR(struct log, hello, struct log)
 		 (int32_t)(insize - sizeof(*in)), in->msg);
 }
 
-USFSTL_RPC_ASYNC_METHOD(callme5, uint32_t)
-{
-	printf("%d (async running on %s)\n", in, program_invocation_name + 2);
-}
-
-USFSTL_RPC_ASYNC_METHOD_P(callme6, struct foo)
-{
-	printf("%d (async running on %s)\n", in->bar, program_invocation_name + 2);
-}
-
-USFSTL_RPC_ASYNC_METHOD_VAR(callme7, struct log)
-{
-	printf("running on %s, async logging message: %.*s\n",
-	       program_invocation_name + 2,
-	       (int32_t)(insize - sizeof(*in)), in->msg);
-}
-
 /* for rpc flushing - we don't use log stuff here */
 void usfstl_flush_all(void)
 {

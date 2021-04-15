@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -19,8 +19,5 @@ USFSTL_RPC_METHOD_VAR(int32_t, rpclog, struct log);
 USFSTL_RPC_VAR_METHOD(struct log, numformat, int32_t);
 USFSTL_RPC_VAR_METHOD_P(struct log, numformatp, struct foo);
 USFSTL_RPC_VAR_METHOD_VAR(struct log, hello, struct log);
-USFSTL_RPC_ASYNC_METHOD(callme5, uint32_t);
-USFSTL_RPC_ASYNC_METHOD_P(callme6, struct foo);
-USFSTL_RPC_ASYNC_METHOD_VAR(callme7, struct log);
 
 #endif // _RPC_H

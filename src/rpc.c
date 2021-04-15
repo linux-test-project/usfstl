@@ -95,8 +95,7 @@ static void usfstl_rpc_make_call(struct usfstl_rpc_connection *conn,
 
 static void usfstl_rpc_handle_call(struct usfstl_rpc_connection *conn,
 				   struct usfstl_rpc_stub *stub,
-				   uint32_t argsize, uint32_t retsize,
-				   bool async)
+				   uint32_t argsize, uint32_t retsize)
 {
 	unsigned char arg[argsize]
 		__attribute__((aligned(sizeof(uint64_t))));
@@ -107,14 +106,11 @@ static void usfstl_rpc_handle_call(struct usfstl_rpc_connection *conn,
 
 	usfstl_rpc_make_call(conn, stub, arg, argsize, ret, retsize);
 
-	if (async)
-		return;
-
 	_usfstl_rpc_send_response(conn, 0, ret, sizeof(ret));
 }
 
 static struct usfstl_rpc_stub *
-usfstl_rpc_find_stub(struct usfstl_rpc_request *hdr, bool async)
+usfstl_rpc_find_stub(struct usfstl_rpc_request *hdr)
 {
 	uint32_t argsize = hdr->argsize & ~USFSTL_VAR_DATA_SIZE;
 	uint32_t retsize = hdr->retsize & ~USFSTL_VAR_DATA_SIZE;
@@ -130,9 +126,6 @@ usfstl_rpc_find_stub(struct usfstl_rpc_request *hdr, bool async)
 			continue;
 
 		if (memcmp(&stub->req.name, hdr->name, sizeof(hdr->name)))
-			continue;
-
-		if (async != stub->async)
 			continue;
 
 		if ((hdr->argsize & USFSTL_VAR_DATA_SIZE) !=
@@ -164,27 +157,25 @@ usfstl_rpc_find_stub(struct usfstl_rpc_request *hdr, bool async)
 }
 
 static void usfstl_rpc_handle_one_call(struct usfstl_rpc_connection *conn,
-				       struct usfstl_rpc_request *hdr,
-				       bool async)
+				       struct usfstl_rpc_request *hdr)
 {
 	struct usfstl_rpc_stub *stub;
 	uint32_t argsize = hdr->argsize & ~USFSTL_VAR_DATA_SIZE;
 	uint32_t retsize = hdr->retsize & ~USFSTL_VAR_DATA_SIZE;
 
-	stub = usfstl_rpc_find_stub(hdr, async);
+	stub = usfstl_rpc_find_stub(hdr);
 	if (stub) {
-		usfstl_rpc_handle_call(conn, stub, argsize, retsize, async);
+		usfstl_rpc_handle_call(conn, stub, argsize, retsize);
 		return;
 	}
 
-	if (!async)
-		_usfstl_rpc_send_response(conn, -ENOENT, NULL, 0);
+	_usfstl_rpc_send_response(conn, -ENOENT, NULL, 0);
 }
 
 static uint32_t usfstl_rpc_handle_one(struct usfstl_rpc_connection *conn)
 {
 	struct usfstl_rpc_request hdr;
-	bool swap = false, async = false;
+	bool swap = false;
 	uint32_t tag;
 
 	rpc_read(conn->conn.fd, &tag, sizeof(tag));
@@ -192,15 +183,8 @@ static uint32_t usfstl_rpc_handle_one(struct usfstl_rpc_connection *conn)
 	switch (tag) {
 	case USFSTL_RPC_TAG_REQUEST:
 		break;
-	case USFSTL_RPC_TAG_ASYNC:
-		async = true;
-		break;
 	case __swap32(USFSTL_RPC_TAG_REQUEST):
 		swap = true;
-		break;
-	case __swap32(USFSTL_RPC_TAG_ASYNC):
-		swap = true;
-		async = true;
 		break;
 	case USFSTL_RPC_TAG_RESPONSE:
 	case __swap32(USFSTL_RPC_TAG_RESPONSE):
@@ -224,7 +208,7 @@ static uint32_t usfstl_rpc_handle_one(struct usfstl_rpc_connection *conn)
 		conn->extra_received(conn, buf);
 	}
 
-	usfstl_rpc_handle_one_call(conn, &hdr, async);
+	usfstl_rpc_handle_one_call(conn, &hdr);
 	return 0;
 }
 
@@ -353,18 +337,13 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 	if (!retsize)
 		retsize = retmin;
 
-	if (ret == USFSTL_RPC_ASYNC) {
-		tag = USFSTL_RPC_TAG_ASYNC;
-		ret = NULL;
-	}
-
 	// prepare request struct
 	strcpy(req.name, name);
 
 	if (conn == USFSTL_RPC_LOCAL) {
 		struct usfstl_rpc_stub *stub;
 
-		stub = usfstl_rpc_find_stub(&req, tag == USFSTL_RPC_TAG_ASYNC);
+		stub = usfstl_rpc_find_stub(&req);
 		// this would normally fail in other ways remotely, it would
 		// so fail here directly
 		assert(stub);
@@ -397,9 +376,6 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 	}
 
 	rpc_write(conn->conn.fd, arg, argsize);
-
-	if (tag == USFSTL_RPC_TAG_ASYNC)
-		return;
 
 	tag = usfstl_wait_for_response(conn);
 
