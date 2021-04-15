@@ -117,32 +117,10 @@ void usfstl_multi_controller_init(void)
 	}
 }
 
-static void usfstl_multi_controller_wait_all(uint32_t flag, bool schedule)
+static void usfstl_multi_ctl_wait(struct usfstl_multi_participant *p)
 {
-	while (1) {
-		struct usfstl_multi_participant *p;
-		bool all = true;
-		int i;
-
-		for_each_participant(p, i) {
-			if (!(p->flags & flag)) {
-				all = false;
-				break;
-			}
-		}
-
-		if (all)
-			break;
-
+	while (!(p->flags & USFSTL_MULTI_PARTICIPANT_WAITING))
 		usfstl_rpc_handle();
-		/*
-		 * While we're shutting down (only place setting schedule=true)
-		 * we need to still continue scheduling since the other (remote)
-		 * participants in the simulation may request runtime.
-		 */
-		if (schedule && !usfstl_list_empty(&g_usfstl_multi_sched.joblist))
-			usfstl_sched_next(&g_usfstl_multi_sched);
-	}
 }
 
 void
@@ -189,11 +167,11 @@ void usfstl_multi_start_test_controller(void)
 
 	g_usfstl_ctl_multi_test_running = true;
 
-	for_each_participant(p, i)
+	for_each_participant(p, i) {
 		multi_rpc_test_start_conn(p->conn, &msg.hdr,
 					  sizeof(msg.hdr) + strlen(msg.name));
-
-	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_WAITING, false);
+		usfstl_multi_ctl_wait(p);
+	}
 
 	g_usfstl_multi_sched.next_time_changed =
 		usfstl_multi_ctrl_next_time_changed;
@@ -249,8 +227,7 @@ static void usfstl_multi_controller_sched_callback(struct usfstl_job *job)
 					USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED));
 	p->flags &= ~USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 
-	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_WAITING,
-					 false);
+	usfstl_multi_ctl_wait(p);
 
 	// refresh the local view of the shared memory before continuing
 	usfstl_shared_mem_update_local_view();
