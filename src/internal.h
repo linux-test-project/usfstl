@@ -130,7 +130,6 @@ void rpc_read(usfstl_fd_t fd, void *buf, size_t nbyte);
 /* multi-process testing */
 extern struct usfstl_multi_participant *__start_usfstl_rpcp[];
 extern struct usfstl_multi_participant *__stop_usfstl_rpcp[];
-extern bool g_usfstl_multi_test_running;
 extern struct usfstl_scheduler g_usfstl_multi_sched;
 
 #define for_each_participant(p, i)					\

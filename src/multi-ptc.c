@@ -20,7 +20,7 @@
 
 // variables for participant
 struct usfstl_test USFSTL_NORESTORE_VAR(g_usfstl_multi_controlled_test);
-bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_running);
+static bool USFSTL_NORESTORE_VAR(g_usfstl_multi_ptc_test_running);
 static bool g_usfstl_multi_test_sched_continue;
 
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_participant);
@@ -109,7 +109,7 @@ static void usfstl_multi_ptc_extra_received(struct usfstl_rpc_connection *conn,
 {
 	const struct usfstl_multi_sync *sync = data;
 
-	if (!g_usfstl_multi_test_running)
+	if (!g_usfstl_multi_ptc_test_running)
 		return;
 
 	if (usfstl_sched_current_time(&g_usfstl_multi_sched) != sync->time)
@@ -162,8 +162,8 @@ int usfstl_multi_participant_run(void)
 		 * cannot abort successfully early due to the way we
 		 * handle RPC in test execution.
 		 */
-		if (g_usfstl_multi_test_running) {
-			g_usfstl_multi_test_running = false;
+		if (g_usfstl_multi_ptc_test_running) {
+			g_usfstl_multi_ptc_test_running = false;
 			multi_rpc_test_failed_conn(g_usfstl_multi_ctrl_conn, status);
 		}
 	}
@@ -203,7 +203,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 	// test->post is allowed locally
 	test->requirements = NULL;
 
-	g_usfstl_multi_test_running = true;
+	g_usfstl_multi_ptc_test_running = true;
 
 	g_usfstl_current_test = &g_usfstl_multi_controlled_test;
 	// use the variables to keep track of the state,
@@ -216,10 +216,10 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 
 USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_end, uint32_t /* status */)
 {
-	if (!g_usfstl_multi_test_running)
+	if (!g_usfstl_multi_ptc_test_running)
 		return;
 
-	g_usfstl_multi_test_running = false;
+	g_usfstl_multi_ptc_test_running = false;
 	g_usfstl_multi_test_sched_continue = true;
 	g_usfstl_failure_reason = in ?: USFSTL_STATUS_REMOTE_SUCCESS;
 
@@ -235,7 +235,7 @@ USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_end, uint32_t /* status */)
 
 USFSTL_RPC_VOID_METHOD(multi_rpc_exit, uint32_t /* dummy */)
 {
-	assert(!g_usfstl_multi_test_running);
+	assert(!g_usfstl_multi_ptc_test_running);
 	g_usfstl_multi_ctrl_conn = NULL;
 	usfstl_multi_finish();
 }

@@ -24,6 +24,7 @@
 #include "multi-rpc.h"
 
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_controller);
+static bool USFSTL_NORESTORE_VAR(g_usfstl_ctl_multi_test_running);
 
 static bool g_usfstl_debug_subprocesses;
 USFSTL_OPT_FLAG("multi-debug-subprocs", 0, g_usfstl_debug_subprocesses,
@@ -54,7 +55,7 @@ static void usfstl_multi_ctl_extra_received(struct usfstl_rpc_connection *conn,
 {
 	const struct usfstl_multi_sync *sync = data;
 
-	if (!g_usfstl_multi_test_running)
+	if (!g_usfstl_ctl_multi_test_running)
 		return;
 
 	if (usfstl_sched_current_time(&g_usfstl_multi_sched) != sync->time)
@@ -184,7 +185,7 @@ void usfstl_multi_start_test_controller(void)
 	msg.hdr.flow_test = g_usfstl_current_test->flow_test;
 	msg.hdr.max_cpu_time_ms = g_usfstl_current_test->max_cpu_time_ms;
 
-	g_usfstl_multi_test_running = true;
+	g_usfstl_ctl_multi_test_running = true;
 
 	for_each_participant(p, i)
 		multi_rpc_test_start_conn(p->conn, &msg.hdr,
@@ -204,7 +205,7 @@ void usfstl_multi_end_test_controller(enum usfstl_testcase_status status)
 	for_each_participant(p, i)
 		multi_rpc_test_end_conn(p->conn, status);
 
-	g_usfstl_multi_test_running = false;
+	g_usfstl_ctl_multi_test_running = false;
 
 	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_FINISHED, true);
 }
