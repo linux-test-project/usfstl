@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -375,11 +375,11 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 		return;
 	}
 
+	usfstl_flush_all();
+
 	// write request
 	rpc_write(conn->conn.fd, &tag, sizeof(tag));
 	rpc_write(conn->conn.fd, &req, sizeof(req));
-
-	usfstl_flush_all();
 
 	if (conn->extra_len) {
 		unsigned char buf[conn->extra_len];
