@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -250,6 +250,7 @@ enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
 					  status == USFSTL_STATUS_SUCCESS);
 
 out:
+	g_usfstl_current_test = NULL;
 	g_usfstl_current_case_num = -1;
 	g_usfstl_current_test_num = -1;
 	g_usfstl_current_test_case_data = NULL;

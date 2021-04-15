@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -104,7 +104,8 @@ static void close_summary(void)
 }
 #endif
 
-static void usfstl_tested_requirement_count(const char *req,
+static void usfstl_tested_requirement_count(const char *testname,
+					    const char *req,
 					    unsigned int pass,
 					    unsigned int fail)
 {
@@ -124,13 +125,15 @@ static void usfstl_tested_requirement_count(const char *req,
 		assert(write(g_usfstl_requirements_fd, "\n", 1) == 1);
 	}
 
-	len = snprintf(buf, sizeof(buf), "%s\t%s\t%d\t%d\n", g_usfstl_current_test->name, req, pass, fail);
+	len = snprintf(buf, sizeof(buf), "%s\t%s\t%d\t%d\n",
+		       testname, req, pass, fail);
 	assert(write(g_usfstl_requirements_fd, buf, len) == len);
 }
 
 void usfstl_tested_requirement(const char *req, bool pass)
 {
-	usfstl_tested_requirement_count(req, pass ? 1 : 0, pass ? 0 : 1);
+	usfstl_tested_requirement_count(g_usfstl_current_test->name,
+					req, pass ? 1 : 0, pass ? 0 : 1);
 }
 
 #if !defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3
@@ -140,7 +143,7 @@ static void write_requirements(const struct usfstl_test *tc, int tc_succeeded,
 	const char * const *req = tc->requirements;
 
 	while (req && *req) {
-		usfstl_tested_requirement_count(*req, tc_succeeded,
+		usfstl_tested_requirement_count(tc->name, *req, tc_succeeded,
 						tc_failed);
 		req++;
 	}
