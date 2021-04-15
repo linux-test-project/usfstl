@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -572,5 +572,17 @@ void _impl_ ## _name(struct usfstl_rpc_connection *,			\
 #ifndef USFSTL_RPC_METHOD
 #error "You must include your RPC header file w/o defining USFSTL_RPC_* first!"
 #endif
+
+/**
+ * usfstl_rpc_send_void_response - send a void response out-of-band
+ * @conn: the connection to send it to
+ *
+ * In some (rare) cases it may be necessary to send a response
+ * to an RPC call out-of-band, e.g. after a longjmp(), see the
+ * multi framework which requires this for an example.
+ *
+ * Try to avoid using this.
+ */
+void usfstl_rpc_send_void_response(struct usfstl_rpc_connection *conn);
 
 #endif // _USFSTL_RPC_H_

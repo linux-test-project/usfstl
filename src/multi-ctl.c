@@ -25,6 +25,8 @@
 
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_controller);
 static bool USFSTL_NORESTORE_VAR(g_usfstl_ctl_multi_test_running);
+static struct usfstl_multi_participant *
+USFSTL_NORESTORE_VAR(g_usfstl_test_fail_initiator);
 
 static bool g_usfstl_debug_subprocesses;
 USFSTL_OPT_FLAG("multi-debug-subprocs", 0, g_usfstl_debug_subprocesses,
@@ -202,12 +204,17 @@ void usfstl_multi_end_test_controller(enum usfstl_testcase_status status)
 	struct usfstl_multi_participant *p;
 	int i;
 
-	for_each_participant(p, i)
+	for_each_participant(p, i) {
+		if (p == g_usfstl_test_fail_initiator)
+			continue;
 		multi_rpc_test_end_conn(p->conn, status);
+	}
 
 	g_usfstl_ctl_multi_test_running = false;
-
-	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_FINISHED, true);
+	if (g_usfstl_test_fail_initiator) {
+		usfstl_rpc_send_void_response(g_usfstl_test_fail_initiator->conn);
+		g_usfstl_test_fail_initiator = NULL;
+	}
 }
 
 void usfstl_multi_finish(void)
@@ -242,8 +249,7 @@ static void usfstl_multi_controller_sched_callback(struct usfstl_job *job)
 					USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED));
 	p->flags &= ~USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 
-	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_WAITING |
-					 USFSTL_MULTI_PARTICIPANT_FINISHED,
+	usfstl_multi_controller_wait_all(USFSTL_MULTI_PARTICIPANT_WAITING,
 					 false);
 
 	// refresh the local view of the shared memory before continuing
@@ -283,19 +289,13 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 	return 0;
 }
 
-USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_failed, uint32_t /* status */)
+USFSTL_RPC_VOID_METHOD(multi_rpc_test_failed, uint32_t /* status */)
 {
 	if (g_usfstl_test_aborted)
 		return;
 
 	g_usfstl_failure_reason = in;
 	g_usfstl_test_aborted = true;
+	g_usfstl_test_fail_initiator = conn->data;
 	usfstl_ctx_abort_test();
-}
-
-USFSTL_RPC_VOID_METHOD(multi_rpc_test_ended, uint32_t /* dummy */)
-{
-	struct usfstl_multi_participant *p = conn->data;
-
-	p->flags |= USFSTL_MULTI_PARTICIPANT_FINISHED;
 }

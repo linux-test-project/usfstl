@@ -22,6 +22,7 @@
 struct usfstl_test USFSTL_NORESTORE_VAR(g_usfstl_multi_controlled_test);
 static bool USFSTL_NORESTORE_VAR(g_usfstl_multi_ptc_test_running);
 static bool g_usfstl_multi_test_sched_continue;
+static bool USFSTL_NORESTORE_VAR(g_usfstl_ptc_must_send_test_end_response);
 
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_participant);
 
@@ -93,7 +94,10 @@ void usfstl_multi_start_test_participant(void)
 
 void usfstl_multi_end_test_participant(void)
 {
-	multi_rpc_test_ended_conn(g_usfstl_multi_ctrl_conn, 0 /* dummy */);
+	if (g_usfstl_ptc_must_send_test_end_response) {
+		g_usfstl_ptc_must_send_test_end_response = false;
+		usfstl_rpc_send_void_response(g_usfstl_multi_ctrl_conn);
+	}
 }
 
 static void usfstl_multi_ptc_extra_transmit(struct usfstl_rpc_connection *conn,
@@ -214,7 +218,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 	return 0;
 }
 
-USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_end, uint32_t /* status */)
+USFSTL_RPC_VOID_METHOD(multi_rpc_test_end, uint32_t /* status */)
 {
 	if (!g_usfstl_multi_ptc_test_running)
 		return;
@@ -230,6 +234,7 @@ USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_end, uint32_t /* status */)
 	 * for scheduling, which just causes trouble with time.
 	 */
 	g_usfstl_test_aborted = true;
+	g_usfstl_ptc_must_send_test_end_response = true;
 	usfstl_ctx_abort_test();
 }
 

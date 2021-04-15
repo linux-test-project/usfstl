@@ -58,6 +58,11 @@ static void _usfstl_rpc_send_response(struct usfstl_rpc_connection *conn,
 	rpc_write(conn->conn.fd, ret, retsize);
 }
 
+void usfstl_rpc_send_void_response(struct usfstl_rpc_connection *conn)
+{
+	_usfstl_rpc_send_response(conn, 0, NULL, 0);
+}
+
 static void usfstl_rpc_make_call(struct usfstl_rpc_connection *conn,
 				 struct usfstl_rpc_stub *stub,
 				 const void *arg, uint32_t argsize,

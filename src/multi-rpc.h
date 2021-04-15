@@ -40,7 +40,7 @@ struct usfstl_shared_mem_msg {
 USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      multi_rpc_test_start,
 		      struct usfstl_multi_run);
-USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_end, uint32_t /* status */);
+USFSTL_RPC_VOID_METHOD(multi_rpc_test_end, uint32_t /* status */);
 USFSTL_RPC_VOID_METHOD(multi_rpc_exit, uint32_t /* dummy */);
 USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      multi_rpc_sched_cont,
@@ -53,5 +53,4 @@ USFSTL_RPC_VOID_METHOD(multi_rpc_sched_request, uint64_t /* time */);
 USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      multi_rpc_sched_wait,
 		      struct usfstl_shared_mem_msg);
-USFSTL_RPC_ASYNC_METHOD(multi_rpc_test_failed, uint32_t /* status */);
-USFSTL_RPC_VOID_METHOD(multi_rpc_test_ended, uint32_t /* dummy */);
+USFSTL_RPC_VOID_METHOD(multi_rpc_test_failed, uint32_t /* status */);

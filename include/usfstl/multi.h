@@ -24,9 +24,8 @@
 
 enum usfstl_multi_participant_flags {
 	USFSTL_MULTI_PARTICIPANT_WAITING		= 1 << 0,
-	USFSTL_MULTI_PARTICIPANT_FINISHED		= 1 << 1,
 	/* indicates that the (local/remote) participant's view of the shared mem is outdated */
-	USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED	= 1 << 2,
+	USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED	= 1 << 1,
 };
 
 /**
