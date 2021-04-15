@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -181,7 +181,7 @@ void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 	int i;
 
 	// ignore messages after test completion, as usfstl_alloc memory was freed
-	if (!g_usfstl_multi_test_running)
+	if (!g_usfstl_current_test)
 		return;
 
 	// an empty message indicates no change
