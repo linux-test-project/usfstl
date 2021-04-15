@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -405,14 +405,8 @@ static bool send_message(struct usfstl_schedule_client *client,
 
 static void update_sync(struct usfstl_schedule_client *client)
 {
-	uint64_t time = scheduler.current_time;
-	uint64_t sync = time + (1ULL << 62);
-	struct usfstl_job *job;
+	uint64_t sync = usfstl_sched_get_sync_time(&scheduler);
 	static bool update_sync_running;
-
-	job = usfstl_sched_next_pending(&scheduler, NULL);
-	if (job)
-		sync = job->start;
 
 	if (!client)
 		client = running_client;

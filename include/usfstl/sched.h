@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -332,6 +332,20 @@ void usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time);
  * every job will require external synchronisation.
  */
 void usfstl_sched_set_sync_time(struct usfstl_scheduler *sched, uint64_t time);
+
+/**
+ * usfstl_sched_get_sync_time - get next necessary sync time
+ * @sched: the scheduler to ask
+ *
+ * When running children schedulers below the given scheduler, this
+ * returns a suitable value for calling usfstl_sched_set_sync_time()
+ * for the children, see documentation there.
+ *
+ * Note that this function also deals with scheduler nesting, i.e.
+ * if a usfstl_sched_set_sync_time() call has been made on the given
+ * scheduler.
+ */
+uint64_t usfstl_sched_get_sync_time(struct usfstl_scheduler *sched);
 
 /**
  * g_usfstl_top_scheduler - top level scheduler

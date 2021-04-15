@@ -348,6 +348,25 @@ void usfstl_sched_restore_groups(struct usfstl_scheduler *sched,
 	usfstl_sched_remove_blocked_jobs(sched);
 }
 
+uint64_t usfstl_sched_get_sync_time(struct usfstl_scheduler *sched)
+{
+	uint64_t time = usfstl_sched_current_time(sched);
+	// pick something FAR away (but not considered in the past)
+	// so we don't sync often if nothing really happens
+	uint64_t sync = time + (1ULL << 62);
+	struct usfstl_job *job;
+
+	if (sched->next_external_sync_set &&
+	    usfstl_time_cmp(sync, >, sched->next_external_sync))
+		sync = sched->next_external_sync;
+
+	job = usfstl_sched_next_pending(sched, NULL);
+	if (job && usfstl_time_cmp(job->start, <, sync))
+		sync = job->start;
+
+	return sync;
+}
+
 static void usfstl_sched_link_job_callback(struct usfstl_job *job)
 {
 	struct usfstl_scheduler *sched = job->data;
