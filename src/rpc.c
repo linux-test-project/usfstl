@@ -42,7 +42,9 @@ static const unsigned int stub_fill __attribute__((section("usfstl_rpcstub"), us
 extern struct usfstl_rpc_stub *__start_usfstl_rpc[];
 extern struct usfstl_rpc_stub *__stop_usfstl_rpc;
 
-static void usfstl_send_response(struct usfstl_rpc_connection *conn, int status)
+static void _usfstl_rpc_send_response(struct usfstl_rpc_connection *conn,
+				      int status, const void *ret,
+				      uint32_t retsize)
 {
 	static const uint32_t tag = USFSTL_RPC_TAG_RESPONSE;
 	struct usfstl_rpc_response resp = {
@@ -53,6 +55,7 @@ static void usfstl_send_response(struct usfstl_rpc_connection *conn, int status)
 
 	rpc_write(conn->conn.fd, &tag, sizeof(tag));
 	rpc_write(conn->conn.fd, &resp, sizeof(resp));
+	rpc_write(conn->conn.fd, ret, retsize);
 }
 
 static void usfstl_rpc_make_call(struct usfstl_rpc_connection *conn,
@@ -102,9 +105,7 @@ static void usfstl_rpc_handle_call(struct usfstl_rpc_connection *conn,
 	if (async)
 		return;
 
-	usfstl_send_response(conn, 0);
-
-	rpc_write(conn->conn.fd, ret, sizeof(ret));
+	_usfstl_rpc_send_response(conn, 0, ret, sizeof(ret));
 }
 
 static struct usfstl_rpc_stub *
@@ -172,7 +173,7 @@ static void usfstl_rpc_handle_one_call(struct usfstl_rpc_connection *conn,
 	}
 
 	if (!async)
-		usfstl_send_response(conn, -ENOENT);
+		_usfstl_rpc_send_response(conn, -ENOENT, NULL, 0);
 }
 
 static uint32_t usfstl_rpc_handle_one(struct usfstl_rpc_connection *conn)
