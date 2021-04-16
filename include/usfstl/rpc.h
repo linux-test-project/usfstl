@@ -137,6 +137,7 @@ struct usfstl_rpc_connection {
 	void *data;
 	struct usfstl_loop_entry conn;
 	uint32_t initialized:1;
+	const char *name;
 
 	/*
 	 * extra data
