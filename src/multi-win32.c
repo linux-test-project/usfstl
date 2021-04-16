@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -53,6 +53,9 @@ static bool usfstl_multi_init_control(struct usfstl_opt *opt, const char *arg)
 
 USFSTL_OPT("control", 0, "connection", usfstl_multi_init_control, NULL,
 	   "initialize external control");
+USFSTL_OPT_STR("multi-ptc-ctl", 0, "name",
+	       g_usfstl_multi_ctrl_conn_inst.name,
+	       "Controller name, set by the controller");
 #endif
 
 /* controller side */
@@ -66,6 +69,7 @@ void usfstl_run_participant(struct usfstl_multi_participant *p, int nargs)
 	char cmdline[1000] = {};
 	char tcpopt[100] = {};
 	char namebuf[20 + strlen(p->name)];
+	char ctlnamebuf[20 + strlen(g_usfstl_multi_local_participant.name)];
 	SOCKET s;
 	int i;
 
@@ -100,11 +104,15 @@ void usfstl_run_participant(struct usfstl_multi_participant *p, int nargs)
 
 	sprintf(tcpopt, "--control=tcp:%d", (unsigned int)g_usfstl_multi_server_port);
 	sprintf(namebuf, "--multi-ptc-name=%s", p->name);
-	assert(strlen(cmdline) + strlen(tcpopt) + strlen(namebuf) + 3 < sizeof(cmdline));
+	sprintf(ctlnamebuf, "--multi-ptc-ctl=%s", g_usfstl_multi_local_participant.name);
+	assert(strlen(cmdline) + strlen(tcpopt) + strlen(namebuf) +
+	       strlen(ctlnamebuf) + 4 < sizeof(cmdline));
 	strcat(cmdline, " ");
 	strcat(cmdline, tcpopt);
 	strcat(cmdline, " ");
 	strcat(cmdline, namebuf);
+	strcat(cmdline, " ");
+	strcat(cmdline, ctlnamebuf);
 
 	assert(CreateProcess(NULL,
 			     cmdline,

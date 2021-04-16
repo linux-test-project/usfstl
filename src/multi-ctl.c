@@ -82,6 +82,7 @@ setup:
 	p->conn->extra_len = sizeof(struct usfstl_multi_sync);
 	p->conn->extra_transmit = usfstl_multi_ctl_extra_transmit;
 	p->conn->extra_received = usfstl_multi_ctl_extra_received;
+	p->conn->name = p->name;
 	usfstl_rpc_add_connection(p->conn);
 }
 
