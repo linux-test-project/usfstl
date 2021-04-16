@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2018 - 2020 Intel Corporation
+# Copyright (C) 2018 - 2021 Intel Corporation
 #
 # SPDX-License-Identifier: BSD-3-Clause
 #
@@ -388,7 +388,7 @@ OBJS += multi.o multi-rpc.o multi-ctl.o multi-ptc.o multi-shared-mem.o rpc-rpc.o
 OBJS += assert-profiling.o string.o
 ASM_OBJS = entry.o
 DWARF_OBJS = dwarf/dwarf.o dwarf/sort.o dwarf/state.o dwarf/fileline.o
-DWARF_READ_OBJS = dwarf/posix.o dwarf/print.o dwarf/backtrace.o
+DWARF_READ_OBJS = dwarf/posix.o dwarf/backtrace.o
 ifeq ($(_USFSTL_WINDOWS),1)
 OBJS += watchdog-win32.o rpc-win32.o multi-win32.o
 DWARF_OBJS += dwarf/pecoff.o dwarf/nounwind.o dwarf/alloc.o

@@ -124,6 +124,10 @@ void _usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time);
 void usfstl_task_cleanup(void);
 
 /* rpc */
+#define USFSTL_MAX_RPC_STACK	20
+extern struct usfstl_rpc_connection *g_usfstl_rpc_stack[USFSTL_MAX_RPC_STACK];
+extern unsigned int g_usfstl_rpc_stack_num;
+
 void rpc_write(usfstl_fd_t fd, const void *buf, size_t bufsize);
 void rpc_read(usfstl_fd_t fd, void *buf, size_t nbyte);
 

@@ -93,6 +93,10 @@ static void usfstl_rpc_make_call(struct usfstl_rpc_connection *conn,
 	}
 }
 
+struct usfstl_rpc_connection *
+USFSTL_NORESTORE_VAR(g_usfstl_rpc_stack[USFSTL_MAX_RPC_STACK]);
+unsigned int USFSTL_NORESTORE_VAR(g_usfstl_rpc_stack_num);
+
 static void usfstl_rpc_handle_call(struct usfstl_rpc_connection *conn,
 				   struct usfstl_rpc_stub *stub,
 				   uint32_t argsize, uint32_t retsize)
@@ -104,7 +108,11 @@ static void usfstl_rpc_handle_call(struct usfstl_rpc_connection *conn,
 
 	rpc_read(conn->conn.fd, arg, sizeof(arg));
 
+	g_usfstl_rpc_stack[g_usfstl_rpc_stack_num++] = conn;
+
 	usfstl_rpc_make_call(conn, stub, arg, argsize, ret, retsize);
+
+	g_usfstl_rpc_stack_num--;
 
 	_usfstl_rpc_send_response(conn, 0, ret, sizeof(ret));
 }

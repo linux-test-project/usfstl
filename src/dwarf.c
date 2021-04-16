@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2021 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -15,6 +15,7 @@
 #include "internal.h"
 #include "dwarf/backtrace.h"
 #include "dwarf/internal.h"
+#include "dwarf-rpc.h"
 
 /* created by the linker */
 extern const struct usfstl_static_reference *__start_static_reference_data[];
@@ -249,12 +250,109 @@ uintptr_t usfstl_dwarf_get_base_address(void)
 	return dwarf_get_base_address(g_usfstl_backtrace_state);
 }
 
+static bool g_usfstl_printed_dotdotdot;
+static unsigned int g_usfstl_printed_rpc;
+static bool g_usfstl_rpc_bt_initialized;
+static unsigned int g_usfstl_rpc_bt_skip, g_usfstl_rpc_bt_skip_this;
+static bool g_usfstl_rpc_bt_completed;
+
+static int usfstl_bt_print_cb(void *data, uintptr_t pc, const char *filename,
+			      int lineno, const char *function)
+{
+	if (!function) {
+		if (!g_usfstl_printed_dotdotdot)
+			fprintf(stderr, "...\n");
+		g_usfstl_printed_dotdotdot = true;
+		return 0;
+	}
+
+	g_usfstl_printed_dotdotdot = false;
+
+	if (g_usfstl_rpc_bt_skip_this) {
+		if (strcmp(function, "usfstl_rpc_call") == 0)
+			g_usfstl_rpc_bt_skip_this--;
+		return 0;
+	}
+
+	fprintf(stderr, "0x%lx %s\n\t%s:%d\n",
+		(unsigned long) pc,
+		function ?: "???",
+		filename ?: "???",
+		lineno);
+
+	if (strcmp(function, "usfstl_rpc_handle_one_call") == 0) {
+		if (!g_usfstl_rpc_bt_skip_this && g_usfstl_printed_rpc > 0) {
+			struct usfstl_rpc_connection *conn;
+			struct {
+				struct usfstl_bt_name hdr;
+				char name[200];
+			} __attribute__((packed)) ret;
+
+			conn = g_usfstl_rpc_stack[--g_usfstl_printed_rpc];
+
+			fprintf(stderr, "\ncontinue backtrace on %s:\n\n",
+				conn->name);
+			fflush(stderr);
+
+			// in case we get called again, skip this call
+			g_usfstl_rpc_bt_skip++;
+			rpc_bt_conn(conn, 0, &ret.hdr, sizeof(ret));
+			if (g_usfstl_rpc_bt_completed)
+				return 1;
+			fprintf(stderr, "\nfinish backtrace on %.*s:\n\n",
+				(int)(sizeof(ret) - sizeof(ret.hdr)), ret.name);
+		} else if (g_usfstl_printed_rpc > 0) {
+			g_usfstl_printed_rpc--;
+		} else {
+			fprintf(stderr,
+				"\n!!! strange: mismatched RPC callee stack\n\n");
+		}
+	}
+
+	return 0;
+}
+
+static void usfstl_bt_error_cb(void *data, const char *msg, int errnum)
+{
+	if (g_usfstl_backtrace_state->filename)
+		fprintf(stderr, "%s: ", g_usfstl_backtrace_state->filename);
+
+	fprintf(stderr, "libbacktrace: %s", msg);
+
+	if (errnum > 0)
+		fprintf(stderr, ": %s", strerror(errnum));
+
+	fputc('\n', stderr);
+}
+
+static void usfstl_bt_init(unsigned int stack)
+{
+	unsigned int i;
+
+	if (g_usfstl_rpc_bt_initialized)
+		return;
+	g_usfstl_rpc_bt_initialized = true;
+
+	g_usfstl_printed_dotdotdot = false;
+	g_usfstl_printed_rpc = stack;
+	g_usfstl_rpc_bt_skip = 0;
+	g_usfstl_rpc_bt_completed = false;
+
+	for (i = 0; i < g_usfstl_printed_rpc; i++)
+		rpc_bt_start_conn(g_usfstl_rpc_stack[i], 0);
+}
+
 void _usfstl_dump_stack(unsigned int skip)
 {
 	if (!g_usfstl_backtrace_state)
 		return;
 
-	backtrace_print(g_usfstl_backtrace_state, skip + 1, stderr);
+	g_usfstl_rpc_bt_initialized = false;
+	usfstl_bt_init(g_usfstl_rpc_stack_num);
+
+	backtrace_full(g_usfstl_backtrace_state, skip + 1,
+		       usfstl_bt_print_cb, usfstl_bt_error_cb,
+		       NULL);
 }
 
 void usfstl_dump_stack(void)
@@ -296,4 +394,37 @@ int usfstl_get_func_info(const char *filename, const char *funcname,
 		*rettype = "void";
 
 	return 0;
+}
+
+#define USFSTL_RPC_CALLEE_STUB
+#include "dwarf-rpc.h"
+#undef USFSTL_RPC_CALLEE_STUB
+
+#define USFSTL_RPC_CALLER_STUB
+#include "dwarf-rpc.h"
+#undef USFSTL_RPC_CALLER_STUB
+
+#define USFSTL_RPC_IMPLEMENTATION
+#include <usfstl/rpc.h>
+
+USFSTL_RPC_VOID_METHOD(rpc_bt_start, uint32_t /* dummy */)
+{
+	usfstl_bt_init(g_usfstl_rpc_stack_num - 1);
+}
+
+USFSTL_RPC_VAR_METHOD(struct usfstl_bt_name, rpc_bt, uint32_t /* dummy */)
+{
+	g_usfstl_rpc_bt_initialized = false;
+
+	g_usfstl_rpc_bt_skip++;
+	g_usfstl_rpc_bt_skip_this = g_usfstl_rpc_bt_skip;
+
+	backtrace_full(g_usfstl_backtrace_state, 1,
+		       usfstl_bt_print_cb, usfstl_bt_error_cb,
+		       NULL);
+	g_usfstl_rpc_bt_completed = true;
+
+	snprintf(out->name, outsize, "%s", conn->name);
+
+	fflush(stderr);
 }
