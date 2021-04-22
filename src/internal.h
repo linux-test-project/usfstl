@@ -132,6 +132,8 @@ void rpc_write(usfstl_fd_t fd, const void *buf, size_t bufsize);
 void rpc_read(usfstl_fd_t fd, void *buf, size_t nbyte);
 
 /* multi-process testing */
+extern bool g_usfstl_multi_test_running;
+void usfstl_multi_add_rpc_connection(struct usfstl_rpc_connection *conn);
 extern struct usfstl_multi_participant *__start_usfstl_rpcp[];
 extern struct usfstl_multi_participant *__stop_usfstl_rpcp[];
 extern struct usfstl_scheduler g_usfstl_multi_sched;

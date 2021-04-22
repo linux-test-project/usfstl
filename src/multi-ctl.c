@@ -24,7 +24,6 @@
 #include "multi-rpc.h"
 
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_controller);
-static bool USFSTL_NORESTORE_VAR(g_usfstl_ctl_multi_test_running);
 static struct usfstl_multi_participant *
 USFSTL_NORESTORE_VAR(g_usfstl_test_fail_initiator);
 
@@ -44,26 +43,6 @@ struct usfstl_multi_participant g_usfstl_multi_local_participant = {
 static struct usfstl_multi_participant *g_usfstl_multi_running_participant =
 	&g_usfstl_multi_local_participant;
 
-static void usfstl_multi_ctl_extra_transmit(struct usfstl_rpc_connection *conn,
-					    void *data)
-{
-	struct usfstl_multi_sync *sync = data;
-
-	sync->time = usfstl_sched_current_time(&g_usfstl_multi_sched);
-}
-
-static void usfstl_multi_ctl_extra_received(struct usfstl_rpc_connection *conn,
-					    const void *data)
-{
-	const struct usfstl_multi_sync *sync = data;
-
-	if (!g_usfstl_ctl_multi_test_running)
-		return;
-
-	if (usfstl_sched_current_time(&g_usfstl_multi_sched) != sync->time)
-		usfstl_sched_set_time(&g_usfstl_multi_sched, sync->time);
-}
-
 static void usfstl_multi_ctl_start_participant(struct usfstl_multi_participant *p)
 {
 	int nargs = 0;
@@ -79,11 +58,8 @@ static void usfstl_multi_ctl_start_participant(struct usfstl_multi_participant *
 	usfstl_run_participant(p, nargs);
 setup:
 	p->conn->data = p;
-	p->conn->extra_len = sizeof(struct usfstl_multi_sync);
-	p->conn->extra_transmit = usfstl_multi_ctl_extra_transmit;
-	p->conn->extra_received = usfstl_multi_ctl_extra_received;
 	p->conn->name = p->name;
-	usfstl_rpc_add_connection(p->conn);
+	usfstl_multi_add_rpc_connection(p->conn);
 }
 
 void usfstl_multi_controller_print_participants(int indent)
@@ -166,7 +142,7 @@ void usfstl_multi_start_test_controller(void)
 	msg.hdr.flow_test = g_usfstl_current_test->flow_test;
 	msg.hdr.max_cpu_time_ms = g_usfstl_current_test->max_cpu_time_ms;
 
-	g_usfstl_ctl_multi_test_running = true;
+	g_usfstl_multi_test_running = true;
 
 	for_each_participant(p, i) {
 		multi_rpc_test_start_conn(p->conn, &msg.hdr,
@@ -189,7 +165,7 @@ void usfstl_multi_end_test_controller(enum usfstl_testcase_status status)
 		multi_rpc_test_end_conn(p->conn, status);
 	}
 
-	g_usfstl_ctl_multi_test_running = false;
+	g_usfstl_multi_test_running = false;
 	if (g_usfstl_test_fail_initiator) {
 		usfstl_rpc_send_void_response(g_usfstl_test_fail_initiator->conn);
 		g_usfstl_test_fail_initiator = NULL;

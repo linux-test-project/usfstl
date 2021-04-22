@@ -20,6 +20,7 @@
 #include "multi-rpc.h"
 
 USFSTL_SCHEDULER(g_usfstl_multi_sched);
+bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_running);
 
 // connection to the controller, set to USFSTL_RPC_LOCAL for itself
 // (so it can treat itself as a normal participant in most places)
@@ -35,6 +36,35 @@ void usfstl_multi_init(void)
 		usfstl_multi_controller_init();
 		break;
 	}
+}
+
+static void usfstl_multi_extra_transmit(struct usfstl_rpc_connection *conn,
+					void *data)
+{
+	struct usfstl_multi_sync *sync = data;
+
+	sync->time = usfstl_sched_current_time(g_usfstl_top_scheduler);
+}
+
+static void usfstl_multi_extra_received(struct usfstl_rpc_connection *conn,
+					const void *data)
+{
+	const struct usfstl_multi_sync *sync = data;
+
+	if (!g_usfstl_multi_test_running)
+		return;
+
+	if (usfstl_sched_current_time(g_usfstl_top_scheduler) != sync->time)
+		usfstl_sched_set_time(g_usfstl_top_scheduler, sync->time);
+}
+
+void usfstl_multi_add_rpc_connection(struct usfstl_rpc_connection *conn)
+{
+	conn->extra_len = sizeof(struct usfstl_multi_sync);
+	conn->extra_transmit = usfstl_multi_extra_transmit;
+	conn->extra_received = usfstl_multi_extra_received;
+
+	usfstl_rpc_add_connection(conn);
 }
 
 void usfstl_multi_start_test(void)
