@@ -20,7 +20,6 @@
 #include "multi-rpc.h"
 
 USFSTL_SCHEDULER(g_usfstl_multi_sched);
-bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_running);
 
 // connection to the controller, set to USFSTL_RPC_LOCAL for itself
 // (so it can treat itself as a normal participant in most places)
@@ -51,7 +50,7 @@ static void usfstl_multi_extra_received(struct usfstl_rpc_connection *conn,
 {
 	const struct usfstl_multi_sync *sync = data;
 
-	if (!g_usfstl_multi_test_running)
+	if (!g_usfstl_current_test)
 		return;
 
 	if (usfstl_sched_current_time(g_usfstl_top_scheduler) != sync->time)

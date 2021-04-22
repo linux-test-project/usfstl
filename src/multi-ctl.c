@@ -142,8 +142,6 @@ void usfstl_multi_start_test_controller(void)
 	msg.hdr.flow_test = g_usfstl_current_test->flow_test;
 	msg.hdr.max_cpu_time_ms = g_usfstl_current_test->max_cpu_time_ms;
 
-	g_usfstl_multi_test_running = true;
-
 	for_each_participant(p, i) {
 		multi_rpc_test_start_conn(p->conn, &msg.hdr,
 					  sizeof(msg.hdr) + strlen(msg.name));
@@ -165,7 +163,6 @@ void usfstl_multi_end_test_controller(enum usfstl_testcase_status status)
 		multi_rpc_test_end_conn(p->conn, status);
 	}
 
-	g_usfstl_multi_test_running = false;
 	if (g_usfstl_test_fail_initiator) {
 		usfstl_rpc_send_void_response(g_usfstl_test_fail_initiator->conn);
 		g_usfstl_test_fail_initiator = NULL;

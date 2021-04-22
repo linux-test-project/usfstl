@@ -22,6 +22,7 @@
 struct usfstl_test USFSTL_NORESTORE_VAR(g_usfstl_multi_controlled_test);
 static bool g_usfstl_multi_test_sched_continue;
 static bool USFSTL_NORESTORE_VAR(g_usfstl_ptc_must_send_test_end_response);
+static bool g_usfstl_multi_ptc_remote_abort;
 
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_participant);
 
@@ -141,10 +142,8 @@ int usfstl_multi_participant_run(void)
 		 * cannot abort successfully early due to the way we
 		 * handle RPC in test execution.
 		 */
-		if (g_usfstl_multi_test_running) {
-			g_usfstl_multi_test_running = false;
+		if (!g_usfstl_multi_ptc_remote_abort)
 			multi_rpc_test_failed_conn(g_usfstl_multi_ctrl_conn, status);
-		}
 	}
 
 	return 0;
@@ -182,8 +181,6 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 	// test->post is allowed locally
 	test->requirements = NULL;
 
-	g_usfstl_multi_test_running = true;
-
 	g_usfstl_current_test = &g_usfstl_multi_controlled_test;
 	// use the variables to keep track of the state,
 	// we pass them to usfstl_execute_test() later
@@ -195,10 +192,10 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 
 USFSTL_RPC_VOID_METHOD(multi_rpc_test_end, uint32_t /* status */)
 {
-	if (!g_usfstl_multi_test_running)
+	if (!g_usfstl_current_test)
 		return;
 
-	g_usfstl_multi_test_running = false;
+	g_usfstl_multi_ptc_remote_abort = true;
 	g_usfstl_multi_test_sched_continue = true;
 	g_usfstl_failure_reason = in ?: USFSTL_STATUS_REMOTE_SUCCESS;
 
@@ -215,7 +212,7 @@ USFSTL_RPC_VOID_METHOD(multi_rpc_test_end, uint32_t /* status */)
 
 USFSTL_RPC_VOID_METHOD(multi_rpc_exit, uint32_t /* dummy */)
 {
-	assert(!g_usfstl_multi_test_running);
+	assert(!g_usfstl_current_test);
 	g_usfstl_multi_ctrl_conn = NULL;
 	usfstl_multi_finish();
 }
