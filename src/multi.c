@@ -40,28 +40,39 @@ void usfstl_multi_init(void)
 static void usfstl_multi_extra_transmit(struct usfstl_rpc_connection *conn,
 					void *data)
 {
+	struct usfstl_scheduler *scheduler;
 	struct usfstl_multi_sync *sync = data;
 
-	sync->time = usfstl_sched_current_time(g_usfstl_top_scheduler);
+	scheduler = conn->conn.data ?: g_usfstl_top_scheduler;
+
+	sync->time = usfstl_sched_current_time(scheduler);
 }
 
 static void usfstl_multi_extra_received(struct usfstl_rpc_connection *conn,
 					const void *data)
 {
+	struct usfstl_scheduler *scheduler;
 	const struct usfstl_multi_sync *sync = data;
 
 	if (!g_usfstl_current_test)
 		return;
 
-	if (usfstl_sched_current_time(g_usfstl_top_scheduler) != sync->time)
-		usfstl_sched_set_time(g_usfstl_top_scheduler, sync->time);
+	scheduler = conn->conn.data ?: g_usfstl_top_scheduler;
+
+	if (usfstl_sched_current_time(scheduler) != sync->time)
+		usfstl_sched_set_time(scheduler, sync->time);
 }
 
-void usfstl_multi_add_rpc_connection(struct usfstl_rpc_connection *conn)
+void usfstl_multi_add_rpc_connection_sched(struct usfstl_rpc_connection *conn,
+					   struct usfstl_scheduler *sched)
 {
 	conn->extra_len = sizeof(struct usfstl_multi_sync);
 	conn->extra_transmit = usfstl_multi_extra_transmit;
 	conn->extra_received = usfstl_multi_extra_received;
+
+	// use conn.data to point to the scheduler to use
+	USFSTL_ASSERT(!conn->conn.data);
+	conn->conn.data = sched;
 
 	usfstl_rpc_add_connection(conn);
 }

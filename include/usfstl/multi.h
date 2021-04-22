@@ -86,4 +86,32 @@ extern struct usfstl_multi_participant g_usfstl_multi_local_participant;
  */
 extern struct usfstl_rpc_connection *g_usfstl_multi_ctrl_conn;
 
+/**
+ * usfstl_multi_add_rpc_connection_sched - add a multi-participant RPC connection
+ * @conn: the RPC connection to set up and add
+ * @sched: the scheduler to link with
+ *
+ * This adds a multi-participant simulation RPC connection that can
+ * e.g. be used to implement peer-to-peer RPCs between participants
+ * or similar. The given scheduler (@sched) is linked to the RPC extra
+ * transmit/receive, and will be kept in sync with the remote.
+ */
+void usfstl_multi_add_rpc_connection_sched(struct usfstl_rpc_connection *conn,
+					   struct usfstl_scheduler *sched);
+
+/**
+ * usfstl_multi_add_rpc_connection - add a multi-participant RPC connection
+ * @conn: the RPC connection to set up and add
+ *
+ * This adds a multi-participant simulation RPC connection that can
+ * e.g. be used to implement peer-to-peer RPCs between participants
+ * or similar. Note that the %g_usfstl_top_scheduler is linked, so
+ * it might even be used by non-multi parties.
+ */
+static inline void
+usfstl_multi_add_rpc_connection(struct usfstl_rpc_connection *conn)
+{
+	usfstl_multi_add_rpc_connection_sched(conn, NULL);
+}
+
 #endif // _USFSTL_MULTI_H
