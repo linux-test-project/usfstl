@@ -47,7 +47,7 @@
  *	#include "rpc.h"
  *
  *	// magic incantation for usfstlrpc
- *	#define USFSTL_RPC_CALLEE
+ *	#define USFSTL_RPC_CALLEE_STUB
  *	#include <usfstl/rpc.h>
  *
  * And also the implementation of the functions, of course, in impl.c:
@@ -86,7 +86,7 @@
  *	#include <rpc.h>
  *
  *	// magic incantation for usfstlrpc
- *	#define USFSTL_RPC_CALLER
+ *	#define USFSTL_RPC_CALLER_STUB
  *	#include <rpc.h>
  *
  * which declares the necessary stubs.
