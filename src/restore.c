@@ -11,20 +11,17 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <usfstl/test.h>
+#include <usfstl/restore.h>
 #include "internal.h"
 
 // created by the linker
 extern char __start_usfstl_norestore[];
 extern char __stop_usfstl_norestore[];
 
-struct restore_info {
-	uintptr_t ptr, size;
-};
-
 // since it's prefixed g_usfstl_, this wouldn't get saved/restored anyhow,
 // but we need a single variable to always be in this section, so just
 // put it there
-static struct restore_info *USFSTL_NORESTORE_VAR(g_usfstl_restore_info);
+static struct usfstl_restore_info *USFSTL_NORESTORE_VAR(g_usfstl_restore_info);
 static void *USFSTL_NORESTORE_VAR(g_usfstl_restore_data);
 
 static inline bool should_restore(uintptr_t _ptr)
@@ -43,28 +40,26 @@ static inline bool should_restore(uintptr_t _ptr)
 #define O_BINARY 0
 #endif
 
-static struct restore_info *usfstl_read_restore_info(const char *program)
+struct usfstl_restore_info *usfstl_read_restore_info(const char *file)
 {
-	char buf[1000];
+
 	int fd;
 	off_t len;
-	struct restore_info *info, *iter, *out = NULL;
+	struct usfstl_restore_info *info, *iter, *out = NULL;
 	uintptr_t base = usfstl_dwarf_get_base_address();
 	ssize_t r;
 	uintptr_t prev = 0;
 
-	assert(snprintf(buf, sizeof(buf), "%s.globals", program) < (int)sizeof(buf));
-
-	fd = open(buf, O_RDONLY | O_BINARY);
+	fd = open(file, O_RDONLY | O_BINARY);
 	assert(fd >= 0);
 
 	len = lseek(fd, 0, SEEK_END);
 	lseek(fd, 0, SEEK_SET);
-	assert((len % sizeof(struct restore_info)) == 0);
+	assert((len % sizeof(struct usfstl_restore_info)) == 0);
 
 	/* this allocates as much as we might need in the worst case */
-	info = calloc(len / sizeof(struct restore_info) + 1,
-		      sizeof(struct restore_info));
+	info = calloc(len / sizeof(struct usfstl_restore_info) + 1,
+		      sizeof(struct usfstl_restore_info));
 	assert(info);
 
 	r = read(fd, info, len);
@@ -106,13 +101,13 @@ static struct restore_info *usfstl_read_restore_info(const char *program)
 	return info;
 }
 
-static void *usfstl_save_restore_data(struct restore_info *info)
+void *usfstl_save_restore_data(struct usfstl_restore_info *info)
 {
 #if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2
 	/* not needed for AFL fork-based fuzzing */
 	return NULL;
 #else
-	struct restore_info *iter = info;
+	struct usfstl_restore_info *iter = info;
 	unsigned long long total = 0;
 	unsigned char *data, *ret;
 
@@ -136,12 +131,12 @@ static void *usfstl_save_restore_data(struct restore_info *info)
 #endif
 }
 
-static void usfstl_restore_data(struct restore_info *info, const void *_data)
+void usfstl_restore_data(struct usfstl_restore_info *info, const void *_data)
 {
 #if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2
 	/* not needed for AFL fork-based fuzzing */
 #else
-	struct restore_info *iter = info;
+	struct usfstl_restore_info *iter = info;
 	const unsigned char *data = _data;
 
 	while (iter->ptr || iter->size) {
@@ -154,7 +149,12 @@ static void usfstl_restore_data(struct restore_info *info, const void *_data)
 
 void usfstl_save_globals(const char *program)
 {
-	g_usfstl_restore_info = usfstl_read_restore_info(program);
+	char globals_file[1000];
+
+	assert(snprintf(globals_file, sizeof(globals_file),
+			"%s.globals", program) < (int)sizeof(globals_file));
+
+	g_usfstl_restore_info = usfstl_read_restore_info(globals_file);
 	g_usfstl_restore_data = usfstl_save_restore_data(g_usfstl_restore_info);
 }
 
