@@ -110,18 +110,10 @@ void usfstl_uds_readable_handler(struct usfstl_loop_entry *entry)
 	uds->readable(uds->entry.fd, uds->data);
 }
 
-int usfstl_uds_connect(const char *path, void (*readable)(int, void *),
-		       void *data)
+int usfstl_uds_connect_raw(const char *path)
 {
-	struct usfstl_uds_client *client;
 	struct sockaddr_un sock;
 	int fd, err;
-
-	client = calloc(1, sizeof(*client));
-	USFSTL_ASSERT(client);
-	client->entry.handler = usfstl_uds_readable_handler;
-	client->readable = readable;
-	client->data = data;
 
 	sock.sun_family = AF_UNIX;
 	strcpy(sock.sun_path, path);
@@ -132,10 +124,24 @@ int usfstl_uds_connect(const char *path, void (*readable)(int, void *),
 	err = connect(fd, (struct sockaddr *) &sock, sizeof(sock));
 	USFSTL_ASSERT(err == 0);
 
-	client->entry.fd = fd;
+	return fd;
+}
+
+int usfstl_uds_connect(const char *path, void (*readable)(int, void *),
+		       void *data)
+{
+	struct usfstl_uds_client *client;
+
+	client = calloc(1, sizeof(*client));
+	USFSTL_ASSERT(client);
+	client->entry.handler = usfstl_uds_readable_handler;
+	client->readable = readable;
+	client->data = data;
+
+	client->entry.fd = usfstl_uds_connect_raw(path);
 	usfstl_loop_register(&client->entry);
 
-	return fd;
+	return client->entry.fd;
 }
 
 void usfstl_uds_disconnect(int fd)
