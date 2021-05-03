@@ -118,6 +118,10 @@ static void usfstl_task_job_fn(struct usfstl_job *job)
 		USFSTL_ASSERT_EQ(g_usfstl_task_to_end->ctx, usfstl_current_ctx(),
 				 CTX_ASSERT_STR, CTX_ASSERT_VAL);
 		g_usfstl_task_to_end = NULL;
+
+		// it can't be waiting since we got here through usfstl_task_end_self()
+		USFSTL_ASSERT(!task->sem_entry.next);
+
 		usfstl_end_self(task->ctx);
 	}
 
@@ -278,6 +282,9 @@ void usfstl_task_end(struct usfstl_task *task)
 	USFSTL_ASSERT(!usfstl_job_scheduled(&task->job),
 		      "task '%s' cannot be ended while scheduled",
 		      usfstl_task_get_name(task));
+
+	if (task->sem_entry.next)
+		usfstl_list_item_remove(&task->sem_entry);
 
 	/*
 	 * As opposed to usfstl_task_end_self(), this case is easy;
