@@ -413,6 +413,10 @@ _USFSTL_CC_OPT = $(USFSTL_CC_OPT) -Wall -Wextra -Wno-unused-parameter -Wno-forma
 _USFSTL_AS_OPT := $(filter-out -mno-ms-bitfields,$(_USFSTL_CC_OPT))
 _USFSTL_CC_OPT += -DHAVE_DL_ITERATE_PHDR=1 -D_GNU_SOURCE=1 -DHAVE_ATOMIC_FUNCTIONS -DHAVE_SYNC_FUNCTIONS
 _USFSTL_CC_OPT += -DHAVE_DECL_STRNLEN=1
+ifeq ($(findstring clang,$(CC)),clang)
+# usfstl actually uses this gnu extension, so don't warn on it in clang.
+_USFSTL_CC_OPT += -Wno-gnu-variable-sized-type-not-at-end
+endif
 ifeq ($(USFSTL_SKIP_ASAN_STR),1)
 _USFSTL_CC_OPT += -DUSFSTL_WANT_NO_ASAN_STRING=1
 USFSTL_TEST_LINK_OPT += -ldl
