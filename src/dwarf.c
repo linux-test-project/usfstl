@@ -164,18 +164,20 @@ static void usfstl_resolve_static_references(void)
 					    error_callback, NULL);
 
 	for_each_static_reference(ref) {
-		if (ref->reference_type == USFSTL_STATIC_REFERENCE_FUNCTION) {
-			struct usfstl_resolve_cbdata cb = {
-				.ref = ref,
-			};
+		struct usfstl_resolve_cbdata cb = {
+			.ref = ref,
+		};
+
+		if (ref->reference_type == USFSTL_STATIC_REFERENCE_FUNCTION)
 			dwarf_iter_functions(g_usfstl_backtrace_state, ref->name,
 					     usfstl_resolve_static_function, &cb,
 					     error_callback, NULL);
-			usfstl_check_static_prototype(&cb);
-		}
 
-		if (*ref->ptr)
+		if (*ref->ptr) {
+			if (ref->reference_type == USFSTL_STATIC_REFERENCE_FUNCTION)
+				usfstl_check_static_prototype(&cb);
 			continue;
+		}
 
 		fprintf(stderr, "usfstl static functions/variables: failed to resolve %s\n",
 			ref->name);
