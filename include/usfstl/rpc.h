@@ -136,7 +136,8 @@ struct usfstl_rpc_connection {
 	struct usfstl_list_entry entry;
 	void *data;
 	struct usfstl_loop_entry conn;
-	uint32_t initialized:1;
+	uint32_t initialized:1,
+	         broken:1;
 	const char *name;
 
 	/*
@@ -149,6 +150,8 @@ struct usfstl_rpc_connection {
 	uint32_t extra_len;
 	void (*extra_transmit)(struct usfstl_rpc_connection *, void *);
 	void (*extra_received)(struct usfstl_rpc_connection *, const void *);
+
+	void (*disconnected)(struct usfstl_rpc_connection *);
 };
 
 #define USFSTL_RPC_TAG_REQUEST	0x7573323e

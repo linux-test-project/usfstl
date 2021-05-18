@@ -175,7 +175,7 @@ void usfstl_multi_finish(void)
 	int i;
 
 	for_each_participant(p, i) {
-		usfstl_rpc_del_connection(p->conn);
+		usfstl_rpc_del_connection_raw(p->conn);
 		multi_rpc_exit_conn(p->conn, 0);
 	}
 }

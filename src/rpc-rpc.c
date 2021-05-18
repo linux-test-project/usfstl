@@ -27,3 +27,13 @@ USFSTL_RPC_VAR_METHOD_VAR(struct usfstl_rpc_init, rpc_init,
 	assert(in->extra_len == conn->extra_len);
 	out->extra_len = conn->extra_len;
 }
+
+USFSTL_RPC_VOID_METHOD(rpc_disconnect, uint32_t /* ignored */)
+{
+	conn->broken = 1;
+
+	if (conn->disconnected) {
+		usfstl_loop_unregister(&conn->conn);
+		conn->disconnected(conn);
+	}
+}

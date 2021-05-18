@@ -262,11 +262,17 @@ void usfstl_rpc_add_connection(struct usfstl_rpc_connection *conn)
 	usfstl_loop_register(&conn->conn);
 }
 
-void usfstl_rpc_del_connection(struct usfstl_rpc_connection *conn)
+void usfstl_rpc_del_connection_raw(struct usfstl_rpc_connection *conn)
 {
 	usfstl_loop_unregister(&conn->conn);
 	usfstl_list_item_remove(&conn->entry);
-	conn->initialized = 0;
+}
+
+void usfstl_rpc_del_connection(struct usfstl_rpc_connection *conn)
+{
+	rpc_disconnect_conn(conn, 0);
+	usfstl_rpc_del_connection_raw(conn);
+	conn->broken = 1;
 }
 
 static uint32_t usfstl_rpc_wait_and_handle(struct usfstl_rpc_connection *wait)
@@ -337,6 +343,8 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 
 	if (!conn->initialized)
 		usfstl_rpc_initialize(conn);
+
+	assert(!conn->broken);
 
 	argsize &= ~USFSTL_VAR_DATA_SIZE;
 

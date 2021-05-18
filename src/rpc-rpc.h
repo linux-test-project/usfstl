@@ -20,3 +20,4 @@ struct usfstl_rpc_init {
 
 USFSTL_RPC_VAR_METHOD_VAR(struct usfstl_rpc_init, rpc_init,
 			  struct usfstl_rpc_init);
+USFSTL_RPC_VOID_METHOD(rpc_disconnect, uint32_t /* ignored */);

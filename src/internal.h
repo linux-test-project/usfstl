@@ -131,6 +131,8 @@ extern unsigned int g_usfstl_rpc_stack_num;
 void rpc_write(usfstl_fd_t fd, const void *buf, size_t bufsize);
 void rpc_read(usfstl_fd_t fd, void *buf, size_t nbyte);
 
+void usfstl_rpc_del_connection_raw(struct usfstl_rpc_connection *conn);
+
 /* multi-process testing */
 extern struct usfstl_multi_participant *__start_usfstl_rpcp[];
 extern struct usfstl_multi_participant *__stop_usfstl_rpcp[];
