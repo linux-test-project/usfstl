@@ -112,6 +112,9 @@
 #  - USFSTL_LOG_SUPPORT     = suitable to put at the end of the build rule(s)
 #                             for $(LIBSUPPORT) to log their output, use this
 #                             to get proper logging into place
+#  - USFSTL_TEST_SECTION    = the name of a .text section replacement for
+#                             objects that are instrumented but could be called
+#                             without explicitly stubbing them.
 #
 # Finally, your Makefile needs to provide the following targets:
 #  - $(USFSTL_BIN_PATH)/tested-%/$(USFSTL_TESTED_LIB):
@@ -232,6 +235,7 @@ USFSTL_TEST_LINK_OPT ?= $(USFSTL_TEST_CC_OPT)
 USFSTL_TEST_CONFIGS ?= .
 USFSTL_RUN_CONFIGS ?= $(USFSTL_TEST_CONFIGS)
 USFSTL_TESTSRC_DIR ?=
+USFSTL_TEST_SECTION := text_test
 
 ifeq ($(USFSTL_CONTEXT_BACKEND),pthread)
 USFSTL_TEST_LINK_OPT += -lpthread
@@ -507,7 +511,7 @@ $(USFSTL_TEST_BIN_PATH)/%.o.tmp: $(USFSTL_TESTSRC_DIR)$$(notdir %).c \
 .PRECIOUS: $(USFSTL_TEST_BIN_PATH)/%.o
 $(USFSTL_TEST_BIN_PATH)/%.o: $(USFSTL_TEST_BIN_PATH)/%.o.tmp
 	@echo " REL  $(dir $*)$(notdir $<)" $(USFSTL_LOG_TEST)
-	$(S)objcopy --rename-section=.text=text_test $< $@
+	$(S)objcopy --rename-section=.text=$(USFSTL_TEST_SECTION) $< $@
 
 _USFSTL_TEST_OBJ_DEPS := $(wildcard $(addprefix $(USFSTL_TEST_BIN_PATH)/*/,$(USFSTL_TEST_OBJS:%=%.d))) $(OBJS:%.o=$(_USFSTL_LIB_PATH)/%.d)
 -include $(_USFSTL_TEST_OBJ_DEPS)
