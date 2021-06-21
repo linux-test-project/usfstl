@@ -598,7 +598,8 @@ class Vlab:
             for fname, fcontent in plugin.files(self.runtime).items():
                 assert fname.startswith('/')
                 fname = fname[1:]
-                os.makedirs(os.path.join(pluginfiles, os.path.dirname(fname)))
+                os.makedirs(os.path.join(pluginfiles, os.path.dirname(fname)),
+                            exist_ok=True)
                 if isinstance(fcontent, bytes):
                     open(os.path.join(pluginfiles, fname), 'wb').write(fcontent)
                 else:
