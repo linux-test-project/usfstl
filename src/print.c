@@ -19,6 +19,7 @@ struct usfstl_logger {
 	FILE *f;
 	uint32_t refcount;
 	int idx, remote_idx;
+	bool tagging;
 };
 
 static struct usfstl_logger **USFSTL_NORESTORE_VAR(g_usfstl_loggers);
@@ -53,6 +54,7 @@ set:
 	USFSTL_ASSERT(g_usfstl_loggers[i]);
 	g_usfstl_loggers[i]->name = strdup(name);
 	USFSTL_ASSERT(g_usfstl_loggers[i]->name);
+	g_usfstl_loggers[i]->tagging = true;
 	g_usfstl_loggers[i]->idx = i;
 count:
 	g_usfstl_loggers[i]->refcount++;
@@ -170,6 +172,11 @@ void usfstl_log_free(struct usfstl_logger *logger)
 	}
 }
 
+void usfstl_log_set_tagging(struct usfstl_logger *logger, bool enable)
+{
+	logger->tagging = enable;
+}
+
 static void _usfstl_logvf(struct usfstl_logger *logger, const char *msg, va_list ap)
 {
 	if (!logger)
@@ -224,7 +231,7 @@ void usfstl_logvf(struct usfstl_logger *logger, const char *pfx,
 	if (!logger)
 		return;
 
-	if (g_usfstl_multi_local_participant.name &&
+	if (logger->tagging && g_usfstl_multi_local_participant.name &&
 	    (usfstl_is_multi_controller() || usfstl_is_multi_participant()))
 		_usfstl_logf(logger, "[%s]", g_usfstl_multi_local_participant.name);
 
@@ -249,7 +256,7 @@ void usfstl_logf_buf(struct usfstl_logger *logger, const char *pfx,
 	if (!logger)
 		return;
 
-	if (g_usfstl_multi_local_participant.name &&
+	if (logger->tagging && g_usfstl_multi_local_participant.name &&
 	    (usfstl_is_multi_controller() || usfstl_is_multi_participant()))
 		_usfstl_logf(logger, "[%s]", g_usfstl_multi_local_participant.name);
 

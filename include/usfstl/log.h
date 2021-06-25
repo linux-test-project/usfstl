@@ -37,6 +37,14 @@ struct usfstl_logger *usfstl_log_create_stdout(const char *name);
  */
 void usfstl_log_free(struct usfstl_logger *logger);
 
+/**
+ * usfstl_log_set_tagging - enable or disable logger tagging
+ * @logger: the logger
+ * @enable: whether or not each log line should be prefixed with
+ *	participant name tag (enabled by default)
+ */
+void usfstl_log_set_tagging(struct usfstl_logger *logger, bool enable);
+
 /*
  * usfstl_logf - logging to per-test file
  */
