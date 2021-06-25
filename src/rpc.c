@@ -56,6 +56,8 @@ static void _usfstl_rpc_send_response(struct usfstl_rpc_connection *conn,
 	rpc_write(conn->conn.fd, &tag, sizeof(tag));
 	rpc_write(conn->conn.fd, &resp, sizeof(resp));
 	rpc_write(conn->conn.fd, ret, retsize);
+
+	g_usfstl_rpc_stack_num--;
 }
 
 void usfstl_rpc_send_void_response(struct usfstl_rpc_connection *conn)
@@ -108,11 +110,7 @@ static void usfstl_rpc_handle_call(struct usfstl_rpc_connection *conn,
 
 	rpc_read(conn->conn.fd, arg, sizeof(arg));
 
-	g_usfstl_rpc_stack[g_usfstl_rpc_stack_num++] = conn;
-
 	usfstl_rpc_make_call(conn, stub, arg, argsize, ret, retsize);
-
-	g_usfstl_rpc_stack_num--;
 
 	_usfstl_rpc_send_response(conn, 0, ret, sizeof(ret));
 }
@@ -170,6 +168,10 @@ static void usfstl_rpc_handle_one_call(struct usfstl_rpc_connection *conn,
 	struct usfstl_rpc_stub *stub;
 	uint32_t argsize = hdr->argsize & ~USFSTL_VAR_DATA_SIZE;
 	uint32_t retsize = hdr->retsize & ~USFSTL_VAR_DATA_SIZE;
+
+	g_usfstl_rpc_stack_num++;
+	USFSTL_ASSERT(g_usfstl_rpc_stack_num < USFSTL_MAX_RPC_STACK);
+	g_usfstl_rpc_stack[g_usfstl_rpc_stack_num] = conn;
 
 	stub = usfstl_rpc_find_stub(hdr);
 	if (stub) {
