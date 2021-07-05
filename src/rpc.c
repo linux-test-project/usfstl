@@ -169,9 +169,9 @@ static void usfstl_rpc_handle_one_call(struct usfstl_rpc_connection *conn,
 	uint32_t argsize = hdr->argsize & ~USFSTL_VAR_DATA_SIZE;
 	uint32_t retsize = hdr->retsize & ~USFSTL_VAR_DATA_SIZE;
 
-	g_usfstl_rpc_stack_num++;
 	USFSTL_ASSERT(g_usfstl_rpc_stack_num < USFSTL_MAX_RPC_STACK);
 	g_usfstl_rpc_stack[g_usfstl_rpc_stack_num] = conn;
+	g_usfstl_rpc_stack_num++;
 
 	stub = usfstl_rpc_find_stub(hdr);
 	if (stub) {
