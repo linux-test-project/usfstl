@@ -357,7 +357,8 @@ uint64_t usfstl_sched_get_sync_time(struct usfstl_scheduler *sched)
 	struct usfstl_job *job;
 
 	if (sched->next_external_sync_set &&
-	    usfstl_time_cmp(sync, >, sched->next_external_sync))
+	    usfstl_time_cmp(sync, >, sched->next_external_sync) &&
+	    usfstl_time_cmp(sched->next_external_sync, >=, time))
 		sync = sched->next_external_sync;
 
 	job = usfstl_sched_next_pending(sched, NULL);
