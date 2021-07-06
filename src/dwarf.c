@@ -138,7 +138,9 @@ usfstl_check_static_prototype(struct usfstl_resolve_cbdata *cb)
 
 	sprintf(fnbuf, "_usfstl_stf_proto_%s", cb->ref->name);
 	USFSTL_ASSERT(usfstl_get_func_info(cb->ref->filename, fnbuf,
-					   &fptr_ret, &fptr_args) == 0);
+					   &fptr_ret, &fptr_args) == 0,
+		      "Failed to get func info for %s (expected in file %s)",
+		      fnbuf, cb->ref->filename);
 
 	usfstl_check_proto(cb->ref->filename, cb->ref->name,
 			   cb->ret ?: "void", fptr_ret,
