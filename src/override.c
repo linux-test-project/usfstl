@@ -161,6 +161,11 @@ static bool same_filename(const char *f1, const char *f2)
 // text_test section we put all the test code into
 extern unsigned char __start_text_test[];
 extern unsigned char __stop_text_test[];
+// and have something to always fill this section
+__attribute__((used,section("text_test")))
+static void usfstl_unused_test_text(void)
+{
+}
 
 const void *__attribute__((no_instrument_function, noinline))
 usfstl_find_repl(const void *_orig)
