@@ -22,7 +22,11 @@
 #  - USFSTL_CC_OPT          = general CC options to be used for everything, e.g. -m32
 #  - USFSTL_TESTED_LIB      = tested library filename (e.g. libtest.a)
 #  - USFSTL_SUPPORT_LIB     = support library filename (e.g. libsupport.a)
-#  - USFSTL_TEST_OBJS       = test object files
+#  - USFSTL_TEST_OBJS       = Test object files. Note that this is actually called
+#                             as a function, being passed the current configuration
+#                             as the only argument. This still works if it's just a
+#                             list of files, but also lets users modify the list
+#                             depending on the configuration.
 #  - USFSTL_TESTSRC_DIR     = defaults to empty, set this if you have a need to
 #                             manipulate the C files used for the USFSTL_TEST_OBJS
 #                             and add an appropriate rule that depends on the real
@@ -487,10 +491,13 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a: $(USFSTL_TEST_BIN_PATH)/test
 	     echo save ; echo end) | ar -M $(USFSTL_LOG_TEST)
 	$(S)ranlib $@ $(USFSTL_LOG_TEST)
 
+_usfstl_get_objs = $(addprefix $(USFSTL_TEST_BIN_PATH)/$1/,$(call USFSTL_TEST_OBJS,$1))
+
 .PRECIOUS: $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY)
+.SECONDEXPANSION:
 $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY): $(USFSTL_EXTRA_TEST_C_FILES) \
 						  $(USFSTL_PATH)/src/projectname.c \
-						  $(addprefix $(USFSTL_TEST_BIN_PATH)/%/,$(USFSTL_TEST_OBJS)) \
+						  $$(call _usfstl_get_objs,%) \
 						  $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a \
 						  | $(USFSTL_TEST_BIN_PATH)/%/ $(USFSTL_LOGDIR)
 	@echo " LD   $*/$(notdir $@)" $(USFSTL_LOG_TEST)
@@ -513,5 +520,5 @@ $(USFSTL_TEST_BIN_PATH)/%.o: $(USFSTL_TEST_BIN_PATH)/%.o.tmp
 	@echo " REL  $(dir $*)$(notdir $<)" $(USFSTL_LOG_TEST)
 	$(S)objcopy --rename-section=.text=$(USFSTL_TEST_SECTION) $< $@
 
-_USFSTL_TEST_OBJ_DEPS := $(wildcard $(addprefix $(USFSTL_TEST_BIN_PATH)/*/,$(USFSTL_TEST_OBJS:%=%.d))) $(OBJS:%.o=$(_USFSTL_LIB_PATH)/%.d)
+_USFSTL_TEST_OBJ_DEPS := $(patsubst %,%.d,$(foreach _CFG,$(USFSTL_TEST_CONFIGS),$(call _usfstl_get_objs,$(_CFG)))) $(OBJS:%.o=$(_USFSTL_LIB_PATH)/%.d)
 -include $(_USFSTL_TEST_OBJ_DEPS)
