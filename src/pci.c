@@ -109,9 +109,9 @@ void usfstl_vhost_pci_cfg_write(struct usfstl_pci_device_ops *ops,
 	ops->cfg_space_write(pcidev, msg->addr, msg->size, value);
 }
 
-void usfstl_vhost_pci_handle(struct usfstl_vhost_user_dev *dev,
-			     struct usfstl_vhost_user_buf *buf,
-			     unsigned int vring)
+static void usfstl_vhost_pci_handle(struct usfstl_vhost_user_dev *dev,
+				    struct usfstl_vhost_user_buf *buf,
+				    unsigned int vring)
 {
 	struct usfstl_pci_device_ops *ops = dev->server->data;
 	struct usfstl_pci_device *pcidev = dev->data;
