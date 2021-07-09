@@ -20,8 +20,10 @@ void usfstl_vhost_pci_connected(struct usfstl_vhost_user_dev *dev)
 	pcidev->dev = dev;
 
 	USFSTL_ASSERT(ops->cfg_space_read ||
+		      ops->cfg_space_read_deferred ||
 		      (pcidev->config_space && pcidev->config_space_size));
 	USFSTL_ASSERT(ops->cfg_space_write ||
+		      ops->cfg_space_write_deferred ||
 		      (pcidev->config_space && pcidev->config_space_mask &&
 		       pcidev->config_space_size));
 }
@@ -29,9 +31,11 @@ void usfstl_vhost_pci_connected(struct usfstl_vhost_user_dev *dev)
 void usfstl_vhost_pci_cfg_read(struct usfstl_pci_device_ops *ops,
 			       struct usfstl_pci_device *pcidev,
 			       struct virtio_pcidev_msg *msg,
-			       void *out)
+			       struct usfstl_vhost_user_buf *buf)
 {
-	if (!ops->cfg_space_read) {
+	void *out = buf->in_sg[0].iov_base;
+
+	if (!ops->cfg_space_read && !ops->cfg_space_read_deferred) {
 		if (msg->addr + msg->size > pcidev->config_space_size) {
 			memset(out, 0, msg->size);
 			return;
@@ -39,6 +43,14 @@ void usfstl_vhost_pci_cfg_read(struct usfstl_pci_device_ops *ops,
 
 		memcpy(out, (uint8_t *)pcidev->config_space + msg->addr,
 		       msg->size);
+		usfstl_pci_send_response(pcidev, buf);
+		return;
+	}
+
+	if (ops->cfg_space_read_deferred) {
+		ops->cfg_space_read_deferred(pcidev, out,
+					     msg->addr, msg->size,
+					     buf);
 		return;
 	}
 
@@ -65,15 +77,18 @@ void usfstl_vhost_pci_cfg_read(struct usfstl_pci_device_ops *ops,
 	default:
 		USFSTL_ASSERT(0);
 	}
+
+	usfstl_pci_send_response(pcidev, buf);
 }
 
 void usfstl_vhost_pci_cfg_write(struct usfstl_pci_device_ops *ops,
 				struct usfstl_pci_device *pcidev,
-				struct virtio_pcidev_msg *msg)
+				struct virtio_pcidev_msg *msg,
+				struct usfstl_vhost_user_buf *buf)
 {
 	uint64_t value;
 
-	if (!ops->cfg_space_write) {
+	if (!ops->cfg_space_write && !ops->cfg_space_write_deferred) {
 		const uint8_t *mask = pcidev->config_space_mask;
 		uint8_t *val = pcidev->config_space;
 		uint8_t *data = msg->data;
@@ -86,6 +101,14 @@ void usfstl_vhost_pci_cfg_write(struct usfstl_pci_device_ops *ops,
 			val[msg->addr + i] &= ~mask[msg->addr + i];
 			val[msg->addr + i] |= data[i] & mask[msg->addr + i];
 		}
+		usfstl_pci_send_response(pcidev, buf);
+		return;
+	}
+
+	if (ops->cfg_space_write_deferred) {
+		ops->cfg_space_write_deferred(pcidev, msg->addr,
+					      msg->data, msg->size,
+					      buf);
 		return;
 	}
 
@@ -107,6 +130,8 @@ void usfstl_vhost_pci_cfg_write(struct usfstl_pci_device_ops *ops,
 	}
 
 	ops->cfg_space_write(pcidev, msg->addr, msg->size, value);
+
+	usfstl_pci_send_response(pcidev, buf);
 }
 
 static void usfstl_vhost_pci_handle(struct usfstl_vhost_user_dev *dev,
@@ -123,19 +148,26 @@ static void usfstl_vhost_pci_handle(struct usfstl_vhost_user_dev *dev,
 	switch (msg->op) {
 	case VIRTIO_PCIDEV_OP_CFG_READ:
 		USFSTL_ASSERT(buf->n_in_sg && buf->in_sg[0].iov_len >= msg->size);
-		usfstl_vhost_pci_cfg_read(ops, pcidev, msg,
-					  buf->in_sg[0].iov_base);
+		usfstl_vhost_pci_cfg_read(ops, pcidev, msg, buf);
 		break;
 	case VIRTIO_PCIDEV_OP_CFG_WRITE:
 		USFSTL_ASSERT(buf->out_sg[0].iov_len >= sizeof(*msg) + msg->size);
-		usfstl_vhost_pci_cfg_write(ops, pcidev, msg);
+		usfstl_vhost_pci_cfg_write(ops, pcidev, msg, buf);
 		break;
 	case VIRTIO_PCIDEV_OP_MMIO_READ:
 		USFSTL_ASSERT(buf->in_sg[0].iov_len >= msg->size);
 		memset(buf->in_sg[0].iov_base, 0xff, msg->size);
-		USFSTL_ASSERT(ops->mmio_read);
-		ops->mmio_read(pcidev, msg->bar, buf->in_sg[0].iov_base,
-			       msg->addr, msg->size);
+		USFSTL_ASSERT(ops->mmio_read || ops->mmio_read_deferred);
+		if (ops->mmio_read) {
+			ops->mmio_read(pcidev, msg->bar, buf->in_sg[0].iov_base,
+				       msg->addr, msg->size);
+			usfstl_pci_send_response(pcidev, buf);
+		} else {
+			ops->mmio_read_deferred(pcidev, msg->bar,
+						buf->in_sg[0].iov_base,
+						msg->addr, msg->size,
+						buf);
+		}
 		break;
 	case VIRTIO_PCIDEV_OP_MMIO_WRITE:
 		if (buf->out_sg[0].iov_len > sizeof(*msg)) {
@@ -145,9 +177,15 @@ static void usfstl_vhost_pci_handle(struct usfstl_vhost_user_dev *dev,
 			write_buf = buf->out_sg[1].iov_base;
 			USFSTL_ASSERT(buf->out_sg[1].iov_len >= msg->size);
 		}
-		USFSTL_ASSERT(ops->mmio_write);
-		ops->mmio_write(pcidev, msg->bar, msg->addr,
-				write_buf, msg->size);
+		USFSTL_ASSERT(ops->mmio_write || ops->mmio_write_deferred);
+		if (ops->mmio_write) {
+			ops->mmio_write(pcidev, msg->bar, msg->addr,
+					write_buf, msg->size);
+			usfstl_pci_send_response(pcidev, buf);
+		} else {
+			ops->mmio_write_deferred(pcidev, msg->bar, msg->addr,
+						 write_buf, msg->size, buf);
+		}
 		break;
 	case VIRTIO_PCIDEV_OP_MMIO_MEMSET:
 		if (buf->out_sg[0].iov_len > sizeof(*msg)) {
@@ -157,9 +195,15 @@ static void usfstl_vhost_pci_handle(struct usfstl_vhost_user_dev *dev,
 			write_buf = buf->out_sg[1].iov_base;
 			USFSTL_ASSERT(buf->out_sg[1].iov_len >= 1);
 		}
-		USFSTL_ASSERT(ops->mmio_set);
-		ops->mmio_set(pcidev, msg->bar, msg->addr,
-			      write_buf[0], msg->size);
+		USFSTL_ASSERT(ops->mmio_set || ops->mmio_set_deferred);
+		if (ops->mmio_set) {
+			ops->mmio_set(pcidev, msg->bar, msg->addr,
+				      write_buf[0], msg->size);
+			usfstl_pci_send_response(pcidev, buf);
+		} else {
+			ops->mmio_set_deferred(pcidev, msg->bar, msg->addr,
+					       write_buf[0], msg->size, buf);
+		}
 		break;
 	}
 }

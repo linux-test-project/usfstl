@@ -62,9 +62,23 @@ struct usfstl_pci_device {
  * @cfg_space_write: config space write, similar to @config_space_read,
  *	but could also be used instead of config_space_mask, i.e. the
  *	logic is to try @cfg_space_write first.
+ * @cfg_space_read_deferred: like @cfg_space_read, but deferred, and the
+ *	user must call usfstl_pci_send_response() with the given vubuf.
+ *	Note that the output pointer should get the correct byte-order
+ *	(little endian) value of the appropriate size.
+ * @cfg_space_write_deferred: like @cfg_space_write, but deferred, and the
+ *	user must call usfstl_pci_send_response() with the given vubuf.
+ *	Note that the input pointer points to the correct byte-order
+ *	(little endian) value of the appropriate size.
  * @mmio_read: read MMIO space at the given BAR/offset
  * @mmio_write: write MMIO space at the given BAR/offset
  * @mmio_set: memset MMIO space at the given BAR/offset
+ * @mmio_read_deferred: like @mmio_read, but deferred, and the user must
+ *	call usfstl_pci_send_response() with the given vubuf
+ * @mmio_write_deferred: like @mmio_write, but deferred, and the user must
+ *	call usfstl_pci_send_response() with the given vubuf
+ * @mmio_set_deferred: like @mmio_set, but deferred, and the user must
+ *	call usfstl_pci_send_response() with the given vubuf
  */
 struct usfstl_pci_device_ops {
 	struct usfstl_pci_device *(*connected)(void);
@@ -75,12 +89,29 @@ struct usfstl_pci_device_ops {
 	void (*cfg_space_write)(struct usfstl_pci_device *dev,
 				int offset, int size, uint64_t value);
 
+	void (*cfg_space_read_deferred)(struct usfstl_pci_device *dev,
+					void *buf, int offset, int size,
+					struct usfstl_vhost_user_buf *vubuf);
+	void (*cfg_space_write_deferred)(struct usfstl_pci_device *dev,
+					 int offset, const void *buf, int size,
+					 struct usfstl_vhost_user_buf *vubuf);
+
 	void (*mmio_read)(struct usfstl_pci_device *dev, int bar,
 			  void *buf, size_t offset, size_t size);
 	void (*mmio_write)(struct usfstl_pci_device *dev, int bar,
 			   size_t offset, const void *buf, size_t size);
 	void (*mmio_set)(struct usfstl_pci_device *dev, int bar,
 			 size_t offset, uint8_t value, size_t size);
+
+	void (*mmio_read_deferred)(struct usfstl_pci_device *dev, int bar,
+				   void *buf, size_t offset, size_t size,
+				   struct usfstl_vhost_user_buf *vubuf);
+	void (*mmio_write_deferred)(struct usfstl_pci_device *dev, int bar,
+				    size_t offset, const void *buf, size_t size,
+				    struct usfstl_vhost_user_buf *vubuf);
+	void (*mmio_set_deferred)(struct usfstl_pci_device *dev, int bar,
+				  size_t offset, uint8_t value, size_t size,
+				  struct usfstl_vhost_user_buf *vubuf);
 };
 
 extern const struct usfstl_vhost_user_ops usfstl_vhost_user_ops_pci;
@@ -89,6 +120,7 @@ extern const struct usfstl_vhost_user_ops usfstl_vhost_user_ops_pci;
 	.ops = &usfstl_vhost_user_ops_pci,			\
 	.max_queues = 2,					\
 	.input_queues = 0x1,					\
+	.deferred_handling = 1,					\
 	.features = 1ULL << VHOST_USER_F_PROTOCOL_FEATURES |	\
 		    1ULL << VIRTIO_F_VERSION_1,			\
 	.config = NULL,						\
@@ -117,6 +149,12 @@ void usfstl_pci_send_msi(struct usfstl_pci_device *pcidev,
  * @pcidev: the device to send for
  */
 void usfstl_pci_send_pme(struct usfstl_pci_device *pcidev);
+
+static inline void usfstl_pci_send_response(struct usfstl_pci_device *pcidev,
+					    struct usfstl_vhost_user_buf *vubuf)
+{
+	usfstl_vhost_user_send_response(pcidev->dev, vubuf);
+}
 
 /**
  * usfstl_pci_pa_to_va - translate physical address to virtual
