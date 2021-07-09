@@ -15,6 +15,7 @@ struct usfstl_vhost_user_buf {
 	unsigned int n_in_sg, n_out_sg;
 	struct iovec *in_sg, *out_sg;
 	size_t written;
+	unsigned int virtq_idx;
 	unsigned int idx;
 	bool allocated;
 };
@@ -58,6 +59,16 @@ struct usfstl_vhost_user_server {
 	 * @max_queues: max number of virt queues supported
 	 */
 	unsigned int max_queues;
+
+	/**
+	 * @deferred_handling: If set, then the handle() method
+	 *	in the ops must arrange to immediate or later
+	 *	call usfstl_vhost_user_send_response(), the buffer
+	 *	isn't automatically returned. This can be used to
+	 *	implemented deferred handling where some time is
+	 *	consumed for the handling of the buffer.
+	 */
+	unsigned int deferred_handling:1;
 
 	/**
 	 * @input_queues: bitmap of input queues (where to handle interrupts)
@@ -132,6 +143,14 @@ void usfstl_vhost_user_dev_notify(struct usfstl_vhost_user_dev *dev,
  * @dev: device to send to
  */
 void usfstl_vhost_user_config_changed(struct usfstl_vhost_user_dev *dev);
+
+/**
+ * usfstl_vhost_user_send_response - send response to a handled buffer
+ * @dev: device to send to
+ * @buf: the buffer to send, previously obtained from the handle() method
+ */
+void usfstl_vhost_user_send_response(struct usfstl_vhost_user_dev *dev,
+				     struct usfstl_vhost_user_buf *buf);
 
 /**
  * usfstl_vhost_user_to_va - translate address

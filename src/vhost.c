@@ -67,6 +67,15 @@ CONV(16)
 CONV(32)
 CONV(64)
 
+static bool usfstl_vhost_user_virtq_empty(struct usfstl_vhost_user_dev_int *dev,
+					  unsigned int virtq_idx)
+{
+	struct vring *virtq = &dev->virtqs[virtq_idx].virtq;
+	uint16_t avail_idx = virtio_to_cpu16(dev, virtq->avail->idx);
+
+	return avail_idx == dev->virtqs[virtq_idx].last_avail_idx;
+}
+
 static struct usfstl_vhost_user_buf *
 usfstl_vhost_user_get_virtq_buf(struct usfstl_vhost_user_dev_int *dev,
 				unsigned int virtq_idx,
@@ -102,7 +111,7 @@ usfstl_vhost_user_get_virtq_buf(struct usfstl_vhost_user_dev_int *dev,
 		desc = &virtq->desc[virtio_to_cpu16(dev, desc->next)];
 	} while (more);
 
-	if (n_in > fixed->n_in_sg || n_out > fixed->n_out_sg) {
+	if (!buf || n_in > fixed->n_in_sg || n_out > fixed->n_out_sg) {
 		size_t sz = sizeof(*buf);
 		struct iovec *vec;
 
@@ -121,6 +130,7 @@ usfstl_vhost_user_get_virtq_buf(struct usfstl_vhost_user_dev_int *dev,
 	buf->n_in_sg = 0;
 	buf->n_out_sg = 0;
 	buf->idx = desc_idx;
+	buf->virtq_idx = virtq_idx;
 
 	desc = &virtq->desc[desc_idx];
 	do {
@@ -308,6 +318,17 @@ static void usfstl_vhost_user_send_virtq_buf(struct usfstl_vhost_user_dev_int *d
 	USFSTL_ASSERT_EQ(written, (ssize_t)sizeof(e), "%zd");
 }
 
+void usfstl_vhost_user_send_response(struct usfstl_vhost_user_dev *dev,
+				     struct usfstl_vhost_user_buf *buf)
+{
+	struct usfstl_vhost_user_dev_int *idev;
+
+	idev = container_of(dev, struct usfstl_vhost_user_dev_int, ext);
+
+	usfstl_vhost_user_send_virtq_buf(idev, buf, buf->virtq_idx);
+	usfstl_vhost_user_free_buf(buf);
+}
+
 static void usfstl_vhost_user_handle_queue(struct usfstl_vhost_user_dev_int *dev,
 					   unsigned int virtq_idx)
 {
@@ -324,9 +345,7 @@ static void usfstl_vhost_user_handle_queue(struct usfstl_vhost_user_dev_int *dev
 
 	while ((buf = usfstl_vhost_user_get_virtq_buf(dev, virtq_idx, &_buf))) {
 		dev->ext.server->ops->handle(&dev->ext, buf, virtq_idx);
-
-		usfstl_vhost_user_send_virtq_buf(dev, buf, virtq_idx);
-		usfstl_vhost_user_free_buf(buf);
+		usfstl_vhost_user_send_response(&dev->ext, buf);
 	}
 }
 
@@ -342,6 +361,44 @@ static void usfstl_vhost_user_job_callback(struct usfstl_job *job)
 
 		usfstl_vhost_user_handle_queue(dev, virtq);
 	}
+}
+
+static bool
+usfstl_vhost_user_handle_queue_oob(struct usfstl_vhost_user_dev_int *dev,
+				   unsigned int virtq_idx)
+{
+	struct usfstl_vhost_user_buf *buf;
+
+	if ((buf = usfstl_vhost_user_get_virtq_buf(dev, virtq_idx, NULL)))
+		dev->ext.server->ops->handle(&dev->ext, buf, virtq_idx);
+
+	return usfstl_vhost_user_virtq_empty(dev, virtq_idx);
+}
+
+static void usfstl_vhost_user_job_callback_oob(struct usfstl_job *job)
+{
+	struct usfstl_vhost_user_dev_int *dev = job->data;
+	unsigned int virtq;
+	bool handled_one = false;
+
+	for (virtq = 0; virtq < dev->ext.server->max_queues; virtq++) {
+		if (!dev->virtqs[virtq].triggered)
+			continue;
+
+		if (handled_one)
+			goto again;
+
+		if (!usfstl_vhost_user_handle_queue_oob(dev, virtq))
+			goto again;
+
+		dev->virtqs[virtq].triggered = false;
+		handled_one = true;
+	}
+
+	return;
+again:
+	/* re-add - but the handle() function might have blocked us */
+	usfstl_sched_add_job(dev->ext.server->scheduler, &dev->irq_job);
 }
 
 static void usfstl_vhost_user_virtq_kick(struct usfstl_vhost_user_dev_int *dev,
@@ -734,7 +791,10 @@ static void usfstl_vhost_user_connected(int fd, void *data)
 	dev->irq_job.data = dev;
 	dev->irq_job.name = "vhost-user-irq";
 	dev->irq_job.priority = 0x10000000;
-	dev->irq_job.callback = usfstl_vhost_user_job_callback;
+	if (server->deferred_handling)
+		dev->irq_job.callback = usfstl_vhost_user_job_callback_oob;
+	else
+		dev->irq_job.callback = usfstl_vhost_user_job_callback;
 	usfstl_list_init(&dev->fds);
 
 	if (server->ops->connected)
