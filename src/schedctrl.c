@@ -145,6 +145,14 @@ static void usfstl_sched_ctrl_wait(struct usfstl_scheduler *sched)
 		usfstl_loop_wait_and_handle();
 }
 
+void usfstl_sched_ctrl_yield(struct usfstl_sched_ctrl *ctrl)
+{
+	uint64_t time = usfstl_sched_current_time(ctrl->sched);
+
+	usfstl_sched_ctrl_request(ctrl->sched, time);
+	usfstl_sched_ctrl_wait(ctrl->sched);
+}
+
 #define JOB_ASSERT_VAL(j) (j) ? (j)->name : "<NULL>"
 
 void usfstl_sched_ctrl_start(struct usfstl_sched_ctrl *ctrl,
