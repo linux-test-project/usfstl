@@ -3,6 +3,22 @@
 
 #define USFSTL_BUILD_BUG_ON(expr)	extern void __bbo_##__LINE__(char[1 - 2*!!(expr)])
 
+#if defined(__clang__)
+#define USFSTL_IGNORE_OVERRIDE_INIT(...)				\
+	_Pragma("clang diagnostic push")				\
+	_Pragma("clang diagnostic ignored \"-Winitializer-overrides\"")	\
+	__VA_ARGS__							\
+	_Pragma("clang diagnostic pop")
+#elif defined(__GNUC__)
+#define USFSTL_IGNORE_OVERRIDE_INIT(...)				\
+	_Pragma("GCC diagnostic push")					\
+	_Pragma("GCC diagnostic ignored \"-Woverride-init\"")		\
+	__VA_ARGS__							\
+	_Pragma("GCC diagnostic pop")
+#else
+#error "Unkown compiler"
+#endif
+
 #define _USFSTL_2STR(x)			#x
 #define USFSTL_2STR(x)			_USFSTL_2STR(x)
 
