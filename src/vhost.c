@@ -515,6 +515,9 @@ static void usfstl_vhost_user_dev_free(struct usfstl_vhost_user_dev_int *dev)
 	if (dev->req_fd != -1)
 		close(dev->req_fd);
 
+	if (dev->ext.server->ctrl)
+		usfstl_sched_ctrl_sync_from(dev->ext.server->ctrl);
+
 	if (dev->ext.server->ops->disconnected)
 		dev->ext.server->ops->disconnected(&dev->ext);
 
