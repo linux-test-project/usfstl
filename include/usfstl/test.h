@@ -111,6 +111,7 @@ struct usfstl_test {
 	void (*fn)(const struct usfstl_test *test, void *testcase);
 	const void *extra_data;
 	const char *name;
+	const char *projectname;
 	const void *testcases;
 	void *(*case_generator)(const struct usfstl_test *test,
 				unsigned int idx);
@@ -236,6 +237,7 @@ struct usfstl_testcase {
 	USFSTL_IGNORE_OVERRIDE_INIT(const struct usfstl_test usfstl_test_##n =	\
 		USFSTL_TEST_SETUP(fn, extra, cases, _flow, _negative, _max_cpu,	\
 				  .tested_files = usfstl_tested_files_##n,	\
+				  .projectname = USFSTL_TEST_NAME,		\
 				  .name=#n					\
 				  USFSTL_MAP(_SELECT, _MK_REQLINK, __VA_ARGS__)	\
 				  USFSTL_MAP(_SELECT_NOPARENS, _REMOVE,		\

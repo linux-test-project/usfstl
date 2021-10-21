@@ -66,20 +66,27 @@ static int g_usfstl_testcase_last = -1;
 #endif
 
 #if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3)
-static bool init_summary(struct usfstl_opt *opt, const char *arg)
+static bool open_summary(struct usfstl_opt *opt, const char *arg)
 {
-	int len;
-
 	g_usfstl_summary_fd = open(arg, O_CREAT | O_WRONLY | O_TRUNC, 0666);
 	if (g_usfstl_summary_fd < 0) {
 		printf("Couldn't open summary file '%s'\n", arg);
 		return false;
 	}
-	len = strlen(g_usfstl_projectname);
-	assert(write(g_usfstl_summary_fd, g_usfstl_projectname, len) == len);
-	assert(write(g_usfstl_summary_fd, "\n", 1) == 1);
 
 	return true;
+}
+
+static void init_summary(const char *projectname)
+{
+	int len;
+
+	if (g_usfstl_summary_fd < 0)
+		return;
+
+	len = strlen(projectname);
+	assert(write(g_usfstl_summary_fd, projectname, len) == len);
+	assert(write(g_usfstl_summary_fd, "\n", 1) == 1);
 }
 
 static void write_summary(const char *name, unsigned int succ, unsigned int fail)
@@ -104,7 +111,7 @@ static void close_summary(void)
 }
 #endif
 
-static void usfstl_tested_requirement_count(const char *testname,
+static void usfstl_tested_requirement_count(const struct usfstl_test *tc,
 					    const char *req,
 					    unsigned int pass,
 					    unsigned int fail)
@@ -120,19 +127,19 @@ static void usfstl_tested_requirement_count(const char *testname,
 						O_CREAT | O_WRONLY | O_TRUNC,
 						0666);
 		assert(g_usfstl_requirements_fd >= 0);
-		len = strlen(g_usfstl_projectname);
-		assert(write(g_usfstl_requirements_fd, g_usfstl_projectname, len) == len);
+		len = strlen(tc->projectname);
+		assert(write(g_usfstl_requirements_fd, tc->projectname, len) == len);
 		assert(write(g_usfstl_requirements_fd, "\n", 1) == 1);
 	}
 
 	len = snprintf(buf, sizeof(buf), "%s\t%s\t%d\t%d\n",
-		       testname, req, pass, fail);
+		       tc->name, req, pass, fail);
 	assert(write(g_usfstl_requirements_fd, buf, len) == len);
 }
 
 void usfstl_tested_requirement(const char *req, bool pass)
 {
-	usfstl_tested_requirement_count(g_usfstl_current_test->name,
+	usfstl_tested_requirement_count(g_usfstl_current_test,
 					req, pass ? 1 : 0, pass ? 0 : 1);
 }
 
@@ -143,7 +150,7 @@ static void write_requirements(const struct usfstl_test *tc, int tc_succeeded,
 	const char * const *req = tc->requirements;
 
 	while (req && *req) {
-		usfstl_tested_requirement_count(tc->name, *req, tc_succeeded,
+		usfstl_tested_requirement_count(tc, *req, tc_succeeded,
 						tc_failed);
 		req++;
 	}
@@ -192,7 +199,7 @@ USFSTL_OPT_INT("case", 'c', "case num", g_usfstl_testcase,
 	       "execute only this case (should come with -t)");
 USFSTL_OPT_INT("last", 'v', "case num", g_usfstl_testcase_last,
 	       "execute from the case given with -c to this case (inclusive)");
-USFSTL_OPT("summary", 0, "filename", init_summary, NULL,
+USFSTL_OPT("summary", 0, "filename", open_summary, NULL,
 	   "write summary of tests to this file after running");
 USFSTL_OPT_FLAG("skip-known-failing", 0, g_usfstl_skip_known_failing,
 		"skip tests/testcases known to fail");
@@ -285,9 +292,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 	return 0;
 }
 #elif USFSTL_LIBRARY
-// can be overridden by the user if they need to
-const char * const g_usfstl_projectname = "libtest";
-
 enum usfstl_testcase_status usfstl_run_test(const struct usfstl_test *tc)
 {
 	enum usfstl_testcase_status status;
@@ -311,6 +315,7 @@ int main(int argc, char **argv)
 	int ret = 0;
 	int succeeded = 0, failed = 0, failing_succeeded = 0;
 	uint64_t tm;
+	const char *prev_projectname = "";
 
 	tm = get_monotonic_time_ms();
 
@@ -340,6 +345,11 @@ int main(int argc, char **argv)
 
 		if (g_usfstl_skip_known_failing && tc->failing)
 			continue;
+
+		if (strcmp(prev_projectname, tc->projectname)) {
+			init_summary(tc->projectname);
+			prev_projectname = tc->projectname;
+		}
 
 		for (i = 0; /* until we break */; i++, ctr++) {
 			enum usfstl_testcase_status status;

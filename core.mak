@@ -291,7 +291,7 @@ USFSTL_TEST_CC_OPT += $(ASSERT_PROFILING_DEFINE)
 #                                like "U16, U32, U16" doesn't get packed
 #                                properly on mingw, cf. gcc bugzilla 52991.
 USFSTL_CC_OPT += -g -gdwarf-2 -mno-ms-bitfields
-USFSTL_TEST_CC_OPT += -g -gdwarf-2 -mno-ms-bitfields
+USFSTL_TEST_CC_OPT += -g -gdwarf-2 -mno-ms-bitfields -DUSFSTL_TEST_NAME=\"$(USFSTL_TEST_NAME)\"
 # -m32, -mfentry and -fpic aren't compatible, so if we have -m32 add -fno-pic
 ifeq ($(filter -m32,$(USFSTL_CC_OPT)),-m32)
 USFSTL_CC_OPT += -fno-pic
