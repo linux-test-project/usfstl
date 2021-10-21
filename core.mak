@@ -303,8 +303,6 @@ endif
 COMMA := ,
 _USFSTL_TESTCODE_DEFINES := "-DUSFSTL_TESTED_FILES=$(patsubst %,\"%\"$(COMMA),$(USFSTL_TESTED_FILES))"
 
-USFSTL_TEST_LINK_OPT += "-DUSFSTL_TEST_NAME=\"$(USFSTL_TEST_NAME)\""
-
 ############ USER TARGETS ############
 .PHONY: build
 build: $(addprefix $(USFSTL_TEST_BIN_PATH)/,$(addsuffix /$(_USFSTL_TEST_BINARY).globals,$(USFSTL_TEST_CONFIGS)))
@@ -496,7 +494,6 @@ _usfstl_get_objs = $(addprefix $(USFSTL_TEST_BIN_PATH)/$1/,$(call USFSTL_TEST_OB
 .PRECIOUS: $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY)
 .SECONDEXPANSION:
 $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY): $(USFSTL_EXTRA_TEST_C_FILES) \
-						  $(USFSTL_PATH)/src/projectname.c \
 						  $$(call _usfstl_get_objs,%) \
 						  $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a \
 						  | $(USFSTL_TEST_BIN_PATH)/%/ $(USFSTL_LOGDIR)
