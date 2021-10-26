@@ -479,15 +479,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a: $(USFSTL_TEST_BIN_PATH)/test
 						$(_USFSTL_LIB) \
 						| $(USFSTL_TEST_BIN_PATH)/%/ $(USFSTL_LOGDIR)
 	@echo " AR   $*/$(notdir $@)" $(USFSTL_LOG_TEST)
-	$(S)(echo create $@ ; \
-             for f in $(patsubst %.md5,%,$^) ; do \
-                case "$$f" in \
-                    *.o) echo addmod $$f ;; \
-                    *.a) echo addlib $$f ;; \
-                esac ; \
-	     done; \
-	     echo save ; echo end) | ar -M $(USFSTL_LOG_TEST)
-	$(S)ranlib $@ $(USFSTL_LOG_TEST)
+	$(S)ar rcT $@ $(filter %.o %.a,$(patsubst %.md5,%,$^))
 
 _usfstl_get_objs = $(addprefix $(USFSTL_TEST_BIN_PATH)/$1/,$(call USFSTL_TEST_OBJS,$1))
 
