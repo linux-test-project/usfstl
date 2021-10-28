@@ -448,10 +448,6 @@ $(_USFSTL_LIB): | $(USFSTL_LOGDIR)
 
 ############ TEST BUILD ############
 
-$(USFSTL_TEST_BIN_PATH)/tested.c: | $(USFSTL_TEST_BIN_PATH) $(USFSTL_LOGDIR)
-	@echo " GEN  $(notdir $@)" $(USFSTL_LOG_TEST)
-	$(S)echo '/* dummy file for now */' > $@
-
 # there's a bug in mingw nm - unless --size-sort is given it doesn't output the size
 # There are read only global vars which are relocatable.
 # Those won't considered as RO by the nm command since they should be located on runtime.
@@ -474,7 +470,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).globals: $(USFSTL_TEST_BIN_PATH
 ifneq ($(USFSTL_DONTKEEP_LIB),1)
 .PRECIOUS: $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a
 endif
-$(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a: $(USFSTL_TEST_BIN_PATH)/tested.c \
+$(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).a: \
                                                 $(USFSTL_BIN_PATH)/tested-$(USFSTL_TESTED_LIB_CFG)/$(USFSTL_TESTED_LIB).md5 \
 						$(USFSTL_BIN_PATH)/support-$(USFSTL_SUPPORT_LIB_CFG)/$(USFSTL_SUPPORT_LIB).md5 \
 						$(_USFSTL_LIB) \
