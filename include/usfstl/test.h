@@ -31,7 +31,7 @@ void usfstl_get_function_info_ptr(const void *ptr, const char **funcname,
 				  const char **filename, unsigned int *lineno);
 
 // temporarily:
-#define g_usfstl_projectname (g_usfstl_current_test->project_name)
+#define g_usfstl_projectname (g_usfstl_current_test->projectname)
 #define g_usfstl_testname g_usfstl_projectname
 
 /*
