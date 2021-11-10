@@ -140,7 +140,7 @@ extern struct usfstl_scheduler g_usfstl_multi_sched;
 
 #define for_each_participant(p, i)					\
 	for (i = 0; &__start_usfstl_rpcp[i] < __stop_usfstl_rpcp; i++)	\
-		if ((p = __start_usfstl_rpcp[i]))
+		if ((p = __start_usfstl_rpcp[i]) && p->binary)
 
 void usfstl_multi_init(void);
 void usfstl_multi_finish(void);

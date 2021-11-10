@@ -50,8 +50,6 @@ static void usfstl_multi_ctl_start_participant(struct usfstl_multi_participant *
 	if (p->pre_connected)
 		goto setup;
 
-	assert(p->binary);
-
 	while (p->args && p->args[nargs])
 		nargs++;
 
