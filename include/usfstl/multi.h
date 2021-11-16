@@ -43,6 +43,7 @@ enum usfstl_multi_participant_flags {
  * @flags: see &enum usfstl_multi_participant_flags
  * @sync_set: indicates @sync was set (and participant notified)
  * @sync: next sync time for this participant
+ * @data: arbitrary data pointer for use by the application
  */
 struct usfstl_multi_participant {
 	const char *name;
@@ -54,6 +55,7 @@ struct usfstl_multi_participant {
 	uint32_t flags;
 	uint64_t sync;
 	unsigned int pid;
+	void *data;
 };
 
 #define USFSTL_MULTI_PARTICIPANT(_name, ...)				\
