@@ -116,4 +116,20 @@ usfstl_multi_add_rpc_connection(struct usfstl_rpc_connection *conn)
 	usfstl_multi_add_rpc_connection_sched(conn, NULL);
 }
 
+/**
+ * usfstl_multi_get_participant - obtain participant from connection
+ * @conn: the RPC connection from which to get the participant
+ *
+ * Returns: the participant pointer
+ *
+ * Note: Use this only if you know that the connection is actually
+ *	 for a multi-participant simulation participant, there's
+ *	 no check on the validity or type.
+ */
+static inline struct usfstl_multi_participant *
+usfstl_multi_get_participant(struct usfstl_rpc_connection *conn)
+{
+	return conn->data;
+}
+
 #endif // _USFSTL_MULTI_H
