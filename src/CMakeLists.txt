@@ -64,5 +64,6 @@ if (USFSTL_SCHED_CTRL)
     target_sources(usfstl PRIVATE
         uds.c
         schedctrl.c
+        ctrluds.c
     )
 endif()

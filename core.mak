@@ -407,7 +407,7 @@ ifneq ($(USFSTL_VHOST_USER),)
 OBJS += vhost.o uds.o pci.o
 endif # USFSTL_VHOST_USER
 ifneq ($(USFSTL_SCHED_CTRL),)
-OBJS += uds.o schedctrl.o
+OBJS += uds.o schedctrl.o ctrluds.o
 endif # USFSTL_SCHED_CTRL
 DWARF_OBJS += dwarf/elf.o dwarf/mmap.o
 DWARF_READ_OBJS += dwarf/mmapio.o
