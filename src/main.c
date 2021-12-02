@@ -48,10 +48,10 @@ extern usfstl_init_fn_t __stop_usfstl_initfns;
 const char *USFSTL_NORESTORE_VAR(g_usfstl_program_name);
 
 static int USFSTL_NORESTORE_VAR(g_usfstl_requirements_fd) = -1;
-static char *g_usfstl_requirements_file;
-bool g_usfstl_skip_known_failing;
-bool g_usfstl_flush_each_log;
-bool g_usfstl_list_tests;
+static char *USFSTL_NORESTORE_VAR(g_usfstl_requirements_file);
+bool USFSTL_NORESTORE_VAR(g_usfstl_skip_known_failing);
+bool USFSTL_NORESTORE_VAR(g_usfstl_flush_each_log);
+bool USFSTL_NORESTORE_VAR(g_usfstl_list_tests);
 static bool USFSTL_NORESTORE_VAR(g_usfstl_list_projnames);
 
 #ifndef USFSTL_LIBRARY
