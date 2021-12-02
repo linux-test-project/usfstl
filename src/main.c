@@ -52,6 +52,7 @@ static char *g_usfstl_requirements_file;
 bool g_usfstl_skip_known_failing;
 bool g_usfstl_flush_each_log;
 bool g_usfstl_list_tests;
+static bool USFSTL_NORESTORE_VAR(g_usfstl_list_projnames);
 
 #ifndef USFSTL_LIBRARY
 static bool g_usfstl_list_asserts;
@@ -195,6 +196,8 @@ USFSTL_OPT_FLAG("count", 0, g_usfstl_count,
 		"print total test case count (over all tests)");
 USFSTL_OPT_FLAG("list", 'p', g_usfstl_list_tests,
 		"print test list with number of cases");
+USFSTL_OPT_FLAG("list-with-project", 0, g_usfstl_list_projnames,
+		"print project+test list with number of cases");
 USFSTL_OPT_INT("case", 'c', "case num", g_usfstl_testcase,
 	       "execute only this case (should come with -t)");
 USFSTL_OPT_INT("last", 'v', "case num", g_usfstl_testcase_last,
@@ -243,6 +246,9 @@ int usfstl_init(int argc, char **argv)
 	ret = usfstl_parse_options(argc, argv);
 	if (ret)
 		return ret;
+
+	if (g_usfstl_list_projnames)
+		g_usfstl_list_tests = true;
 
 	if (g_usfstl_list_tests)
 		return 0;
@@ -389,7 +395,10 @@ int main(int argc, char **argv)
 		}
 
 		if (g_usfstl_list_tests) {
-			printf("%s: %d\n", tc->name, i);
+			if (g_usfstl_list_projnames)
+				printf("%s: %s: %d\n", tc->projectname, tc->name, i);
+			else
+				printf("%s: %d\n", tc->name, i);
 			continue;
 		}
 
