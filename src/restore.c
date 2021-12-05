@@ -103,7 +103,7 @@ struct usfstl_restore_info *usfstl_read_restore_info(const char *file)
 
 void *usfstl_save_restore_data(struct usfstl_restore_info *info)
 {
-#if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2
+#if defined(USFSTL_FUZZER_AFL_GCC) || defined(USFSTL_FUZZER_AFL_CLANG_FAST)
 	/* not needed for AFL fork-based fuzzing */
 	return NULL;
 #else
@@ -133,7 +133,7 @@ void *usfstl_save_restore_data(struct usfstl_restore_info *info)
 
 void usfstl_restore_data(struct usfstl_restore_info *info, const void *_data)
 {
-#if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2
+#if defined(USFSTL_FUZZER_AFL_GCC) || defined(USFSTL_FUZZER_AFL_CLANG_FAST)
 	/* not needed for AFL fork-based fuzzing */
 #else
 	struct usfstl_restore_info *iter = info;

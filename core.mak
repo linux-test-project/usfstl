@@ -171,10 +171,10 @@ _USFSTL_TEST_BINARY := $(USFSTL_TEST_NAME)$(_USFSTL_EXESUFFIX)
 _USFSTL_LIB_PATH := $(USFSTL_BIN_PATH)/usfstl/
 
 ifeq ($(USFSTL_FUZZING),)
-_USFSTL_FUZZING := 0
+_USFSTL_FUZZING :=
 else
 ifeq ($(USFSTL_FUZZING),repro)
-_USFSTL_FUZZING := 4
+_USFSTL_FUZZING := REPRO
 else
 ifneq ($(USFSTL_FUZZING),1)
 $(error wrong USFSTL_FUZZING option)
@@ -203,21 +203,21 @@ endif
 
 ifeq ($(USFSTL_FUZZER),afl-gcc)
 export CC=afl-gcc
-_USFSTL_FUZZING := 1
+_USFSTL_FUZZING := AFL_GCC
 export AFL_SKIP_BIN_CHECK=1
 else
 ifeq ($(USFSTL_FUZZER),afl-clang-fast)
 export CC=afl-clang-fast
-_USFSTL_FUZZING := 2
+_USFSTL_FUZZING := AFL_CLANG_FAST
 else
 ifeq ($(USFSTL_FUZZER),libfuzzer)
-_USFSTL_FUZZING := 3
+_USFSTL_FUZZING := LIB_FUZZER
 export CC=clang-9
 USFSTL_CC_OPT += -fsanitize=fuzzer
 else
 ifeq ($(USFSTL_FUZZER),afl-gcc-fast)
 export CC=afl-gcc-fast
-_USFSTL_FUZZING := 5
+_USFSTL_FUZZING := AFL_GCC_FAST
 else
 $(error wrong USFSTL_FUZZER option)
 endif # afl-gcc-fast
@@ -427,8 +427,8 @@ ifeq ($(USFSTL_SKIP_ASAN_STR),1)
 _USFSTL_CC_OPT += -DUSFSTL_WANT_NO_ASAN_STRING=1
 USFSTL_TEST_LINK_OPT += -ldl
 endif
-ifneq ($(_USFSTL_FUZZING),0)
-_USFSTL_CC_OPT += -DUSFSTL_USE_FUZZING=$(_USFSTL_FUZZING)
+ifneq ($(_USFSTL_FUZZING),)
+_USFSTL_CC_OPT += -DUSFSTL_USE_FUZZING -DUSFSTL_FUZZER_$(_USFSTL_FUZZING)
 endif
 
 $(_USFSTL_LIB_PATH)/%.o: $(USFSTL_PATH)/src/%.c | $(_USFSTL_LIB_PATH)/dwarf/ $(USFSTL_LOGDIR)
@@ -497,7 +497,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY): $(USFSTL_EXTRA_TEST_C_FILES) \
 						  | $(USFSTL_TEST_BIN_PATH)/%/ $(USFSTL_LOGDIR)
 	@echo " LD   $*/$(notdir $@)" $(USFSTL_LOG_TEST)
 	$(S)$(USFSTL_TEST_PRE_CC_CMD) $(_USFSTL_FINAL_CC) $(_USFSTL_CC_INC) $^ $(USFSTL_TEST_LINK_OPT) -o $@ $(USFSTL_LOG_TEST)
-	$(S)if [ "$(_USFSTL_FUZZING)" = "1" ] ; then sed -i s/__AFL_SHM_ID/__AFL_SHM_IX/g $@ ; fi
+	$(S)if [ "$(_USFSTL_FUZZING)" = "AFL_GCC" ] ; then sed -i s/__AFL_SHM_ID/__AFL_SHM_IX/g $@ ; fi
 
 # need to also compile this with "-pg -mfentry" because the test might
 # include a header file here that has an inline it also wants to stub,

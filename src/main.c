@@ -58,7 +58,7 @@ static bool USFSTL_NORESTORE_VAR(g_usfstl_list_projnames);
 static bool g_usfstl_list_asserts;
 #endif // USFSTL_LIBRARY
 
-#if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3)
+#if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || !defined(USFSTL_FUZZER_LIB_FUZZER))
 static int g_usfstl_test = -1;
 static int g_usfstl_testcase = -1;
 static int g_usfstl_summary_fd = -1;
@@ -66,7 +66,7 @@ static bool USFSTL_NORESTORE_VAR(g_usfstl_count);
 static int g_usfstl_testcase_last = -1;
 #endif
 
-#if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3)
+#if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || !defined(USFSTL_FUZZER_LIB_FUZZER))
 static bool open_summary(struct usfstl_opt *opt, const char *arg)
 {
 	g_usfstl_summary_fd = open(arg, O_CREAT | O_WRONLY | O_TRUNC, 0666);
@@ -144,7 +144,7 @@ void usfstl_tested_requirement(const char *req, bool pass)
 					req, pass ? 1 : 0, pass ? 0 : 1);
 }
 
-#if !defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3
+#if !defined(USFSTL_USE_FUZZING) || !defined(USFSTL_FUZZER_LIB_FUZZER)
 static void write_requirements(const struct usfstl_test *tc, int tc_succeeded,
 			       int tc_failed)
 {
@@ -165,7 +165,7 @@ static void close_requirements(void)
 }
 #endif
 
-#if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || USFSTL_USE_FUZZING != 3)
+#if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || !defined(USFSTL_FUZZER_LIB_FUZZER))
 static bool usfstl_parse_test(struct usfstl_opt *opt, const char *val)
 {
 	int tcidx, idx = 0;
@@ -266,7 +266,7 @@ int usfstl_init(int argc, char **argv)
 	return 0;
 }
 
-#if USFSTL_USE_FUZZING == 3
+#if defined(USFSTL_FUZZER_LIB_FUZZER)
 static struct usfstl_test *USFSTL_NORESTORE_VAR(g_usfstl_fuzz_test);
 
 int LLVMFuzzerInitialize(int *argc, char ***argv)

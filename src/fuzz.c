@@ -31,7 +31,7 @@ USFSTL_OPT_INT("fuzz-repro-parallel", 0, "number-of-jobs",
 	       "how many parallel fork()s to run for reproduction");
 #endif
 
-#if USFSTL_USE_FUZZING == 1
+#if defined(USFSTL_FUZZER_AFL_GCC)
 extern int __afl_setup_failure;
 
 static void __attribute__((noinline)) force_afl_start(void)
@@ -61,12 +61,12 @@ static void __attribute__((noinline)) __afl_init(bool start)
 }
 
 #define __AFL_INIT() __afl_init(true)
-#elif USFSTL_USE_FUZZING == 4
+#elif defined(USFSTL_FUZZER_REPRO)
 #define __AFL_INIT() do { } while (0)
-#endif /* USFSTL_USE_FUZZING == 1 */
+#endif /* defined(USFSTL_FUZZER_AFL_GCC) */
 #endif
 
-#if USFSTL_USE_FUZZING == 3
+#if defined(USFSTL_FUZZER_LIB_FUZZER)
 const unsigned char *USFSTL_NORESTORE_VAR(g_usfstl_fuzz_data);
 size_t USFSTL_NORESTORE_VAR(g_usfstl_fuzz_datasz);
 #endif
@@ -75,7 +75,7 @@ void usfstl_fuzz(const unsigned char **data, size_t *len)
 {
 #ifdef USFSTL_USE_FUZZING
 	size_t bufsz = 1024;
-#if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2 || USFSTL_USE_FUZZING == 4 || USFSTL_USE_FUZZING == 5
+#if defined(USFSTL_FUZZER_AFL_GCC) || defined(USFSTL_FUZZER_AFL_CLANG_FAST) || defined(USFSTL_FUZZER_REPRO) || defined(USFSTL_FUZZER_AFL_GCC_FAST)
 	size_t bytes, offs = 0;
 #endif
 	int fd = 0; /* stdin */
@@ -138,16 +138,16 @@ fuzz:;
 	if (g_usfstl_fuzz_repro) {
 		fd = open(g_usfstl_fuzz_repro, O_RDONLY);
 		assert(fd >= 0);
-#if USFSTL_USE_FUZZING == 4
+#if defined(USFSTL_FUZZER_REPRO)
 	} else {
 		USFSTL_ASSERT(0, "only built for reproducers, use --fuzz-repro");
-#endif // USFSTL_USE_FUZZING == 4
+#endif // defined(USFSTL_FUZZER_REPRO)
 	}
 
-#if USFSTL_USE_FUZZING == 3
+#if defined(USFSTL_FUZZER_LIB_FUZZER)
 	*data = g_usfstl_fuzz_data;
 	*len = g_usfstl_fuzz_datasz;
-#elif USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2 || USFSTL_USE_FUZZING == 4 || USFSTL_USE_FUZZING == 5
+#elif defined(USFSTL_FUZZER_AFL_GCC) || defined(USFSTL_FUZZER_AFL_CLANG_FAST) || defined(USFSTL_FUZZER_REPRO) || defined(USFSTL_FUZZER_AFL_GCC_FAST)
 	__AFL_INIT();
 
 	while ((bytes = read(fd, buf + offs, bufsz - offs)) > 0) {
@@ -176,7 +176,7 @@ fuzz:;
 void usfstl_fuzz_test_ok(void)
 {
 #ifdef USFSTL_USE_FUZZING
-#if USFSTL_USE_FUZZING == 1 || USFSTL_USE_FUZZING == 2
+#if defined(USFSTL_FUZZER_AFL_GCC) || defined(USFSTL_FUZZER_AFL_CLANG_FAST)
 	if (!g_usfstl_fuzz_repro)
 		exit(0);
 #endif

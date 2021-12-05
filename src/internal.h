@@ -196,7 +196,7 @@ void usfstl_log_reached_asserts(void);
 void usfstl_init_reached_assert_log(void);
 void usfstl_list_all_asserts(void);
 
-#if USFSTL_USE_FUZZING == 3
+#if defined(USFSTL_FUZZER_LIB_FUZZER)
 extern const unsigned char *g_usfstl_fuzz_data;
 extern size_t g_usfstl_fuzz_datasz;
 #endif
