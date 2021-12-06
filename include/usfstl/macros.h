@@ -22,6 +22,11 @@
 #define _USFSTL_2STR(x)			#x
 #define USFSTL_2STR(x)			_USFSTL_2STR(x)
 
+#define __USFSTL_CONCAT(x, y) x ## y
+#define _USFSTL_CONCAT(x, y) __USFSTL_CONCAT(x, y)
+#define USFSTL_CONCAT(x, y) _USFSTL_CONCAT(x, y)
+#define USFSTL_CONCAT3(x, y, z) USFSTL_CONCAT(x, USFSTL_CONCAT(y, z))
+
 #define __USFSTL_COUNTDOWN		19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
 #define __USFSTL_COUNT(_0,_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,_12,_13,_14,_15,_16,_17,_18,_19,N, ...)	N
 #define _USFSTL_COUNT(...)		__USFSTL_COUNT(__VA_ARGS__)

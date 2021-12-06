@@ -230,16 +230,16 @@ struct usfstl_testcase {
 	USFSTL_MAP(_SELECT, _SEL_REQUIREMENTS, __VA_ARGS__)			\
 	static const char * const usfstl_tested_files_##n[] =			\
 		{ USFSTL_TESTED_FILES NULL };					\
-	USFSTL_IGNORE_OVERRIDE_INIT(const struct usfstl_test usfstl_test_##n =	\
+	USFSTL_IGNORE_OVERRIDE_INIT(const struct usfstl_test USFSTL_CONCAT3(usfstl_test_, USFSTL_TEST_NAME, n) =	\
 		USFSTL_TEST_SETUP(fn, extra, cases, _flow, _negative, _max_cpu,	\
 				  .tested_files = usfstl_tested_files_##n,	\
-				  .projectname = USFSTL_TEST_NAME,		\
+				  .projectname = USFSTL_2STR(USFSTL_TEST_NAME),		\
 				  .name=#n					\
 				  USFSTL_MAP(_SELECT, _MK_REQLINK, __VA_ARGS__)	\
 				  USFSTL_MAP(_SELECT_NOPARENS, _REMOVE,		\
 					     __VA_ARGS__));)			\
-	static const struct usfstl_test * const usfstl_test_##n##_ptr		\
-	__attribute__((used, section("usfstl_tests"))) = &usfstl_test_##n
+	static const struct usfstl_test * const USFSTL_CONCAT(USFSTL_CONCAT3(usfstl_test_, USFSTL_TEST_NAME, n), _ptr)		\
+	__attribute__((used, section("usfstl_tests"))) = &USFSTL_CONCAT3(usfstl_test_, USFSTL_TEST_NAME, n)
 #define USFSTL_TEST(fn, extra, cases, _flow, _negative, _max_cpu, ...)		\
 	USFSTL_TEST_NAMED(fn, fn, extra, cases, _flow, _negative, _max_cpu, __VA_ARGS__)
 
