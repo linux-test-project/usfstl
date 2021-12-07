@@ -328,9 +328,9 @@ void usfstl_sched_block_groups(struct usfstl_scheduler *sched, uint32_t groups,
 	save->job = sched->allowed_job;
 
 	// it makes no sense to allow a job unless its group is blocked
-	USFSTL_ASSERT(!job || (1 << job->group) & groups,
-		      "%s: allowed job group %d must be part of blocked groups (0x%x\n)",
-		      sched->name, job->group, groups);
+	USFSTL_ASSERT(!job || (1 << job->group) & (groups | save->groups),
+		      "%s: allowed job group %d must be part of blocked groups (0x%x)",
+		      sched->name, job->group, groups | save->groups);
 
 	sched->blocked_groups |= groups;
 	sched->allowed_job = job;
