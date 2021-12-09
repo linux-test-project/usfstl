@@ -162,3 +162,9 @@ void usfstl_restore_globals(void)
 {
 	usfstl_restore_data(g_usfstl_restore_info, g_usfstl_restore_data);
 }
+
+void usfstl_free_globals(void)
+{
+	free(g_usfstl_restore_info);
+	free(g_usfstl_restore_data);
+}

@@ -87,6 +87,7 @@ void usfstl_watchdog_stop(void);
 /* save/restore */
 void usfstl_save_globals(const char *program);
 void usfstl_restore_globals(void);
+void usfstl_free_globals(void);
 
 /* test selection */
 extern bool g_usfstl_skip_known_failing;

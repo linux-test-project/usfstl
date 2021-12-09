@@ -429,6 +429,7 @@ int main(int argc, char **argv)
 	write_summary("TOTAL", succeeded, failed);
 	close_summary();
 	close_requirements();
+	usfstl_free_globals();
 
 	tm = get_monotonic_time_ms() - tm;
 	printf("Took %ld.%03ld seconds (wall clock)\n",
