@@ -228,6 +228,8 @@ static
 #endif
 int usfstl_init(int argc, char **argv)
 {
+	bool single_case = g_usfstl_test >= 0 && g_usfstl_testcase >= 0;
+	bool execute = !g_usfstl_count && !g_usfstl_list_tests;
 	int ret;
 
 	g_usfstl_program_name = argv[0];
@@ -248,7 +250,8 @@ int usfstl_init(int argc, char **argv)
 		usfstl_init_reached_assert_log();
 
 	usfstl_call_initializers();
-	usfstl_save_globals(argv[0]);
+	if (!single_case && execute)
+		usfstl_save_globals(argv[0]);
 	usfstl_multi_init();
 	usfstl_no_asan_string_init();
 
