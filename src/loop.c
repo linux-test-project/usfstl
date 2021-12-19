@@ -68,8 +68,12 @@ void usfstl_loop_wait_and_handle(void)
 		usfstl_loop_for_each_entry(tmp) {
 			void *data = g_usfstl_loop_pre_handler_fn_data;
 
-			if (!FD_ISSET(tmp->fd, &rd_set) &&
-			    !FD_ISSET(tmp->fd, &exc_set))
+			if (!FD_ISSET(tmp->fd, &rd_set) ||
+			    FD_ISSET(tmp->fd, &exc_set))
+				/*
+				 * If the fd is in the exceptions set it may have the read set as well even though
+				 * the participant didn't actually write anything, so continue in this case.
+				 */
 				continue;
 
 			if (g_usfstl_loop_pre_handler_fn)
