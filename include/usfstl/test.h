@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2020 Intel Corporation
+ * Copyright (C) 2018 - 2020, 2022 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -166,6 +166,7 @@ struct usfstl_testcase {
 	const char *name;
 	const char *requirement;
 	const void *negative_data;
+	void (*negative_test_cb)(void);
 	bool failing;
 };
 
