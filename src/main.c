@@ -60,10 +60,12 @@ static bool g_usfstl_list_asserts;
 
 #if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || !defined(USFSTL_FUZZER_LIB_FUZZER))
 static int g_usfstl_test = -1;
+static const char *g_usfstl_testfilter;
 static int g_usfstl_testcase = -1;
 static int g_usfstl_summary_fd = -1;
 static bool USFSTL_NORESTORE_VAR(g_usfstl_count);
 static int g_usfstl_testcase_last = -1;
+static const char *g_usfstl_proj;
 #endif
 
 #if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || !defined(USFSTL_FUZZER_LIB_FUZZER))
@@ -168,26 +170,11 @@ static void close_requirements(void)
 #if !defined(USFSTL_LIBRARY) && (!defined(USFSTL_USE_FUZZING) || !defined(USFSTL_FUZZER_LIB_FUZZER))
 static bool usfstl_parse_test(struct usfstl_opt *opt, const char *val)
 {
-	int tcidx, idx = 0;
-
 	if (usfstl_opt_parse_int(opt, val))
 		return true;
 
-	for (tcidx = 0; &__start_usfstl_tests[tcidx] < &__stop_usfstl_tests; tcidx++) {
-		struct usfstl_test *tc = __start_usfstl_tests[tcidx];
-
-		if (!tc)
-			continue;
-
-		if (!strcmp(val, tc->name)) {
-			g_usfstl_test = idx;
-			return true;
-		}
-
-		idx++;
-	}
-
-	return false;
+	g_usfstl_testfilter = val;
+	return true;
 }
 
 USFSTL_OPT("test", 't', "test name or number", usfstl_parse_test,
@@ -206,6 +193,8 @@ USFSTL_OPT("summary", 0, "filename", open_summary, NULL,
 	   "write summary of tests to this file after running");
 USFSTL_OPT_FLAG("skip-known-failing", 0, g_usfstl_skip_known_failing,
 		"skip tests/testcases known to fail");
+USFSTL_OPT_STR("project", 0, "project-name", g_usfstl_proj,
+	       "filter by project (when multiple are linked)");
 #endif
 
 #ifndef USFSTL_LIBRARY
@@ -344,9 +333,16 @@ int main(int argc, char **argv)
 		if (!tc)
 			continue;
 
+		if (g_usfstl_proj && strcmp(g_usfstl_proj, tc->projectname))
+			continue;
+
 		test++;
 
 		if (g_usfstl_test >= 0 && test != g_usfstl_test)
+			continue;
+
+		if (g_usfstl_testfilter &&
+		    strcmp(g_usfstl_testfilter, tc->name))
 			continue;
 
 		if (g_usfstl_skip_known_failing && tc->failing)
