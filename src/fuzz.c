@@ -29,7 +29,10 @@ static int g_usfstl_fuzz_repro_parallel, g_usfstl_fuzz_repro_running;
 USFSTL_OPT_INT("fuzz-repro-parallel", 0, "number-of-jobs",
 	       g_usfstl_fuzz_repro_parallel,
 	       "how many parallel fork()s to run for reproduction");
-#endif
+#define FUZZ_OPEN_FLAGS O_RDONLY
+#else /* _WIN32 */
+#define FUZZ_OPEN_FLAGS (O_RDONLY | O_BINARY)
+#endif /* _WIN32 */
 
 #if defined(USFSTL_FUZZER_AFL_GCC)
 extern int __afl_setup_failure;
@@ -136,7 +139,7 @@ fuzz:;
 	} else
 #endif // _WIN32
 	if (g_usfstl_fuzz_repro) {
-		fd = open(g_usfstl_fuzz_repro, O_RDONLY);
+		fd = open(g_usfstl_fuzz_repro, FUZZ_OPEN_FLAGS);
 		assert(fd >= 0);
 #if defined(USFSTL_FUZZER_REPRO)
 	} else {
