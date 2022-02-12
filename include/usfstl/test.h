@@ -177,8 +177,7 @@ struct usfstl_testcase {
 	.testcases = cases,						\
 	.testcase_size = sizeof(cases[0]),				\
 	.testcase_count = sizeof(cases)/sizeof(cases[0]),		\
-	.testcase_generic_offset = (int)((char *)&((typeof(&cases[0]))0)->generic - \
-					 (char *)0),
+	.testcase_generic_offset = (int)((char *)&((typeof(&cases[0]))0)->generic),
 
 #define _USFSTL_ASSIGN_TESTCASES2(...)
 
@@ -417,8 +416,7 @@ static void *tn##_generator(const struct usfstl_test *t, unsigned int n);	\
 type(tn, extra, NO_CASES, .case_generator = tn##_generator,			\
 	.case_generator_has_generic = true,					\
 	.testcase_generic_offset =						\
-		(int)((char *)&((struct usfstl_code_testcase *)0)->generic -	\
-				(char *)0),					\
+		(int)((char *)&((struct usfstl_code_testcase *)0)->generic), \
 	__VA_ARGS__)
 #define _USFSTL_CODE_TEST_INIT(type, tn, extra, ...)				\
 	__USFSTL_CODE_TEST_INIT(type, tn, extra, __VA_ARGS__)
