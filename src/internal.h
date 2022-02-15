@@ -58,7 +58,7 @@ void __fentry__(void);
 extern void *g_usfstl_recurse;
 
 /* overrides */
-const void *__attribute__((no_instrument_function, noinline))
+const void *__attribute__((no_instrument_function, force_align_arg_pointer, noinline))
 usfstl_find_repl(const void *_orig);
 
 /* dwarf */

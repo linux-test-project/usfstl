@@ -167,7 +167,7 @@ static void usfstl_unused_test_text(void)
 {
 }
 
-const void *__attribute__((no_instrument_function, noinline))
+const void *__attribute__((no_instrument_function, force_align_arg_pointer, noinline))
 usfstl_find_repl(const void *_orig)
 {
 	/* 5 is the size of the generated call instruction (x86) */
