@@ -355,7 +355,7 @@ function(usfstl_add_test)
     set(globals_file ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME}.globals)
     add_custom_command(
         OUTPUT ${globals_file}
-        COMMAND nm -S --size-sort ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME} | sort | grep -E -v " . (_*_gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir|qsort)|_Z.*__(sanitizer|interception)|replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed)" | perl -ne "binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack(\"${_global_pack}\",hex($1), hex($2))" > ${globals_file}
+        COMMAND nm -S --size-sort ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME} | sort | grep -E -v " . (__(llvm_)?gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir|qsort)|_Z.*__(sanitizer|interception)|replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed)" | perl -ne "binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack(\"${_global_pack}\",hex($1), hex($2))" > ${globals_file}
         VERBATIM
         DEPENDS ${test_target}
     )
