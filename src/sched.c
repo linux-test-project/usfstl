@@ -86,6 +86,12 @@ void usfstl_sched_add_job(struct usfstl_scheduler *sched, struct usfstl_job *job
 		      sched->name);
 	USFSTL_ASSERT_CMP(job->group, <, 32, "%u");
 
+	if (job->blocked) {
+		job->start = 0;
+		job->pending = true;
+		return;
+	}
+
 	if ((1 << job->group) & sched->blocked_groups &&
 	    job != sched->allowed_job) {
 		job->start = 0;
@@ -272,8 +278,8 @@ void usfstl_sched_set_sync_time(struct usfstl_scheduler *sched, uint64_t time)
 	sched->next_external_sync_set = 1;
 }
 
-static void usfstl_sched_block_job(struct usfstl_scheduler *sched,
-				 struct usfstl_job *job)
+static void usfstl_sched_block_job_in_group(struct usfstl_scheduler *sched,
+					    struct usfstl_job *job)
 {
 	usfstl_sched_del_job(job);
 	usfstl_list_append(&sched->pending_jobs, &job->entry);
@@ -295,7 +301,7 @@ static void usfstl_sched_remove_blocked_jobs(struct usfstl_scheduler *sched)
 		if (job == sched->allowed_job)
 			continue;
 		if ((1 << job->group) & sched->blocked_groups)
-			usfstl_sched_block_job(sched, job);
+			usfstl_sched_block_job_in_group(sched, job);
 	}
 }
 
@@ -331,6 +337,9 @@ void usfstl_sched_block_groups(struct usfstl_scheduler *sched, uint32_t groups,
 	USFSTL_ASSERT(!job || (1 << job->group) & (groups | save->groups),
 		      "%s: allowed job group %d must be part of blocked groups (0x%x)",
 		      sched->name, job->group, groups | save->groups);
+	USFSTL_ASSERT(!job || !job->blocked,
+		      "%s: allowed job must not be blocked already",
+		      sched->name);
 
 	sched->blocked_groups |= groups;
 	sched->allowed_job = job;
@@ -346,6 +355,33 @@ void usfstl_sched_restore_groups(struct usfstl_scheduler *sched,
 
 	usfstl_sched_restore_blocked_jobs(sched);
 	usfstl_sched_remove_blocked_jobs(sched);
+}
+
+void usfstl_sched_block_job(struct usfstl_scheduler *sched,
+			    struct usfstl_job *job)
+{
+	USFSTL_ASSERT(!job->blocked);
+	USFSTL_ASSERT(!job->pending);
+
+	job->blocked = true;
+
+	if (usfstl_job_scheduled(job)) {
+		job->pending = true;
+		usfstl_sched_del_job(job);
+	}
+}
+
+void usfstl_sched_unblock_job(struct usfstl_scheduler *sched,
+			      struct usfstl_job *job)
+{
+	USFSTL_ASSERT(job->blocked);
+
+	job->blocked = false;
+
+	if (job->pending) {
+		job->pending = false;
+		usfstl_sched_restore_job(sched, job);
+	}
 }
 
 uint64_t usfstl_sched_get_sync_time(struct usfstl_scheduler *sched)

@@ -61,6 +61,8 @@ struct usfstl_job {
 
 	/* private: */
 	struct usfstl_list_entry entry;
+	uint8_t blocked:1,
+		pending:1;
 };
 
 /**
@@ -265,6 +267,25 @@ void usfstl_sched_block_groups(struct usfstl_scheduler *sched, uint32_t groups,
  */
 void usfstl_sched_restore_groups(struct usfstl_scheduler *sched,
 				 struct usfstl_sched_block_data *restore);
+
+/**
+ * usfstl_sched_block_job - block a specific job from executing
+ * @sched: the scheduler to operate with
+ * @job: a single job to block from executing, independent of
+ *	the group block mechanism
+ */
+void usfstl_sched_block_job(struct usfstl_scheduler *sched,
+			    struct usfstl_job *job);
+
+/**
+ * usfstl_sched_unblock_job - unblock a specific job
+ * @sched: the scheduler to operate with
+ * @job: the job to no longer block from executing, it'll be
+ *	re-added immediately if something scheduled it while
+ *	it was blocked
+ */
+void usfstl_sched_unblock_job(struct usfstl_scheduler *sched,
+			      struct usfstl_job *job);
 
 /**
  * usfstl_sched_set_time - set time from external source

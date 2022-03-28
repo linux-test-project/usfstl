@@ -33,6 +33,7 @@ struct usfstl_task {
 	void *data;
 
 	struct usfstl_list_entry sem_entry;
+	struct usfstl_sem *check_sem;
 };
 
 static void usfstl_task_next(void)
@@ -395,6 +396,8 @@ bool usfstl_sem_timedwait(struct usfstl_sem *sem, uint64_t timeout)
 		usfstl_task_suspend();
 
 		task->job.name = NULL;
+		USFSTL_ASSERT(!task->check_sem || task->check_sem == sem);
+		task->check_sem = NULL;
 
 		if (sem->ctr == 0) {
 			USFSTL_ASSERT(task->sem_entry.next,
@@ -428,19 +431,17 @@ bool usfstl_sem_trywait(struct usfstl_sem *sem)
 	return false;
 }
 
-void usfstl_sem_post(struct usfstl_sem *sem)
+static void usfstl_process_sem_wakeup(struct usfstl_sem *sem)
 {
-	usfstl_sem_init_if_needed(sem);
+	struct usfstl_task *task;
 
-	sem->ctr++;
-
-	/* pick up the first waiter (priority list) */
-	if (!usfstl_list_empty(&sem->waiters)) {
-		struct usfstl_task *task;
-
-		task = usfstl_list_first_item(&sem->waiters,
-					      struct usfstl_task,
-					      sem_entry);
+	/* pick up the active first waiter (priority list) */
+	usfstl_for_each_list_item(task, &sem->waiters, sem_entry) {
+		/* if this job/task is blocked, don't wake it */
+		if (task->job.blocked) {
+			task->check_sem = sem;
+			continue;
+		}
 
 		usfstl_sched_del_job(&task->job);
 
@@ -455,5 +456,31 @@ void usfstl_sem_post(struct usfstl_sem *sem)
 		usfstl_sched_add_job(&g_usfstl_task_scheduler, &task->job);
 
 		usfstl_list_item_remove(&task->sem_entry);
+		break;
+	}
+}
+
+void usfstl_sem_post(struct usfstl_sem *sem)
+{
+	usfstl_sem_init_if_needed(sem);
+
+	sem->ctr++;
+
+	usfstl_process_sem_wakeup(sem);
+}
+
+void usfstl_task_block(struct usfstl_task *task)
+{
+	usfstl_sched_block_job(&g_usfstl_task_scheduler, &task->job);
+}
+
+void usfstl_task_unblock(struct usfstl_task *task)
+{
+	usfstl_sched_unblock_job(&g_usfstl_task_scheduler, &task->job);
+
+	if (task->check_sem) {
+		if (task->check_sem->ctr)
+			usfstl_process_sem_wakeup(task->check_sem);
+		task->check_sem = NULL;
 	}
 }

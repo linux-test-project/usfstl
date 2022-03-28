@@ -213,6 +213,22 @@ void usfstl_task_suspend(void);
 void usfstl_task_resume(struct usfstl_task *task);
 
 /**
+ * usfstl_task_block - block a task from executing
+ * @task: the task to block
+ *
+ * The given task (which must not be the one calling this
+ * function) will not execute until unblocked by calling
+ * usfstl_task_unblock().
+ */
+void usfstl_task_block(struct usfstl_task *task);
+
+/**
+ * usfstl_task_unblock - unblock the given task
+ * @task: the task to unblock
+ */
+void usfstl_task_unblock(struct usfstl_task *task);
+
+/**
  * usfstl_task_from_job - return task from job
  * @job: scheduler job to return the task for
  *
