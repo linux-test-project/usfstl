@@ -228,8 +228,13 @@ static
 #endif
 int usfstl_init(int argc, char **argv)
 {
+#ifndef USFSTL_LIBRARY
 	bool single_case = g_usfstl_test >= 0 && g_usfstl_testcase >= 0;
 	bool execute = !g_usfstl_count && !g_usfstl_list_tests;
+#else
+	bool single_case = false;
+	bool execute = true;
+#endif // USFSTL_LIBRARY
 	int ret;
 
 	g_usfstl_program_name = argv[0];
