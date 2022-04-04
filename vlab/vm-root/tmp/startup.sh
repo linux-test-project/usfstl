@@ -30,6 +30,9 @@ chmod +x /tmp/.host$tmpdir/early.sh
 
 chmod 0600 /root
 
+# pretend we have some entropy ...
+PYTHONHASHSEED=0 python -c 'import fcntl; fd=open("/dev/random", "w"); fcntl.ioctl(fd.fileno(), 0x40045201, b"\x00\x01\x00\x00")'
+
 mkdir /var/run/sshd
 
 echo $hostname > /etc/hostname
@@ -61,9 +64,6 @@ echo $vmroots | tr ':' '\n' | while read dir ; do
 	for f in $(find . -type l) ; do ln -fs -T /tmp/.host$dir/$f /$f ; done
 	popd >/dev/null
 done
-
-# pretend we have some entropy ...
-python /tmp/randinit.py
 
 # need to fix some permissions - git doesn't preserve
 chmod 0600 /tmp/sshd.key /tmp/sshd.rsa
