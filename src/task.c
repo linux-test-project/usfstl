@@ -15,6 +15,7 @@
 static struct usfstl_task *g_usfstl_task_to_end;
 // initialize to true, since the main task is running at the start
 static bool g_usfstl_task_running = true;
+static bool g_usfstl_task_selected;
 
 USFSTL_SCHEDULER(g_usfstl_task_scheduler);
 
@@ -38,15 +39,14 @@ struct usfstl_task {
 
 static void usfstl_task_next(void)
 {
-	struct usfstl_job *ran;
-
 	if (g_usfstl_task_leave)
 		g_usfstl_task_leave();
 	g_usfstl_task_running = false;
+	g_usfstl_task_selected = false;
 
 	do {
-		ran = usfstl_sched_next(&g_usfstl_task_scheduler);
-	} while (!usfstl_task_from_job(ran));
+		usfstl_sched_next(&g_usfstl_task_scheduler);
+	} while (!g_usfstl_task_selected);
 
 	g_usfstl_task_running = true;
 	if (g_usfstl_task_enter)
@@ -132,6 +132,7 @@ static void usfstl_task_job_fn(struct usfstl_job *job)
 	 * set usfstl_task_current() to return a proper task again.
 	 */
 	usfstl_switch_ctx(task->ctx);
+	g_usfstl_task_selected = true;
 }
 
 static struct usfstl_task *
