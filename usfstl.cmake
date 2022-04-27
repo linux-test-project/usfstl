@@ -4,10 +4,8 @@ project(usfstl_test C)
 
 include(ExternalProject)
 
-if(MINGW OR CYGWIN)
+if(MINGW OR CYGWIN OR WIN32)
     set(_usfstl_windows ON)
-elseif(NOT UNIX)
-    message(ERROR "usfstl only supports Windows (via MinGW/Cygwin) and Linux")
 endif()
 
 set(USFSTL_BASE_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -52,10 +50,8 @@ macro(usfstl_configure_framework)
     string(APPEND USFSTL_LINK_OPT " ${USFSTL_CC_OPT}")
 
     if(USFSTL_SKIP_ASAN_STR)
+        string(APPEND USFSTL_CC_OPT " -DUSFSTL_WANT_NO_ASAN_STRING=1")
         string(APPEND USFSTL_LINK_OPT " -ldl")
-    endif()
-    if(_usfstl_windows)
-        string(APPEND USFSTL_LINK_OPT " -lws2_32")
     endif()
 
     if(NOT USFSTL_CONTEXT_BACKEND)
@@ -351,8 +347,11 @@ function(usfstl_add_test)
         tested-${name}
         support-${name}
     )
+    if(_usfstl_windows)
+        target_link_libraries(${test_target} ws2_32)
+    endif()
 
-    set(globals_file ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME}.globals)
+    set(globals_file ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME}${CMAKE_EXECUTABLE_SUFFIX}.globals)
     add_custom_command(
         OUTPUT ${globals_file}
         COMMAND nm -S --size-sort ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME} | sort | grep -E -v " . (__(llvm_)?gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir|qsort)|_Z.*__(sanitizer|interception)|replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed)" | perl -ne "binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack(\"${_global_pack}\",hex($1), hex($2))" > ${globals_file}
