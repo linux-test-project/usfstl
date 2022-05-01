@@ -105,6 +105,7 @@ macro(usfstl_configure_framework)
         LOG_DIR ${USFSTL_LOGDIR}
         LOG_BUILD TRUE
         CMAKE_CACHE_ARGS
+            -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
             -DUSFSTL_CC_OPT:STRING=${USFSTL_CC_OPT}
             -DUSFSTL_CONTEXT_BACKEND:STRING=${USFSTL_CONTEXT_BACKEND}
@@ -183,6 +184,7 @@ function(usfstl_add_tested)
         USES_TERMINAL 1
         BUILD_BYPRODUCTS ${USFSTL_BIN_PATH}/${name}/${usfstl_add_tested_TESTED_LIB_NAME}
         CMAKE_CACHE_ARGS
+            -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
     )
 
@@ -251,6 +253,7 @@ function(usfstl_add_support)
         LOG_DIR ${USFSTL_LOGDIR}
         LOG_BUILD TRUE
         CMAKE_CACHE_ARGS
+            -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE
             -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
             ${usfstl_add_support_SUPPORT_CMAKE_CACHE_ARGS}
         INSTALL_COMMAND ""
