@@ -1,7 +1,12 @@
 add-auto-load-safe-path linux/scripts/gdb/
 source linux/vmlinux-gdb.py
 cd linux
-lx-symbols ../driver-install/
+python
+import subprocess
+p = subprocess.run(['./linux', '--version'], capture_output=True)
+ver = p.stdout.strip().decode('ascii')
+gdb.execute(f'lx-symbols ../driver-install/lib/modules/{ver}/')
+end
 cd ..
 handle 11 nostop noprint pass
 #
