@@ -12,14 +12,6 @@
 #include <usfstl/ctrluds.h>
 #include <usfstl/uds.h>
 
-#define USFSTL_MSG_SIZE		14400
-#define USFSTL_MSG_HDR_SIZR (offsetof(struct usfstl_msg, msg))
-
-struct usfstl_msg {
-	uint32_t datalen;
-	uint8_t msg[USFSTL_MSG_SIZE];
-};
-
 struct usfstl_ctrl_uds {
 	struct usfstl_loop_entry loop_entry;
 	struct usfstl_sched_ctrl *sched_ctrl;
@@ -41,35 +33,33 @@ static void _usfsfl_msg_send(int socket_fd,
 			     struct usfstl_sched_ctrl *sched_ctrl,
 			     void *data, uint32_t datalen, int fd)
 {
-	struct usfstl_msg msg = {
-		.datalen = datalen,
-	};
 	char control[CMSG_SPACE(sizeof(int))];
-	struct iovec io = { .iov_base = &msg, .iov_len = sizeof(msg) };
-	struct msghdr _msg = {
-		.msg_iov = &io,
-		.msg_iovlen = 1,
-		.msg_control = control,
-		.msg_controllen = sizeof(control),
+	struct iovec io[] = {
+		{ .iov_base = &datalen, .iov_len = sizeof(datalen) },
+		{ .iov_base = data, .iov_len = datalen, },
 	};
-	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&_msg);
+	struct msghdr _msg = {
+		.msg_iov = io,
+		.msg_iovlen = 2,
+	};
 	int ret;
 
-	memcpy(msg.msg, data, datalen);
+	if (fd >= 0) {
+		struct cmsghdr *cmsg;
 
-	memset(control, '\0', sizeof(control));
+		memset(control, '\0', sizeof(control));
 
-	cmsg->cmsg_level = SOL_SOCKET;
-	cmsg->cmsg_type = SCM_RIGHTS;
+		_msg.msg_control = control;
+		_msg.msg_controllen = sizeof(control);
 
-	if (fd < 0) {
-		cmsg->cmsg_len = CMSG_LEN(0);
-		ret = write(socket_fd, &msg, USFSTL_MSG_HDR_SIZR + datalen);
-	} else {
-		memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+		cmsg = CMSG_FIRSTHDR(&_msg);
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
 		cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
-		ret = sendmsg(socket_fd, &_msg, 0);
+		memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
 	}
+
+	ret = sendmsg(socket_fd, &_msg, 0);
 
 	USFSTL_ASSERT(ret > 0, "usfstl_msg: send message failed err=%s",
 		      strerror(errno));
@@ -88,37 +78,46 @@ static void _usfstl_read_msg(struct usfstl_ctrl_uds *ctrl_uds)
 {
 	int fd = ctrl_uds->loop_entry.fd;
 	int ret = 0;
-	struct usfstl_msg msg;
+	uint32_t msglen;
 	struct usfstl_msg_notif_entry *notif;
 	struct cmsghdr *cmsg;
 	char control[CMSG_SPACE(sizeof(int))] = { 0 };
-	struct iovec io = { .iov_base = &msg, .iov_len = sizeof(msg) };
+	struct iovec io[] = {
+		{ .iov_base = &msglen, .iov_len = sizeof(msglen) },
+		{ /* filled later */ },
+	};
 	struct msghdr _msg = {
-		.msg_iov = &io,
-		.msg_iovlen = 1,
-		.msg_control = control,
-		.msg_controllen = sizeof(control),
+		.msg_iov = io,
+		.msg_iovlen = 2,
 	};
 
-	ret = recvmsg(fd, &_msg, 0);
+	ret = recvmsg(fd, &_msg, MSG_PEEK);
 	if (ret <= 0) {
 		ctrl_uds->disconnect_cb();
 		return;
 	}
 
-	if (!msg.datalen) {
+	if (!msglen) {
+		/* consume the message */
+		ret = recvmsg(fd, &_msg, 0);
+		USFSTL_ASSERT_EQ(ret, (int)sizeof(msglen), "%d");
 		ctrl_uds->acked = true;
 		return;
 	}
 
-	USFSTL_ASSERT(msg.datalen <= sizeof(msg.msg));
+	_msg.msg_control = control;
+	_msg.msg_controllen = sizeof(control);
 
-	notif = malloc(sizeof(*notif) + msg.datalen);
+	notif = malloc(sizeof(*notif) + msglen);
 	USFSTL_ASSERT(notif);
 
+	io[1].iov_base = notif->data;
+	io[1].iov_len = msglen;
+
 	memset(&notif->process_job, 0, sizeof(notif->process_job));
-	notif->datalen = msg.datalen;
-	memcpy(notif->data, msg.msg, msg.datalen);
+	notif->datalen = msglen;
+	ret = recvmsg(fd, &_msg, 0);
+	USFSTL_ASSERT_EQ(ret, (int)(msglen + sizeof(msglen)), "%d");
 	notif->cb = ctrl_uds->cb;
 
 	cmsg = CMSG_FIRSTHDR(&_msg);
