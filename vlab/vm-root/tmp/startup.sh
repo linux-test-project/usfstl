@@ -75,6 +75,7 @@ ln -s /tmp/.host$tmpdir/hosts /etc/hosts
 cat >/root/.ssh/environment <<EOF
 PATH=$PATH
 TMPDIR=$tmpdir
+HOSTNAME=$hostname
 EOF
 
 real_cfg="$(dirname $(which sshd))/../etc/ssh/sshd_config"
