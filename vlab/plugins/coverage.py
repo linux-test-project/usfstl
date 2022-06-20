@@ -39,7 +39,7 @@ class CoveragePlugin(virtlab.Plugin):
     """
     def nodestop(self, runtime: virtlab.VlabRuntimeData) -> str:
         return '''test -d /sys/kernel/debug/gcov && (\
-          covdir=/tmp/.host$TMPDIR/cov/$HOSTNAME/
+          covdir=$TMPDIR/cov/$HOSTNAME/
           mkdir -p $covdir
           cp -d -r /sys/kernel/debug/gcov $covdir
         )
