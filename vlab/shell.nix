@@ -25,5 +25,8 @@ multiStdenv.mkDerivation {
 
         # for the pychecks
         mypy python3Packages.pylint
+
+        # for coverage plugin
+        lcov
     ];
 }
