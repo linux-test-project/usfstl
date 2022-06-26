@@ -166,7 +166,7 @@ struct usfstl_testcase {
 	const char *name;
 	const char *requirement;
 	const void *negative_data;
-	void (*negative_test_cb)(void);
+	void (*negative_test_cb)(void *);
 	bool failing;
 };
 
