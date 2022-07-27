@@ -142,19 +142,6 @@ enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
 
 	if (test == &g_usfstl_multi_controlled_test) {
 		g_usfstl_current_test_case_data = NULL;
-	} else if (test->testcase_count) {
-		if (case_num >= test->testcase_count) {
-			status = USFSTL_STATUS_OUT_OF_CASES;
-			goto out;
-		}
-		g_usfstl_current_test_case_data = (char *)test->testcases + case_num * test->testcase_size;
-		g_usfstl_current_testcase = (void *)((char *)g_usfstl_current_test_case_data +
-						     test->testcase_generic_offset);
-		if (g_usfstl_skip_known_failing &&
-		    g_usfstl_current_testcase->failing) {
-			status = USFSTL_STATUS_SKIPPED;
-			goto out;
-		}
 	} else if (test->case_generator) {
 		g_usfstl_current_test_case_data =
 			test->case_generator(test, case_num);
@@ -172,6 +159,19 @@ enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
 				status = USFSTL_STATUS_SKIPPED;
 				goto out;
 			}
+		}
+	} else if (test->testcase_count) {
+		if (case_num >= test->testcase_count) {
+			status = USFSTL_STATUS_OUT_OF_CASES;
+			goto out;
+		}
+		g_usfstl_current_test_case_data = (char *)test->testcases + case_num * test->testcase_size;
+		g_usfstl_current_testcase = (void *)((char *)g_usfstl_current_test_case_data +
+						     test->testcase_generic_offset);
+		if (g_usfstl_skip_known_failing &&
+		    g_usfstl_current_testcase->failing) {
+			status = USFSTL_STATUS_SKIPPED;
+			goto out;
 		}
 	} else if (case_num > 0) {
 		status = USFSTL_STATUS_OUT_OF_CASES;
