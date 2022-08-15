@@ -35,8 +35,12 @@ PYTHONHASHSEED=0 python -c 'import fcntl; fd=open("/dev/random", "w"); fcntl.ioc
 
 mkdir /var/run/sshd
 
+if test -z $(cat /proc/sys/kernel/hostname) ; then
+	echo $hostname > /proc/sys/kernel/hostname
+else
+	hostname=$(cat /proc/sys/kernel/hostname)
+fi
 echo $hostname > /etc/hostname
-echo $hostname > /proc/sys/kernel/hostname
 
 # pretend there's no sudo - note we need to do this before setting $PATH
 mkdir /tmp/bin
