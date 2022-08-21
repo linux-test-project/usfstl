@@ -40,6 +40,7 @@ struct usfstl_shared_mem_msg *g_usfstl_shared_mem_msg;
 static unsigned int g_usfstl_shared_mem_msg_size;
 
 // indicates that the local view of the shared mem has changed since last sent
+// to our parent controller (if any)
 bool g_usfstl_shared_mem_dirty;
 
 // return the size of the shared memory message to send to a participant / to
@@ -175,7 +176,7 @@ static void usfstl_shared_mem_merge_msg(
 // upon an incoming message, update our notion of the remote participant's
 // shared memory
 void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
-				  unsigned int msg_size)
+				  unsigned int msg_size, bool do_not_mark_dirty)
 {
 	struct usfstl_multi_participant *p;
 	int i;
@@ -195,7 +196,10 @@ void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 			p->flags |= USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 	}
 
-	USFSTL_ASSERT(!g_usfstl_shared_mem_dirty);
+	// mark the shared memory message for sending to our parent controller
+	if (!do_not_mark_dirty)
+		g_usfstl_shared_mem_dirty = true;
+
 	// mark the local view as outdated until we really need to refresh it
 	// from the buffer
 	g_usfstl_multi_local_participant.flags |=
@@ -207,8 +211,6 @@ void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 // refresh the local view of the shared memory from the updated remote version
 void usfstl_shared_mem_update_local_view(void)
 {
-	USFSTL_ASSERT(!g_usfstl_shared_mem_dirty);
-
 	if (g_usfstl_multi_local_participant.flags &
 	    USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED) {
 		char *msg_end;
@@ -249,7 +251,7 @@ static bool usfstl_shared_mem_update_msg(void)
 }
 
 // save the local view of the shared memory into the shared memory message
-void usfstl_shared_mem_prepare_msg(bool do_not_mark_dirty)
+void usfstl_shared_mem_prepare_msg(void)
 {
 	USFSTL_ASSERT(!(g_usfstl_multi_local_participant.flags &
 			USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED));
@@ -263,9 +265,6 @@ void usfstl_shared_mem_prepare_msg(bool do_not_mark_dirty)
 		for_each_participant(p, i)
 			p->flags |= USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 
-		// the controller skips marking as dirty, because it syncs each
-		// participant separately
-		if (!do_not_mark_dirty)
-			g_usfstl_shared_mem_dirty = true;
+		g_usfstl_shared_mem_dirty = true;
 	}
 }

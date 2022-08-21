@@ -67,7 +67,7 @@ static void usfstl_multi_sched_ext_wait_participant(struct usfstl_scheduler *sch
 	g_usfstl_multi_test_sched_continue = false;
 
 	// save the local view of the shared memory before waiting
-	usfstl_shared_mem_prepare_msg(false);
+	usfstl_shared_mem_prepare_msg();
 
 	// send the updated view of the shared memory (include the buffer
 	// only if it has changed)
@@ -221,7 +221,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      multi_rpc_sched_cont,
 		      struct usfstl_shared_mem_msg)
 {
-	usfstl_shared_mem_handle_msg(in, insize);
+	usfstl_shared_mem_handle_msg(in, insize, true);
 
 	g_usfstl_multi_test_sched_continue = true;
 

@@ -188,9 +188,9 @@ extern bool g_usfstl_shared_mem_dirty;
 
 unsigned int usfstl_shared_mem_get_msg_size(bool is_participant_outdated);
 void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
-				  unsigned int msg_size);
+				  unsigned int msg_size, bool do_not_mark_dirty);
 void usfstl_shared_mem_update_local_view(void);
-void usfstl_shared_mem_prepare_msg(bool do_not_mark_dirty);
+void usfstl_shared_mem_prepare_msg(void);
 
 extern char *g_usfstl_assert_coverage_file;
 void usfstl_log_reached_asserts(void);

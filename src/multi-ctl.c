@@ -189,7 +189,7 @@ static void usfstl_multi_controller_sched_callback(struct usfstl_job *job)
 	usfstl_multi_controller_update_sync_time(p);
 
 	// save the local view of the shared memory before waiting
-	usfstl_shared_mem_prepare_msg(true);
+	usfstl_shared_mem_prepare_msg();
 
 	// send the updated view of the shared memory (include the buffer
 	// only if it has changed)
@@ -229,7 +229,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 {
 	struct usfstl_multi_participant *p = conn->data;
 
-	usfstl_shared_mem_handle_msg(in, insize);
+	usfstl_shared_mem_handle_msg(in, insize, false);
 
 	// set the flag after handling the shared mem msg, so the handler
 	// knows which participant was running
