@@ -87,10 +87,14 @@ static const char *opstr(int op)
 	OP(RUN);
 	OP(FREE_UNTIL);
 	OP(GET_TOD);
+	OP(BROADCAST);
 	default:
 		return "unknown op";
 	}
 }
+
+static bool send_message(struct usfstl_schedule_client *client,
+			 uint32_t op, uint64_t time);
 
 static char *client_ts(struct usfstl_schedule_client *client)
 {
@@ -311,6 +315,27 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		scheduler.current_time = client->offset + msg.time;
 		client->n_update++;
 		break;
+	case UM_TIMETRAVEL_BROADCAST: {
+		struct usfstl_loop_entry *entry, *tmp;
+
+		DBG_CLIENT(3, client, "Got BROADCAST message %llx", msg.time);
+		/* we need to use safe due to change the list while waiting for ack */
+		usfstl_loop_for_each_entry_safe(entry, tmp) {
+			struct usfstl_schedule_client *other_client;
+			other_client = container_of(entry, struct usfstl_schedule_client, conn);
+
+			/* To be on the safe side only send to started clients */
+			if (other_client->state != USCS_STARTED)
+				continue;
+
+			/* Don't send the message to whom sent the message */
+			if (other_client == client)
+				continue;
+
+			send_message(other_client, UM_TIMETRAVEL_BROADCAST, msg.time);
+		}
+		break;
+	}
 	case UM_TIMETRAVEL_RUN:
 	case UM_TIMETRAVEL_FREE_UNTIL:
 		DBG_CLIENT(0, client, "invalid message %"PRIu32,

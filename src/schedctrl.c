@@ -51,6 +51,10 @@ static void usfstl_sched_ctrl_sock_read(int fd, void *data)
 		time = (msg.time - ctrl->offset) / ctrl->nsec_per_tick;
 		usfstl_sched_set_sync_time(ctrl->sched, time);
 		break;
+	case UM_TIMETRAVEL_BROADCAST:
+		if (ctrl->handle_bc_message)
+			ctrl->handle_bc_message(ctrl, msg.time);
+		break;
 	case UM_TIMETRAVEL_START:
 	case UM_TIMETRAVEL_REQUEST:
 	case UM_TIMETRAVEL_WAIT:
@@ -121,6 +125,13 @@ static void usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
 			usfstl_sched_set_time(ctrl->sched, time);
 		}
 	}
+}
+
+void usfstl_sched_ctrl_send_bc(struct usfstl_sched_ctrl *ctrl, uint64_t bc_message)
+{
+	USFSTL_ASSERT(ctrl->started, "Cannot send braodcast message until started");
+
+	usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_BROADCAST, bc_message);
 }
 
 static void usfstl_sched_ctrl_request(struct usfstl_scheduler *sched, uint64_t time)

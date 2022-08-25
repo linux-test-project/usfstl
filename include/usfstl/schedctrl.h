@@ -11,6 +11,11 @@
 #include "loop.h"
 #include "sched.h"
 
+/**
+ * struct usfstl_sched_ctrl - usfstl schedulure control structer
+ *
+ * @handle_bc_message: handler for receiving broadcast messages
+ */
 struct usfstl_sched_ctrl {
 	struct usfstl_scheduler *sched;
 	uint64_t ack_time;
@@ -19,6 +24,8 @@ struct usfstl_sched_ctrl {
 	int fd;
 	unsigned int waiting:1, acked:1, frozen:1, started:1;
 	uint32_t expected_ack_seq;
+
+	void (*handle_bc_message)(struct usfstl_sched_ctrl *, uint64_t bc_message);
 };
 
 void usfstl_sched_ctrl_start(struct usfstl_sched_ctrl *ctrl,
@@ -63,5 +70,13 @@ void usfstl_sched_ctrl_set_frozen(struct usfstl_sched_ctrl *ctrl, bool frozen);
  * time.
  */
 void usfstl_sched_ctrl_yield(struct usfstl_sched_ctrl *ctrl);
+
+/**
+ * usfstl_sched_ctrl_send_bc - send from scheduler a broadcast message
+ *
+ * @ctrl: scheduler control
+ * @bc_message: the broadcast message
+ */
+void usfstl_sched_ctrl_send_bc(struct usfstl_sched_ctrl *ctrl, uint64_t bc_message);
 
 #endif // _USFSTL_SCHEDCTRL_H_
