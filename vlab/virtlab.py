@@ -213,6 +213,7 @@ class Config:
     wmediumd_per: Union[None, str] = attr.ib(None)
     net_delay: Union[None, float] = attr.ib(None)
     nodes: List[Node] = attr.ib([])
+    start_time: int = 0
 
 class Failure(Exception):
     """
@@ -378,6 +379,9 @@ class VlabArguments:
             if net_delay is not None:
                 assert isinstance(net_delay, (int, float))
                 config.net_delay = float(net_delay)
+
+        if 'controller' in cfg:
+            config.start_time = cfg['controller'].get('start-time', 0)
 
         config.nodes = nodes
         self.config = config
@@ -667,7 +671,8 @@ poweroff -f
                 wmediumd_api_conns += pnode.wmediumd_api_connections
                 controller_conns += pnode.time_socket_connections
 
-        ctrl_args = [Paths.controller, f'--net={self.runtime.net}']
+        ctrl_args = [Paths.controller, f'--net={self.runtime.net}',
+                     f'--time-at-start={cfg.start_time}']
         if args.dbg:
             ctrl_args += [f'--debug=3', f'--flush']
 
