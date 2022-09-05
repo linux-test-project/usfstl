@@ -26,7 +26,7 @@ static int clients;
 static int expected_clients;
 USFSTL_SCHEDULER(scheduler);
 static struct usfstl_schedule_client *running_client;
-static unsigned long long wallclock_time_at_start;
+static uint64_t time_at_start;
 static int debug_level;
 static bool flush;
 static int nesting;
@@ -307,7 +307,7 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 	case UM_TIMETRAVEL_GET_TOD:
 		USFSTL_ASSERT(client->state == USCS_STARTED,
 			      "Client must not retrieve TOD while not started!");
-		val = wallclock_time_at_start + scheduler.current_time;
+		val = time_at_start + scheduler.current_time;
 		break;
 	case UM_TIMETRAVEL_UPDATE:
 		USFSTL_ASSERT(client == running_client,
@@ -554,6 +554,8 @@ USFSTL_OPT_FLAG("wallclock-network", 0, wallclock_network,
 "                 and # of clients, must kill the program by force in this mode.");
 USFSTL_OPT_INT("debug", 0, "level", debug_level, "debug level");
 USFSTL_OPT_FLAG("flush", 0, flush, "flush debug output after each line");
+USFSTL_OPT_U64("time-at-start", 0, "opt_time_at_start", time_at_start,
+	       "set the start time");
 
 static void next_time_changed(struct usfstl_scheduler *sched)
 {
@@ -562,7 +564,6 @@ static void next_time_changed(struct usfstl_scheduler *sched)
 
 int main(int argc, char **argv)
 {
-	struct timespec wallclock;
 	int ret = usfstl_parse_options(argc, argv);
 
 	if (ret)
@@ -575,9 +576,13 @@ int main(int argc, char **argv)
 	USFSTL_ASSERT(!wallclock_network || !expected_clients,
 		      "must not have --clients in wallclock network mode");
 
-	clock_gettime(CLOCK_REALTIME, &wallclock);
-	wallclock_time_at_start = wallclock.tv_nsec +
-				  wallclock.tv_sec * 1000*1000*1000;
+	if (!time_at_start) {
+		struct timespec wallclock;
+
+		clock_gettime(CLOCK_REALTIME, &wallclock);
+		time_at_start = wallclock.tv_nsec +
+				wallclock.tv_sec * 1000*1000*1000;
+	}
 
 	net_init();
 	if (path)
