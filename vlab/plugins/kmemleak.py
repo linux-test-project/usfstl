@@ -15,9 +15,10 @@ class KmemleakPlugin(virtlab.Plugin):
     def nodestop(self, runtime: virtlab.VlabRuntimeData) -> str:
         return '''
         test -f /sys/kernel/debug/kmemleak && (
-          echo scan > /sys/kernel/debug/kmemleak
+          # writing "scan" returns EPERM if kmemleak has been disabled
+          echo scan > /sys/kernel/debug/kmemleak 2> /dev/null || echo "kmemleak is disabled on $HOSTNAME"
           sleep 5 # minimum age for reporting in kmemleak
-          echo scan > /sys/kernel/debug/kmemleak
+          echo scan > /sys/kernel/debug/kmemleak 2> /dev/null
           cat /sys/kernel/debug/kmemleak > /dev/console
         )
         '''
