@@ -181,6 +181,7 @@ class Node:
     plugins: Dict[Type[Plugin], Optional[PluginNode]] = attr.ib(None)
     rootfs: Union[None, str] = attr.ib(None)
     baseid: int = attr.ib(0)
+    logdir: str = attr.ib(None)
 
     def set_name(self, value: str) -> None:
         """
@@ -504,14 +505,14 @@ class Vlab:
         """
         Start a UML node in the virtual lab.
         """
-        node_logdir = os.path.join(self.runtime.logdir, node.name)
-        os.mkdir(node_logdir)
+        node.logdir = os.path.join(self.runtime.logdir, node.name)
+        os.mkdir(node.logdir)
 
         # start plugins first - part of the API
         for pnode in node.plugins.values():
             if pnode is None:
                 continue
-            pnode.start(node, self, node_logdir)
+            pnode.start(node, self, node.logdir)
 
         vmroots = [f'{Paths.vlab}/vm-root']
         vmroots.extend(self.extraroots)
@@ -537,7 +538,7 @@ class Vlab:
                 continue
             args.extend(pnode.linux_cmdline(self.runtime))
 
-        outfile = os.path.join(node_logdir,
+        outfile = os.path.join(node.logdir,
                                f'dmesg') if logfile else None
         self.processes.append(start_process(args, outfile=outfile,
                                             interactive=interactive))
