@@ -505,7 +505,6 @@ class Vlab:
         """
         Start a UML node in the virtual lab.
         """
-        node.logdir = os.path.join(self.runtime.logdir, node.name)
         os.mkdir(node.logdir)
 
         # start plugins first - part of the API
@@ -585,6 +584,9 @@ class Vlab:
         nodes = cfg.nodes
 
         self.runtime.logdir = self.get_log_dir()
+        for node in nodes:
+            node.logdir = os.path.join(self.runtime.logdir, node.name)
+
         self.runtime.tmpdir = tmpdir
 
         self.runtime.startup = os.path.join(Paths.vlab, 'vm-root/tmp/startup.sh')
@@ -794,12 +796,10 @@ poweroff -f
             os.system('reset -I >/dev/null 2>&1 || true')
 
             for node in nodes:
-                node_logdir = os.path.join(self.runtime.logdir, node.name)
-
                 for pnode in node.plugins.values():
                     if pnode is None:
                         continue
-                    pnode.postrun(node, self, node_logdir)
+                    pnode.postrun(node, self, node.logdir)
 
         if not args.interactive:
             assert statusfile is not None
