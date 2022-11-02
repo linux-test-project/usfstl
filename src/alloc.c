@@ -1,70 +1,46 @@
 /*
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020, 2022 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Note this intentionally doesn't store any pointers inside the allocated
  * blocks, that way, ASAN continues to work for accidental "before pointer"
  * accesses.
- *
- * It's also a very dumb and slow implementation, in particular usfstl_free()
- * and usfstl_realloc() are very expensive.
  */
-#include <assert.h>
 #include <usfstl/alloc.h>
+#include <usfstl/uthash.h>
 #include "internal.h"
 
-#define USFSTL_INIT_ALLOCATIONS 1000
+struct alloc_elem {
+	void *key;
+	UT_hash_handle hh; /* makes this structure hashable */
+};
 
-static void **g_usfstl_allocations;
-static size_t g_n_usfstl_allocations;
-static size_t g_usfstl_allocations_next_idx;
+static struct alloc_elem *alloc_elems_head = NULL;
 
 static void usfstl_alloc_track(void *ptr)
 {
-	if (!g_n_usfstl_allocations) {
-		g_n_usfstl_allocations = USFSTL_INIT_ALLOCATIONS;
-		g_usfstl_allocations = calloc(sizeof(void *),
-					      g_n_usfstl_allocations);
-		assert(g_usfstl_allocations);
-	}
+	struct alloc_elem *elem = NULL;
 
-	while (g_usfstl_allocations_next_idx < g_n_usfstl_allocations &&
-	       g_usfstl_allocations[g_usfstl_allocations_next_idx])
-		g_usfstl_allocations_next_idx++;
-
-	if (g_usfstl_allocations_next_idx == g_n_usfstl_allocations) {
-		g_n_usfstl_allocations += USFSTL_INIT_ALLOCATIONS;
-		g_usfstl_allocations = realloc(g_usfstl_allocations,
-					       sizeof(void *) *
-					       g_n_usfstl_allocations);
-		assert(g_usfstl_allocations);
-		memset(g_usfstl_allocations +
-		       g_n_usfstl_allocations -
-		       USFSTL_INIT_ALLOCATIONS,
-		       0,
-		       sizeof(void *) * USFSTL_INIT_ALLOCATIONS);
-	}
-
-	g_usfstl_allocations[g_usfstl_allocations_next_idx] = ptr;
+	elem = (void *)calloc(1, sizeof(*elem));
+	USFSTL_ASSERT(elem != NULL,
+		      "Failed to allocate memory to alloc structure");
+	elem->key = ptr;
+	HASH_ADD_PTR(alloc_elems_head, key, elem);
 }
 
 static void usfstl_alloc_remove(void *ptr)
 {
-	size_t i;
+	struct alloc_elem *elem;
 
 	if (!ptr)
 		return;
 
-	for (i = 0; i < g_n_usfstl_allocations; i++) {
-		if (g_usfstl_allocations[i] == ptr) {
-			g_usfstl_allocations[i] = NULL;
-			if (i < g_usfstl_allocations_next_idx)
-				g_usfstl_allocations_next_idx = i;
-			return;
-		}
-	}
-	USFSTL_ASSERT(0, "didn't find the pointer to remove (freeing a non-usfstl-alloc'ed pointer?)");
+	HASH_FIND_PTR(alloc_elems_head, &ptr, elem);
+	USFSTL_ASSERT(elem && elem->key == ptr,
+		      "didn't find the pointer to remove (freeing a non-usfstl-alloc'ed pointer)");
+	HASH_DELETE(hh, alloc_elems_head, elem);
+	free(elem);
 }
 
 void *usfstl_malloc(size_t size)
@@ -134,16 +110,12 @@ void usfstl_free(void *ptr)
 
 void usfstl_free_all(void)
 {
-	size_t i;
+	struct alloc_elem *elem, *tmp;
 
-	if (!g_usfstl_allocations)
-		return;
-
-	for (i = 0; i < g_n_usfstl_allocations; i++)
-		free(g_usfstl_allocations[i]);
-
-	free(g_usfstl_allocations);
-	g_usfstl_allocations = NULL;
-	g_n_usfstl_allocations = 0;
-	g_usfstl_allocations_next_idx = 0;
+	HASH_ITER(hh, alloc_elems_head, elem, tmp) {
+		HASH_DEL(alloc_elems_head, elem);
+		free(elem->key);
+		free(elem);
+	}
+	HASH_CLEAR(hh, alloc_elems_head);
 }
