@@ -109,6 +109,7 @@ fi
 
 export HOME=/root/
 export TMPDIR=$tmpdir
+export HOSTNAME=$hostname
 
 touch /var/log/syslog
 ( while true ; do socat unix-listen:/dev/log file:/var/log/syslog ; done) &
