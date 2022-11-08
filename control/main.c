@@ -221,6 +221,10 @@ static bool write_message(struct usfstl_schedule_client *client,
 	};
 	int ret;
 
+	/* if it's already being freed, don't try to send */
+	if (client->job.callback == free_client)
+		return false;
+
 	DBG_TX(2, client, &msg);
 	ret = write(client->conn.fd, &msg, sizeof(msg));
 
