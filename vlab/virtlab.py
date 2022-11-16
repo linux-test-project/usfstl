@@ -313,6 +313,7 @@ class VlabArguments:
     command: Union[List[str], None] = None
     plugins: List[Plugin] = []
     config: Config
+    sigquit_on_timeout: bool = False
 
     def __init__(self) -> None:
         self.machineid = 1
@@ -415,6 +416,9 @@ class VlabArguments:
         parser.add_argument('--dbg', action='store_const', const=True,
                             default=cls.dbg,
                             help="stop and allow gdb (disables timeout)")
+        parser.add_argument('--sigquit-on-timeout', action='store_const', const=True,
+                            default=cls.sigquit_on_timeout,
+                            help="Send SIGQUIT on timeout to get core dumps")
         parser.add_argument(type=str, dest='command', nargs='*', metavar='cmd/arg',
                             help=f"command (with arguments) to run inside the vLab")
         data = parser.parse_args(args)
@@ -428,6 +432,7 @@ class VlabArguments:
         new.dbg = data.dbg
         new.command = data.command
         new.nodes = data.nodes
+        new.sigquit_on_timeout = data.sigquit_on_timeout
 
         if new.interactive:
             if new.command:
@@ -698,6 +703,8 @@ poweroff -f
                                                              'controller.log'))
         self.killprocesses.append(control_process)
 
+        timedout = False
+
         try:
             wait_for_socket("clock controller", self.runtime.clock)
             wait_for_socket("ethernet", self.runtime.net)
@@ -778,6 +785,7 @@ poweroff -f
                     first = False
                 except subprocess.TimeoutExpired:
                     if first:
+                        timedout = True
                         raise Failure(f"Timeout of {args.timeout} seconds expired!")
                     name = str(process.args[0])
                     if args.interactive:
@@ -790,9 +798,13 @@ poweroff -f
                         raise Failure(f"Processes didn't exit cleanly")
         finally:
             for process in itertools.chain(self.killprocesses, self.processes):
+                # Check If the process is still alive to get any signals
                 if process.poll() is None:
                     pgrp = os.getpgid(process.pid)
-                    os.killpg(pgrp, signal.SIGKILL)
+                    sig_send = signal.SIGKILL
+                    if timedout and args.sigquit_on_timeout:
+                        sig_send = signal.SIGQUIT
+                    os.killpg(pgrp, sig_send)
             os.system('reset -I >/dev/null 2>&1 || true')
 
             for node in nodes:

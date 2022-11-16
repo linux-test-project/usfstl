@@ -72,6 +72,7 @@ struct usfstl_schedule_client {
 	uint32_t start_seq;
 	int nest;
 	char name[40];
+	uint64_t pid;
 };
 
 static const char *opstr(int op)
@@ -541,10 +542,12 @@ static void handle_new_connection(int fd, void *data)
 	client->waiting_for = -1;
 
 	ret = getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_sz);
-	if (ret == 0)
+	if (ret == 0) {
+		client->pid = ucred.pid;
 		DBG_CLIENT(0, client, "connected (pid=%d)", ucred.pid);
-	else
+	} else {
 		DBG_CLIENT(0, client, "connected");
+	}
 }
 
 static char *path;
