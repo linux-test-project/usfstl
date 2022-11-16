@@ -58,7 +58,7 @@ run_vlab()
 		mv $tee_file logs/current/m1/
 	fi
 
-	if grep -E 'WARN|BUG|UBSAN|^unreferenced object' "$check_logs"/*/dmesg ; then
+	if grep -E 'WARNING:|BUG:|UBSAN:|^unreferenced object' "$check_logs"/*/dmesg ; then
 		exit 2
 	fi
 }
