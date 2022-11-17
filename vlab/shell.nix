@@ -18,7 +18,7 @@ multiStdenv.mkDerivation {
         python3Packages.attrs python3Packages.pyyaml
 
         # inside of the VMs
-        mount cpio ncurses iproute socat openssh busybox
+        rsyslog-light mount cpio ncurses iproute socat openssh busybox
 
         # wmediumd
         libnl pkg-config libconfig

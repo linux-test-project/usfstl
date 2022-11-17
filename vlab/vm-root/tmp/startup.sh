@@ -111,8 +111,15 @@ export HOME=/root/
 export TMPDIR=$tmpdir
 export HOSTNAME=$hostname
 
-touch /var/log/syslog
-( while true ; do socat unix-listen:/dev/log file:/var/log/syslog ; done) &
+cat > /etc/rsyslog.conf << EOF
+\$umask 0000
+
+module (load="imkmsg")
+module (load="imuxsock")
+
+*.*     /var/log/syslog
+EOF
+rsyslogd
 
 which modprobe > /proc/sys/kernel/modprobe
 
