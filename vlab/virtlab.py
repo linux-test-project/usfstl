@@ -220,6 +220,13 @@ class Failure(Exception):
     """
     Represents a failure in vLab
     """
+    retcode = 2
+
+class TimeoutFailure(Failure):
+    """
+    Represents a Timeout failure in vlab
+    """
+    retcode = 3
 
 def load_plugins(path: str) -> List[Type[Plugin]]:
     """
@@ -786,7 +793,7 @@ poweroff -f
                 except subprocess.TimeoutExpired:
                     if first:
                         timedout = True
-                        raise Failure(f"Timeout of {args.timeout} seconds expired!")
+                        raise TimeoutFailure(f"Timeout of {args.timeout} seconds expired!")
                     name = str(process.args[0])
                     if args.interactive:
                         # just in case ... for Ctrl-C
@@ -830,4 +837,4 @@ if __name__ == '__main__':
         Vlab(VlabArguments.parse(plugins=load_plugins(Paths.plugins))).run()
     except Failure as failure:
         print(f"{failure}")
-        sys.exit(2)
+        sys.exit(failure.retcode)
