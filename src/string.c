@@ -13,6 +13,7 @@
  * strlen() on it first. Open-coding it really gets us the
  * short-circuiting behaviour it should have.
  */
+__attribute__((no_sanitize_address))
 int _usfstl_no_asan_strcmp(const char *_s1, const char *_s2)
 {
 	const unsigned char *s1 = (void *)_s1;
@@ -26,6 +27,7 @@ int _usfstl_no_asan_strcmp(const char *_s1, const char *_s2)
 int (*usfstl_no_asan_strcmp)(const char *s1, const char *s2) =
 	_usfstl_no_asan_strcmp;
 
+__attribute__((no_sanitize_address))
 void *_usfstl_no_asan_memcpy(void *dest, const void *src, size_t n)
 {
 	size_t i;
