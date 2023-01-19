@@ -296,8 +296,10 @@ USFSTL_TEST_CC_OPT += -g -gdwarf-2 -mno-ms-bitfields -DUSFSTL_TEST_NAME=$(USFSTL
 ifeq ($(filter -m32,$(USFSTL_CC_OPT)),-m32)
 USFSTL_CC_OPT += -fno-pic
 _USFSTL_GLOBAL_PACK = LL
+_USFSTL_GLOBAL_PTR_SIZE = 8
 else
 _USFSTL_GLOBAL_PACK = QQ
+_USFSTL_GLOBAL_PTR_SIZE = 16
 endif
 
 COMMA := ,
@@ -458,7 +460,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).globals: $(USFSTL_TEST_BIN_PATH
 	$(eval DATA_RO_ADDR:= $(word 2, $(DATA_RO_PARAMS)))
 	$(eval DATA_RO_SIZE:= $(word 1, $(DATA_RO_PARAMS)))
 	$(eval DATA_RO_END:= $(shell echo $$((0x$(DATA_RO_ADDR) + 0x$(DATA_RO_SIZE)))))
-	$(eval DATA_RO_END_HEX:= $(shell printf '%08x' $(DATA_RO_END)))
+	$(eval DATA_RO_END_HEX:= $(shell printf '%0$(_USFSTL_GLOBAL_PTR_SIZE)x' $(DATA_RO_END)))
 	$(S)nm -S --size-sort $< | sort | \
 		awk '{if ("$(DATA_RO_ADDR)" == "" || "$(DATA_RO_END_HEX)" == "" || $$1 < "$(DATA_RO_ADDR)" || $$1 >= "$(DATA_RO_END_HEX)") print}' | \
 		grep -E -v " . (__(llvm_)?gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir|qsort)|_Z.*__(sanitizer|interception)|replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed)" | \
