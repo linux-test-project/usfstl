@@ -44,6 +44,16 @@ struct um_timetravel_msg {
 #define UM_TIMETRAVEL_MAX_FDS 2
 
 /**
+ * enum um_timetravel_start_ack - ack-time mask for start message
+ */
+enum um_timetravel_start_ack {
+	/**
+	 * @UM_TIMETRAVEL_START_ACK_ID: client ID that controller allocated.
+	 */
+	UM_TIMETRAVEL_START_ACK_ID = 0xffff,
+};
+
+/**
  * enum um_timetravel_ops - Operation codes
  */
 enum um_timetravel_ops {

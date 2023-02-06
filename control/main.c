@@ -22,7 +22,8 @@
 #include <sys/socket.h>
 #include "main.h"
 
-static int clients;
+static uint64_t clients;
+#define CTRL_CLIENT_BIT(client_id) (1ULL << ((client_id) - 1))
 static int expected_clients;
 USFSTL_SCHEDULER(scheduler);
 static struct usfstl_schedule_client *running_client;
@@ -72,6 +73,7 @@ struct usfstl_schedule_client {
 	uint32_t start_seq;
 	int nest;
 	char name[40];
+	uint8_t id;
 	uint64_t pid;
 };
 
@@ -183,7 +185,7 @@ static void remove_client(struct usfstl_schedule_client *client)
 	usfstl_loop_unregister(&client->conn);
 	close(client->conn.fd);
 	if (client->state == USCS_STARTED)
-		clients--;
+		clients &= ~CTRL_CLIENT_BIT(client->id);
 	DBG_CLIENT(0, client,
 		   "removed (req: %"PRIu64", wait: %"PRIu64", update: %"PRIu64")",
 		   client->n_req, client->n_wait, client->n_update);
@@ -502,10 +504,16 @@ static void update_sync(struct usfstl_schedule_client *client)
 static void process_starting_client(struct usfstl_schedule_client *client)
 {
 	client->offset = scheduler.current_time;
-	write_message(client, UM_TIMETRAVEL_ACK, client->start_seq, 0);
 	client->state = USCS_STARTED;
+	client->id = __builtin_ffsll(~clients);
+	/* If you hit this assert and have the need for move than 64
+	 * clients, it can be handled by an array of clients bits.
+	 */
+	USFSTL_ASSERT(client->id, "Got to max clients we can handle");
+	clients |= CTRL_CLIENT_BIT(client->id);
+	write_message(client, UM_TIMETRAVEL_ACK, client->start_seq,
+		      client->id & UM_TIMETRAVEL_START_ACK_ID);
 	wait_for(client, UM_TIMETRAVEL_WAIT);
-	clients++;
 }
 
 static void process_starting_clients(void)
@@ -639,12 +647,12 @@ int main(int argc, char **argv)
 
 	DBG(0, "waiting for %d clients", expected_clients);
 
-	while (clients < expected_clients) {
+	while (__builtin_popcountll(clients) < expected_clients) {
 		usfstl_loop_wait_and_handle();
 		process_starting_clients();
 	}
 
-	DBG(0, "have %d clients now", clients);
+	DBG(0, "have %d clients now", __builtin_popcountll(clients));
 
 	while (wallclock_network) {
 		usfstl_sched_wallclock_wait_and_handle(&scheduler);
@@ -656,7 +664,7 @@ int main(int argc, char **argv)
 		process_starting_clients();
 	}
 
-	while (clients > 0 && usfstl_sched_next_pending(&scheduler, NULL)) {
+	while (clients && usfstl_sched_next_pending(&scheduler, NULL)) {
 		dump_sched("schedule");
 		usfstl_sched_next(&scheduler);
 		process_starting_clients();
