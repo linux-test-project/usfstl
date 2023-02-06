@@ -40,6 +40,9 @@ struct um_timetravel_msg {
 	__u64 time;
 };
 
+/* max number of file descriptors that can be sent/received in a message */
+#define UM_TIMETRAVEL_MAX_FDS 2
+
 /**
  * enum um_timetravel_ops - Operation codes
  */

@@ -212,8 +212,9 @@ static void remove_client(struct usfstl_schedule_client *client)
 	usfstl_sched_add_job(&scheduler, &client->job);
 }
 
-static bool write_message(struct usfstl_schedule_client *client,
-			  uint32_t op, uint32_t seq, uint64_t time)
+static bool write_message_fds(struct usfstl_schedule_client *client,
+			      uint32_t op, uint32_t seq, uint64_t time,
+			      const int *fds, unsigned int fds_num)
 {
 	struct um_timetravel_msg msg = {
 		.op = op,
@@ -221,20 +222,54 @@ static bool write_message(struct usfstl_schedule_client *client,
 		.seq = seq,
 	};
 	int ret;
+	struct iovec iov = {
+		.iov_base = &msg,
+		.iov_len = sizeof(msg),
+	};
+	union {
+		char control[CMSG_SPACE(sizeof(*fds) * UM_TIMETRAVEL_MAX_FDS)];
+		struct cmsghdr align;
+	} ctrl = {};
+	struct msghdr msgh = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+	};
 
 	/* if it's already being freed, don't try to send */
 	if (client->job.callback == free_client)
 		return false;
 
 	DBG_TX(2, client, &msg);
-	ret = write(client->conn.fd, &msg, sizeof(msg));
+	if (fds_num) {
+		unsigned int fds_size = sizeof(*fds) * fds_num;
+		struct cmsghdr *cmsg;
 
-	if (ret < 0) {
+		USFSTL_ASSERT(fds_num <= UM_TIMETRAVEL_MAX_FDS,
+			      "fds:%d > UM_TIMETRAVEL_MAX_FDS", fds_num);
+
+		msgh.msg_control = ctrl.control;
+		msgh.msg_controllen = CMSG_SPACE(fds_size);
+		cmsg = CMSG_FIRSTHDR(&msgh);
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+		cmsg->cmsg_len = CMSG_LEN(fds_size);
+		memcpy(CMSG_DATA(cmsg), fds, fds_size);
+	}
+
+	ret = sendmsg(client->conn.fd, &msgh, 0);
+
+	if (ret != sizeof(msg)) {
 		remove_client(client);
 		return false;
 	}
 	USFSTL_ASSERT_EQ(ret, (int)sizeof(msg), "%d");
 	return true;
+}
+
+static bool write_message(struct usfstl_schedule_client *client,
+			  uint32_t op, uint32_t seq, uint64_t time)
+{
+	return write_message_fds(client, op, seq, time, NULL, 0);
 }
 
 static uint32_t _handle_message(struct usfstl_schedule_client *client)
