@@ -75,7 +75,8 @@ struct usfstl_job {
  *	must call usfstl_sched_set_time() before returning from this
  *	function.
  * @external_sync_from: For external scheduler integration, return current
- *	time based on external time info.
+ *	time based on external time info, note: this function once set
+ *	is called all the time so set it only for in process operation.
  * @time_advanced: Set this to have logging (or similar) when time
  *	advances. Note that the argument is relative to the previous
  *	time, if you need the current absolute time use

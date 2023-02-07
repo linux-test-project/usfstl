@@ -115,7 +115,7 @@ static void usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
 		if (ctrl->frozen) {
 			uint64_t local;
 
-			local = ctrl->sched->current_time * ctrl->nsec_per_tick;
+			local = usfstl_sched_current_time(ctrl->sched) * ctrl->nsec_per_tick;
 			ctrl->offset = ctrl->ack_time - local;
 		} else {
 			uint64_t time;
@@ -183,7 +183,7 @@ void usfstl_sched_ctrl_start(struct usfstl_sched_ctrl *ctrl,
 	 * The remote side assumes we start at 0, so if we don't have 0 right
 	 * now keep the difference in our own offset (in nsec).
 	 */
-	ctrl->offset = -sched->current_time * nsec_per_tick;
+	ctrl->offset = -usfstl_sched_current_time(sched) * nsec_per_tick;
 
 	ctrl->nsec_per_tick = nsec_per_tick;
 	ctrl->sched = sched;

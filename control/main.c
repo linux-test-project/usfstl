@@ -110,7 +110,7 @@ static char *client_ts(struct usfstl_schedule_client *client)
 		return "=";
 
 	sprintf(buf, "%"PRIu64,
-		(uint64_t)scheduler.current_time - (client)->offset);
+		(uint64_t)usfstl_sched_current_time(&scheduler) - (client)->offset);
 
 	return buf;
 }
@@ -119,7 +119,7 @@ static char *client_ts(struct usfstl_schedule_client *client)
 	 if (lvl <= debug_level) {					\
 		printf("[%*d][%*" PRIu64 "]" fmt "\n",			\
 		       2, nesting,					\
-		       12, (uint64_t)scheduler.current_time,		\
+		       12, (uint64_t)usfstl_sched_current_time(&scheduler),\
 		       ##__VA_ARGS__);					\
 		if (flush)						\
 			fflush(stdout);					\
@@ -205,7 +205,7 @@ static void remove_client(struct usfstl_schedule_client *client)
 	if (job)
 		client->job.start = job->start;
 	else
-		client->job.start = scheduler.current_time;
+		client->job.start = usfstl_sched_current_time(&scheduler);
 	client->job.callback = free_client;
 
 	if (running_client == client)
@@ -344,17 +344,17 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 	case UM_TIMETRAVEL_GET:
 		USFSTL_ASSERT(client->state == USCS_STARTED,
 			      "Client must not retrieve time while not started!");
-		val = scheduler.current_time - client->offset;
+		val = usfstl_sched_current_time(&scheduler) - client->offset;
 		break;
 	case UM_TIMETRAVEL_GET_TOD:
 		USFSTL_ASSERT(client->state == USCS_STARTED,
 			      "Client must not retrieve TOD while not started!");
-		val = time_at_start + scheduler.current_time;
+		val = time_at_start + usfstl_sched_current_time(&scheduler);
 		break;
 	case UM_TIMETRAVEL_UPDATE:
 		USFSTL_ASSERT(client == running_client,
 			      "Client must not update time while not running!");
-		scheduler.current_time = client->offset + msg.time;
+		usfstl_sched_set_time(&scheduler, client->offset + msg.time);
 		client->n_update++;
 		break;
 	case UM_TIMETRAVEL_BROADCAST: {
@@ -503,7 +503,7 @@ static void update_sync(struct usfstl_schedule_client *client)
 
 static void process_starting_client(struct usfstl_schedule_client *client)
 {
-	client->offset = scheduler.current_time;
+	client->offset = usfstl_sched_current_time(&scheduler);
 	client->state = USCS_STARTED;
 	client->id = __builtin_ffsll(~clients);
 	/* If you hit this assert and have the need for move than 64
@@ -559,7 +559,7 @@ static void run_client(struct usfstl_job *job)
 	update_sync(client);
 
 	if (send_message(client, UM_TIMETRAVEL_RUN,
-			 scheduler.current_time - client->offset))
+			 usfstl_sched_current_time(&scheduler) - client->offset))
 		wait_for(client, UM_TIMETRAVEL_WAIT);
 }
 

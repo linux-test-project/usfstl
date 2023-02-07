@@ -73,7 +73,7 @@ static void vu_net_client_handle(struct usfstl_vhost_user_dev *dev,
 	iov_read(pkt->buf, sz, buf->out_sg, buf->n_out_sg);
 
 	if (pktdelay) {
-		pkt->job.start = scheduler.current_time + pktdelay;
+		pkt->job.start = usfstl_sched_current_time(&scheduler) + pktdelay;
 		pkt->job.callback = packet_job_callback;
 		sprintf(pkt->name, "packet from %d", client->idx);
 		pkt->job.name = pkt->name;

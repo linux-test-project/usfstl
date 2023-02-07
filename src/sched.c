@@ -12,26 +12,9 @@
 
 uint64_t usfstl_sched_current_time(struct usfstl_scheduler *sched)
 {
-	uint64_t current_time;
-
-	if (!sched->external_sync_from || !sched->waiting)
-		return sched->current_time;
-
-	current_time = sched->external_sync_from(sched);
-
-	/*
-	 * This is valid ... We could have had a next_external_sync
-	 * set and actually used it, so if our parent scheduler is
-	 * still in our past then don't sync backwards and rely on
-	 * whatever mechanism syncs it to do that when appropriate.
-	 */
-	if (usfstl_time_cmp(current_time, <, sched->current_time))
-		return sched->current_time;
-
-	/* update current time after sync */
-	usfstl_sched_set_time(sched, current_time);
-
-	return current_time;
+	if (sched->external_sync_from)
+		return sched->external_sync_from(sched);
+	return sched->current_time;
 }
 
 static bool usfstl_sched_external_request(struct usfstl_scheduler *sched,
@@ -80,7 +63,7 @@ void usfstl_sched_add_job(struct usfstl_scheduler *sched, struct usfstl_job *job
 {
 	struct usfstl_job *tmp;
 
-	USFSTL_ASSERT_TIME_CMP(sched, job->start, >=, sched->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, job->start, >=, usfstl_sched_current_time(sched));
 	USFSTL_ASSERT(!usfstl_job_scheduled(job),
 		      "%s: cannot add a job that's already scheduled",
 		      sched->name);
@@ -143,18 +126,25 @@ void usfstl_sched_del_job(struct usfstl_job *job)
 void _usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
 {
 	uint64_t delta;
+	uint64_t current_time;
 
-	if (sched->current_time == time)
+	if (sched->external_sync_from) {
+		current_time = usfstl_sched_current_time(sched);
+		USFSTL_ASSERT_TIME_CMP(sched, time, ==, current_time);
+	} else {
+		// check that we at least don't move backwards
+		USFSTL_ASSERT_TIME_CMP(sched, time, >=, sched->current_time);
+		sched->current_time = time;
+		current_time = time;
+	}
+
+	if (current_time == time)
 		return;
 
-	// check that we at least don't move backwards
-	USFSTL_ASSERT_TIME_CMP(sched, time, >=, sched->current_time);
-
-	delta = time - sched->current_time;
-	sched->current_time = time;
-
-	if (sched->time_advanced)
+	if (sched->time_advanced) {
+		delta = time - current_time;
 		sched->time_advanced(sched, delta);
+	}
 }
 
 void usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
@@ -176,7 +166,7 @@ void usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
 
 static void usfstl_sched_forward(struct usfstl_scheduler *sched, uint64_t until)
 {
-	USFSTL_ASSERT_TIME_CMP(sched, until, >=, sched->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, until, >=, usfstl_sched_current_time(sched));
 
 	if (usfstl_sched_external_request(sched, until)) {
 		usfstl_sched_external_wait(sched);
@@ -193,7 +183,7 @@ static void usfstl_sched_forward(struct usfstl_scheduler *sched, uint64_t until)
 
 void usfstl_sched_start(struct usfstl_scheduler *sched)
 {
-	if (usfstl_sched_external_request(sched, sched->current_time))
+	if (usfstl_sched_external_request(sched, usfstl_sched_current_time(sched)))
 		usfstl_sched_external_wait(sched);
 }
 
@@ -238,7 +228,7 @@ struct usfstl_job *usfstl_sched_next(struct usfstl_scheduler *sched)
 		 * some sort of external job happened while we thought
 		 * there was nothing to do.
 		 */
-		if (usfstl_time_cmp(job->start, >, sched->current_time))
+		if (usfstl_time_cmp(job->start, >, usfstl_sched_current_time(sched)))
 			usfstl_sched_forward(sched, job->start);
 
 		/*
@@ -273,7 +263,7 @@ struct usfstl_job *usfstl_sched_next(struct usfstl_scheduler *sched)
 
 void usfstl_sched_set_sync_time(struct usfstl_scheduler *sched, uint64_t time)
 {
-	USFSTL_ASSERT_TIME_CMP(sched, time, >=, sched->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, time, >=, usfstl_sched_current_time(sched));
 	sched->next_external_sync = time;
 	sched->next_external_sync_set = 1;
 }
@@ -309,8 +299,8 @@ static void usfstl_sched_restore_job(struct usfstl_scheduler *sched,
 				     struct usfstl_job *job)
 {
 	usfstl_sched_del_job(job);
-	if (usfstl_time_cmp(job->start, <, sched->current_time))
-		job->start = sched->current_time;
+	if (usfstl_time_cmp(job->start, <, usfstl_sched_current_time(sched)))
+		job->start = usfstl_sched_current_time(sched);
 	usfstl_sched_add_job(sched, job);
 }
 
@@ -470,7 +460,7 @@ void usfstl_sched_link(struct usfstl_scheduler *sched,
 	sched->link.job.name = sched->name;
 
 	/* current_time = (parent_time - offset) / tick_ratio */
-	sched->link.offset = sched->link.parent->current_time -
+	sched->link.offset = usfstl_sched_current_time(sched->link.parent) -
 		sched->current_time * sched->link.tick_ratio;
 
 	/* if we have a job already, request to run it */
@@ -482,6 +472,9 @@ void usfstl_sched_link(struct usfstl_scheduler *sched,
 void usfstl_sched_unlink(struct usfstl_scheduler *sched)
 {
 	USFSTL_ASSERT(sched->link.parent, "must be linked");
+
+	/* before taking back control over time set time from parent */
+	sched->current_time = usfstl_sched_current_time(sched);
 
 	sched->external_sync_from = NULL;
 	sched->external_wait = NULL;
