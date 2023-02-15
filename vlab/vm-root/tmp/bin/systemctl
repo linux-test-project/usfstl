@@ -1,0 +1,18 @@
+#!/bin/bash
+
+function set_power_state() {
+	echo -n $1 > /sys/power/state
+}
+
+case "$1" in
+	"suspend")
+		set_power_state mem
+		;;
+	"hibernate")
+		set_power_state disk
+		;;
+	*)
+		echo fake systemctl has no support for $1
+		exit 1
+		;;
+esac
