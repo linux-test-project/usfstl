@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <usfstl/sched.h>
 #include <usfstl/loop.h>
 #include <usfstl/opt.h>
@@ -23,7 +24,9 @@
 #include "main.h"
 
 static uint64_t clients;
+#define CTRL_CLIENT_ID 0
 #define CTRL_CLIENT_BIT(client_id) (1ULL << ((client_id) - 1))
+#define CTRL_SCHEDSHM_MAX_CLIENTS (sizeof(clients) * 8)
 static int expected_clients;
 USFSTL_SCHEDULER(scheduler);
 static struct usfstl_schedule_client *running_client;
@@ -31,6 +34,8 @@ static uint64_t time_at_start;
 static int debug_level;
 static int nesting;
 static int process_start;
+static struct um_timetravel_schedshm *g_schedshm_mem;
+static int g_schedshm_fd_mem = -1;
 static bool started_scheduling;
 
 #define CLIENT_FMT "%s"
@@ -73,6 +78,7 @@ struct usfstl_schedule_client {
 	uint32_t start_seq;
 	int nest;
 	char name[40];
+	uint64_t shm_name;
 	uint8_t id;
 	uint64_t pid;
 };
@@ -272,6 +278,30 @@ static bool write_message(struct usfstl_schedule_client *client,
 	return write_message_fds(client, op, seq, time, NULL, 0);
 }
 
+static bool _schedshm_client_has_shm(uint16_t client_id)
+{
+	return (g_schedshm_mem->clients[client_id].capa &
+		UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE);
+}
+
+static void _schedshm_client_req_time(struct usfstl_schedule_client *client)
+{
+	uint16_t client_id = client->id;
+	union um_timetravel_schedshm_client *shm_client;
+
+	if (!_schedshm_client_has_shm(client_id))
+		return;
+
+	shm_client = &g_schedshm_mem->clients[client_id];
+	if (!(shm_client->flags & UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN))
+		return;
+
+	usfstl_sched_del_job(&client->job);
+	client->job.start = shm_client->req_time;
+	usfstl_sched_add_job(&scheduler, &client->job);
+	client->n_req++;
+}
+
 static uint32_t _handle_message(struct usfstl_schedule_client *client)
 {
 	struct um_timetravel_msg msg;
@@ -291,6 +321,7 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		DBG_CLIENT(2, client, "now known as id:%" PRIx64,
 			   (uint64_t)msg.time);
 		sprintf(client->name, "id:%" PRIx64, (uint64_t)msg.time);
+		client->shm_name = msg.time;
 	}
 
 	if (client->waiting_for == msg.op)
@@ -337,6 +368,14 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 			USFSTL_ASSERT_EQ(running_client, client,
 					 CLIENT_FMT, CLIENT_ARG);
 			running_client = NULL;
+		}
+		/* In shared memory mode we don't wait send ack on wait message
+		 * as required by linux/um_timetravel.h
+		 */
+		if (_schedshm_client_has_shm(client->id)) {
+			/* check for client request time and resched */
+			_schedshm_client_req_time(client);
+			return UM_TIMETRAVEL_WAIT;
 		}
 		break;
 	case UM_TIMETRAVEL_GET:
@@ -463,7 +502,11 @@ static bool send_message(struct usfstl_schedule_client *client,
 	client->nest++;
 	if (!write_message(client, op, seq, time))
 		return false;
-	wait_for(client, UM_TIMETRAVEL_ACK);
+	/* In shared memory mode we don't wait for ack on run as required by
+	 * linux/um_timetravel.h
+	 */
+	if (op != UM_TIMETRAVEL_RUN || !_schedshm_client_has_shm(client->id))
+		wait_for(client, UM_TIMETRAVEL_ACK);
 	client->nest--;
 	return true;
 }
@@ -481,7 +524,13 @@ static void update_sync(struct usfstl_schedule_client *client)
 	if (!started_scheduling)
 		return;
 
+	g_schedshm_mem->free_until = sync;
+
 	if (!client)
+		return;
+
+	/* client can read directly the free_until value */
+	if (_schedshm_client_has_shm(client->id))
 		return;
 
 	// If we synced it to exactly the same time before, don't do it again.
@@ -504,6 +553,12 @@ static void update_sync(struct usfstl_schedule_client *client)
 
 static void process_starting_client(struct usfstl_schedule_client *client)
 {
+	union um_timetravel_schedshm_client *mem_client;
+	int schedshm_fds[UM_TIMETRAVEL_SHARED_MAX_FDS] = {
+		[UM_TIMETRAVEL_SHARED_MEMFD] = g_schedshm_fd_mem,
+		[UM_TIMETRAVEL_SHARED_LOGFD] = fileno(stdout),
+	};
+
 	client->offset = usfstl_sched_current_time(&scheduler);
 	client->state = USCS_STARTED;
 	client->id = __builtin_ffsll(~clients);
@@ -511,9 +566,16 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 	 * clients, it can be handled by an array of clients bits.
 	 */
 	USFSTL_ASSERT(client->id, "Got to max clients we can handle");
+	mem_client = &g_schedshm_mem->clients[client->id];
+	mem_client->name = client->shm_name;
 	clients |= CTRL_CLIENT_BIT(client->id);
-	write_message(client, UM_TIMETRAVEL_ACK, client->start_seq,
-		      client->id & UM_TIMETRAVEL_START_ACK_ID);
+
+	// assert that the ID can be sent as part of the message
+	USFSTL_ASSERT_EQ((uint64_t)client->id & ~UM_TIMETRAVEL_START_ACK_ID,
+			 (uint64_t)0, "%" PRIu64);
+	write_message_fds(client, UM_TIMETRAVEL_ACK, client->start_seq,
+			  client->id & UM_TIMETRAVEL_START_ACK_ID,
+			  schedshm_fds, UM_TIMETRAVEL_SHARED_MAX_FDS);
 	wait_for(client, UM_TIMETRAVEL_WAIT);
 }
 
@@ -549,6 +611,15 @@ static void process_starting_clients(void)
 	}
 }
 
+static void _schedshm_set_running_client(uint16_t client_id)
+{
+	if (_schedshm_client_has_shm(client_id))
+		g_schedshm_mem->running_id = client_id;
+	else
+		/* controller runs on behalf of the client */
+		g_schedshm_mem->running_id = CTRL_CLIENT_ID;
+}
+
 static void run_client(struct usfstl_job *job)
 {
 	struct usfstl_schedule_client *client;
@@ -559,9 +630,11 @@ static void run_client(struct usfstl_job *job)
 
 	update_sync(client);
 
+	_schedshm_set_running_client(client->id);
 	if (send_message(client, UM_TIMETRAVEL_RUN,
 			 usfstl_sched_current_time(&scheduler) - client->offset))
 		wait_for(client, UM_TIMETRAVEL_WAIT);
+	_schedshm_set_running_client(CTRL_CLIENT_ID);
 }
 
 static void handle_new_connection(int fd, void *data)
@@ -592,6 +665,57 @@ static void handle_new_connection(int fd, void *data)
 	} else {
 		DBG_CLIENT(0, client, "connected");
 	}
+}
+
+static void _schedshm_set_time(struct usfstl_scheduler *sched, uint64_t time)
+{
+	/* make sure we are in time control now */
+	USFSTL_ASSERT_EQ(g_schedshm_mem->running_id, CTRL_CLIENT_ID, "%" PRIu16);
+	/* control time is always equal shared time */
+	g_schedshm_mem->current_time = time;
+}
+
+static uint64_t _schedshm_get_time(struct usfstl_scheduler *sched)
+{
+	/* control time is always equal shared time */
+	return g_schedshm_mem->current_time;
+}
+
+static void _schedshm_create_mem_file(void)
+{
+	const char *name = "schedshm";
+	const int mem_size = sizeof(*g_schedshm_mem) +
+		sizeof(*g_schedshm_mem->clients) * CTRL_SCHEDSHM_MAX_CLIENTS;
+
+	/* make sure this is called only once */
+	USFSTL_ASSERT_EQ(g_schedshm_fd_mem, -1, "%d");
+	USFSTL_ASSERT_EQ(g_schedshm_mem, NULL, "%p");
+
+	g_schedshm_fd_mem = memfd_create(name, MFD_ALLOW_SEALING);
+	USFSTL_ASSERT(g_schedshm_fd_mem >= 0, "failed to create memfd %s\n", name);
+
+	/* Inc the file size to requested len */
+	USFSTL_ASSERT_EQ(ftruncate(g_schedshm_fd_mem, mem_size), 0, "%d");
+
+	/* Seal the file for any grow/shrink changes */
+	USFSTL_ASSERT_EQ(fcntl(g_schedshm_fd_mem, F_ADD_SEALS, F_SEAL_GROW | F_SEAL_SHRINK),
+			 0, "%d");
+	g_schedshm_mem = mmap(NULL, mem_size, PROT_READ | PROT_WRITE,
+			      MAP_SHARED, g_schedshm_fd_mem, 0);
+	USFSTL_ASSERT(g_schedshm_mem != MAP_FAILED);
+	g_schedshm_mem->len = mem_size;
+	g_schedshm_mem->max_clients = CTRL_SCHEDSHM_MAX_CLIENTS;
+	g_schedshm_mem->version = UM_TIMETRAVEL_SCHEDSHM_VERSION;
+
+	/* set up sched related fields */
+	g_schedshm_mem->current_time = scheduler.current_time;
+	g_schedshm_mem->free_until = scheduler.current_time;
+	USFSTL_ASSERT_EQ(scheduler.external_get_time, NULL, "%p");
+	scheduler.external_get_time = _schedshm_get_time;
+	USFSTL_ASSERT_EQ(scheduler.external_set_time, NULL, "%p");
+	scheduler.external_set_time = _schedshm_set_time;
+
+	g_schedshm_mem->clients[CTRL_CLIENT_ID].capa |= UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE;
 }
 
 static char *path;
@@ -640,8 +764,12 @@ int main(int argc, char **argv)
 
 	scheduler.next_time_changed = next_time_changed;
 
-	usfstl_sched_start(&scheduler);
+	/* Call this after scheduler is initialized to get valid current time
+	 * from scheduler
+	 */
+	_schedshm_create_mem_file();
 
+	usfstl_sched_start(&scheduler);
 	if (wallclock_network)
 		usfstl_sched_wallclock_init(&scheduler, 1);
 
