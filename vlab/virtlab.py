@@ -689,7 +689,7 @@ poweroff -f
         ctrl_args = [Paths.controller, f'--net={self.runtime.net}',
                      f'--time-at-start={cfg.start_time}']
         if args.dbg:
-            ctrl_args += [f'--debug=3', f'--flush']
+            ctrl_args += [f'--debug=3']
 
         if cfg.net_delay is not None:
             ctrl_args.append('--net-delay=%f' % cfg.net_delay)

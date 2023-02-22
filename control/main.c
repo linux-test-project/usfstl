@@ -29,7 +29,6 @@ USFSTL_SCHEDULER(scheduler);
 static struct usfstl_schedule_client *running_client;
 static uint64_t time_at_start;
 static int debug_level;
-static bool flush;
 static int nesting;
 static int process_start;
 
@@ -121,8 +120,7 @@ static char *client_ts(struct usfstl_schedule_client *client)
 		       2, nesting,					\
 		       12, (uint64_t)usfstl_sched_current_time(&scheduler),\
 		       ##__VA_ARGS__);					\
-		if (flush)						\
-			fflush(stdout);					\
+		fflush(stdout);						\
 	}								\
 } while (0)
 #define DBG(lvl, fmt, ...) _DBG(lvl, " " fmt, ##__VA_ARGS__)
@@ -164,8 +162,7 @@ static void dump_sched(const char *msg)
 		printf("   prio:%u, start:%"PRIu64"\n", job->priority, job->start);
 	}
 
-	if (flush)
-		fflush(stdout);
+	fflush(stdout);
 }
 
 static void free_client(struct usfstl_job *job)
@@ -603,7 +600,6 @@ USFSTL_OPT_FLAG("wallclock-network", 0, wallclock_network,
 		"Enable wallclock-network mode, mutually exclusive with time socket\n"
 "                 and # of clients, must kill the program by force in this mode.");
 USFSTL_OPT_INT("debug", 0, "level", debug_level, "debug level");
-USFSTL_OPT_FLAG("flush", 0, flush, "flush debug output after each line");
 USFSTL_OPT_U64("time-at-start", 0, "opt_time_at_start", time_at_start,
 	       "set the start time");
 
