@@ -12,8 +12,8 @@
 
 uint64_t usfstl_sched_current_time(struct usfstl_scheduler *sched)
 {
-	if (sched->external_sync_from)
-		return sched->external_sync_from(sched);
+	if (sched->external_get_time)
+		return sched->external_get_time(sched);
 	return sched->current_time;
 }
 
@@ -128,7 +128,10 @@ void _usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time)
 	uint64_t delta;
 	uint64_t current_time;
 
-	if (sched->external_sync_from) {
+	if (sched->external_set_time)
+		sched->external_set_time(sched, time);
+
+	if (sched->external_get_time) {
 		current_time = usfstl_sched_current_time(sched);
 		USFSTL_ASSERT_TIME_CMP(sched, time, ==, current_time);
 	} else {
@@ -401,7 +404,7 @@ static void usfstl_sched_link_job_callback(struct usfstl_job *job)
 	sched->link.waiting = false;
 }
 
-static uint64_t usfstl_sched_link_external_sync_from(struct usfstl_scheduler *sched)
+static uint64_t usfstl_sched_link_external_get_time(struct usfstl_scheduler *sched)
 {
 	uint64_t parent_time;
 
@@ -449,8 +452,8 @@ void usfstl_sched_link(struct usfstl_scheduler *sched,
 	USFSTL_ASSERT_EQ(sched->external_wait, NULL, "%p");
 	sched->external_wait = usfstl_sched_link_external_wait;
 
-	USFSTL_ASSERT_EQ(sched->external_sync_from, NULL, "%p");
-	sched->external_sync_from = usfstl_sched_link_external_sync_from;
+	USFSTL_ASSERT_EQ(sched->external_get_time, NULL, "%p");
+	sched->external_get_time = usfstl_sched_link_external_get_time;
 
 	sched->link.tick_ratio = tick_ratio;
 	sched->link.parent = parent;
@@ -476,7 +479,7 @@ void usfstl_sched_unlink(struct usfstl_scheduler *sched)
 	/* before taking back control over time set time from parent */
 	sched->current_time = usfstl_sched_current_time(sched);
 
-	sched->external_sync_from = NULL;
+	sched->external_get_time = NULL;
 	sched->external_wait = NULL;
 	sched->external_request = NULL;
 

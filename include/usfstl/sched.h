@@ -74,9 +74,12 @@ struct usfstl_job {
  *	for the previously requested runtime being granted, and you
  *	must call usfstl_sched_set_time() before returning from this
  *	function.
- * @external_sync_from: For external scheduler integration, return current
+ * @external_get_time: For external scheduler integration, return current
  *	time based on external time info, note: this function once set
  *	is called all the time so set it only for in process operation.
+ * @external_set_time: For external scheduler integration, set current
+ *	time based internal time info, note: this function can be called
+ *	only when internal sched is in running state.
  * @time_advanced: Set this to have logging (or similar) when time
  *	advances. Note that the argument is relative to the previous
  *	time, if you need the current absolute time use
@@ -88,7 +91,8 @@ struct usfstl_job {
 struct usfstl_scheduler {
 	void (*external_request)(struct usfstl_scheduler *, uint64_t);
 	void (*external_wait)(struct usfstl_scheduler *);
-	uint64_t (*external_sync_from)(struct usfstl_scheduler *sched);
+	uint64_t (*external_get_time)(struct usfstl_scheduler *sched);
+	void (*external_set_time)(struct usfstl_scheduler *sched, uint64_t time);
 	void (*time_advanced)(struct usfstl_scheduler *, uint64_t delta);
 
 /* private: */
