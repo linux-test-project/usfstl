@@ -66,10 +66,27 @@ struct usfstl_job {
 };
 
 /**
+ * enum usfstl_sched_req_status - usfstl scheduler status on request made
+ */
+enum usfstl_sched_req_status {
+	/**
+	 * @USFSTL_SCHED_REQ_STATUS_CAN_RUN - can run immediate with the request,
+	 *	no other job are scheduled previous to the time request.
+	 */
+	USFSTL_SCHED_REQ_STATUS_CAN_RUN = 0,
+	/**
+	 * @USFSTL_SCHED_REQ_STATUS_CAN_WAIT - need to wait until scheduled to run,
+	 *	other jobs may be scheduled previous to the time request.
+	 */
+	USFSTL_SCHED_REQ_STATUS_WAIT = 1,
+};
+
+/**
  * struct usfstl_scheduler - usfstl scheduler structure
  * @external_request: If external scheduler integration is required,
  *	set this function pointer appropriately to request the next
- *	run time from the external scheduler.
+ *	run time from the external scheduler, for return value see
+ *	&enum usfstl_sched_req_status.
  * @external_wait: For external scheduler integration, this must wait
  *	for the previously requested runtime being granted, and you
  *	must call usfstl_sched_set_time() before returning from this
@@ -89,7 +106,7 @@ struct usfstl_job {
  * Use USFSTL_SCHEDULER() to declare (and initialize) a scheduler.
  */
 struct usfstl_scheduler {
-	void (*external_request)(struct usfstl_scheduler *, uint64_t);
+	enum usfstl_sched_req_status (*external_request)(struct usfstl_scheduler *, uint64_t);
 	void (*external_wait)(struct usfstl_scheduler *);
 	uint64_t (*external_get_time)(struct usfstl_scheduler *sched);
 	void (*external_set_time)(struct usfstl_scheduler *sched, uint64_t time);

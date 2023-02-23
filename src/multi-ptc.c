@@ -56,10 +56,11 @@ static void usfstl_multi_participant_test_fn(const struct usfstl_test *test, voi
 	USFSTL_ASSERT(0, "test task in participant should never resume");
 }
 
-static void usfstl_multi_sched_ext_req(struct usfstl_scheduler *sched,
-				       uint64_t at)
+static enum usfstl_sched_req_status
+usfstl_multi_sched_ext_req(struct usfstl_scheduler *sched, uint64_t at)
 {
 	multi_rpc_sched_request_conn(g_usfstl_multi_ctrl_conn, at);
+	return USFSTL_SCHED_REQ_STATUS_WAIT;
 }
 
 static void usfstl_multi_sched_ext_wait_participant(struct usfstl_scheduler *sched)

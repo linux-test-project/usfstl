@@ -17,11 +17,11 @@ uint64_t usfstl_sched_current_time(struct usfstl_scheduler *sched)
 	return sched->current_time;
 }
 
-static bool usfstl_sched_external_request(struct usfstl_scheduler *sched,
-					  uint64_t time)
+static enum usfstl_sched_req_status
+usfstl_sched_external_request(struct usfstl_scheduler *sched, uint64_t time)
 {
 	if (!sched->external_request)
-		return false;
+		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
 
 	/*
 	 * If we received a next_external_sync point, we don't need to ask for
@@ -34,17 +34,15 @@ static bool usfstl_sched_external_request(struct usfstl_scheduler *sched,
 	 */
 	if (!sched->waiting && sched->next_external_sync_set &&
 	    usfstl_time_cmp(time, <, sched->next_external_sync))
-		return false;
+		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
 
 	/* If we asked for this time slot already, don't ask again but wait. */
 	if (sched->prev_external_sync_set && time == sched->prev_external_sync)
-		return true;
+		return USFSTL_SCHED_REQ_STATUS_WAIT;
 
 	sched->prev_external_sync = time;
 	sched->prev_external_sync_set = 1;
-	sched->external_request(sched, time);
-
-	return true;
+	return sched->external_request(sched, time);
 }
 
 static void usfstl_sched_external_wait(struct usfstl_scheduler *sched)
@@ -171,7 +169,8 @@ static void usfstl_sched_forward(struct usfstl_scheduler *sched, uint64_t until)
 {
 	USFSTL_ASSERT_TIME_CMP(sched, until, >=, usfstl_sched_current_time(sched));
 
-	if (usfstl_sched_external_request(sched, until)) {
+	if (usfstl_sched_external_request(sched, until) ==
+	    USFSTL_SCHED_REQ_STATUS_WAIT) {
 		usfstl_sched_external_wait(sched);
 		/*
 		 * The external_wait() method must call
@@ -186,7 +185,8 @@ static void usfstl_sched_forward(struct usfstl_scheduler *sched, uint64_t until)
 
 void usfstl_sched_start(struct usfstl_scheduler *sched)
 {
-	if (usfstl_sched_external_request(sched, usfstl_sched_current_time(sched)))
+	if (usfstl_sched_external_request(sched, usfstl_sched_current_time(sched)) ==
+	    USFSTL_SCHED_REQ_STATUS_WAIT)
 		usfstl_sched_external_wait(sched);
 }
 
@@ -424,8 +424,8 @@ static void usfstl_sched_link_external_wait(struct usfstl_scheduler *sched)
 	usfstl_sched_set_time(sched, usfstl_sched_current_time(sched));
 }
 
-static void usfstl_sched_link_external_request(struct usfstl_scheduler *sched,
-					       uint64_t time)
+static enum usfstl_sched_req_status
+usfstl_sched_link_external_request(struct usfstl_scheduler *sched, uint64_t time)
 {
 	uint64_t parent_time;
 	struct usfstl_job *job = &sched->link.job;
@@ -435,6 +435,7 @@ static void usfstl_sched_link_external_request(struct usfstl_scheduler *sched,
 	usfstl_sched_del_job(job);
 	job->start = parent_time;
 	usfstl_sched_add_job(sched->link.parent, job);
+	return USFSTL_SCHED_REQ_STATUS_WAIT;
 }
 
 void usfstl_sched_link(struct usfstl_scheduler *sched,

@@ -31,7 +31,8 @@ static void usfstl_sched_wallclock_initialize(struct usfstl_scheduler *sched)
 	sched->wallclock.initialized = 1;
 }
 
-void usfstl_sched_wallclock_request(struct usfstl_scheduler *sched, uint64_t time)
+enum usfstl_sched_req_status
+usfstl_sched_wallclock_request(struct usfstl_scheduler *sched, uint64_t time)
 {
 	struct itimerspec itimer = {};
 	unsigned int nsec_per_tick = sched->wallclock.nsec_per_tick;
@@ -50,6 +51,7 @@ void usfstl_sched_wallclock_request(struct usfstl_scheduler *sched, uint64_t tim
 	USFSTL_ASSERT_EQ(timerfd_settime(sched->wallclock.entry.fd,
 				       TFD_TIMER_ABSTIME, &itimer, NULL),
 		       0, "%d");
+	return USFSTL_SCHED_REQ_STATUS_WAIT;
 }
 
 void usfstl_sched_wallclock_wait(struct usfstl_scheduler *sched)

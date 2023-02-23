@@ -183,15 +183,17 @@ void usfstl_sched_ctrl_send_bc(struct usfstl_sched_ctrl *ctrl, uint64_t bc_messa
 	usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_BROADCAST, bc_message);
 }
 
-static void usfstl_sched_ctrl_request(struct usfstl_scheduler *sched, uint64_t time)
+static enum usfstl_sched_req_status
+usfstl_sched_ctrl_request(struct usfstl_scheduler *sched, uint64_t time)
 {
 	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
 
 	if (!ctrl->started)
-		return;
+		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
 
 	usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_REQUEST,
 				   time * ctrl->nsec_per_tick + ctrl->offset);
+	return USFSTL_SCHED_REQ_STATUS_WAIT;
 }
 
 static void usfstl_sched_ctrl_wait(struct usfstl_scheduler *sched)
