@@ -3,12 +3,27 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <usfstl/uds.h>
 #include <usfstl/schedctrl.h>
 #include "internal.h"
-#include <stdio.h>
 #include <stdlib.h>
+
+#define DEBUG_LEVEL 0
+
+#define _DBG(lvl, fmt, ...)	do {					\
+	 if (lvl <= DEBUG_LEVEL) {					\
+		fprintf(ctrl->shm.flog,					\
+			"[%*d][%*" PRIu64 "][*id:%" PRIx64 "]" fmt "\n",\
+			2, (int)ctrl->shm.id,				\
+			12, (uint64_t)ctrl->shm.mem->current_time,	\
+			(uint64_t)ctrl->shm.mem->clients[ctrl->shm.id].name,\
+			##__VA_ARGS__);					\
+		fflush(ctrl->shm.flog);					\
+	}								\
+} while (0)
+#define DBG_SHAREDMEM(lvl, fmt, ...) _DBG(lvl, " " fmt, ##__VA_ARGS__)
 
 static void _usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
 					enum um_timetravel_ops op,
@@ -90,10 +105,19 @@ static void usfstl_sched_ctrl_sock_read(int fd, void *data)
 		}
 		return;
 	case UM_TIMETRAVEL_RUN:
+		ctrl->waiting = 0;
+
+		/* No ack or set time is needed in shared mem run */
+		if (ctrl->shm.mem) {
+			/* assert internal state is as external state */
+			USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id,
+					 ctrl->shm.id, "%d");
+			return;
+		}
+
 		time = DIV_ROUND_UP(msg.time - ctrl->offset,
 				    ctrl->nsec_per_tick);
 		usfstl_sched_set_time(ctrl->sched, time);
-		ctrl->waiting = 0;
 		break;
 	case UM_TIMETRAVEL_FREE_UNTIL:
 		/* round down here, so we don't overshoot */
@@ -128,6 +152,11 @@ static void usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
 	} while (seq == 0);
 
 	_usfstl_sched_ctrl_send_msg(ctrl, op, time, seq);
+
+	/* No Ack is expected in shared memory mode */
+	if (ctrl->shm.mem && op == UM_TIMETRAVEL_WAIT)
+		return;
+
 	old_expected = ctrl->expected_ack_seq;
 	ctrl->expected_ack_seq = seq;
 
@@ -205,6 +234,15 @@ static void usfstl_sched_ctrl_wait(struct usfstl_scheduler *sched)
 
 	while (ctrl->waiting)
 		usfstl_loop_wait_and_handle();
+
+	if (ctrl->shm.mem && ctrl->started) {
+		/* Assert internal state is as external state */
+		USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id,
+				 ctrl->shm.id, "%d");
+		/* Clear any past request we had */
+		ctrl->shm.mem->clients[ctrl->shm.id].flags &=
+			~UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN;
+	}
 }
 
 void usfstl_sched_ctrl_yield(struct usfstl_sched_ctrl *ctrl)
@@ -216,6 +254,143 @@ void usfstl_sched_ctrl_yield(struct usfstl_sched_ctrl *ctrl)
 }
 
 #define JOB_ASSERT_VAL(j) (j) ? (j)->name : "<NULL>"
+
+static void _schedshm_setup_shared_mem(struct usfstl_sched_ctrl *ctrl, int *schedshm_fds)
+{
+	int memfd = schedshm_fds[UM_TIMETRAVEL_SHARED_MEMFD];
+
+	/* make sure this is called only once */
+	USFSTL_ASSERT_EQ(ctrl->shm.mem, NULL, "%p");
+	ctrl->shm.mem = mmap(NULL, sizeof(ctrl->shm.mem->hdr),
+			     PROT_READ | PROT_WRITE, MAP_SHARED, memfd, 0);
+	USFSTL_ASSERT(ctrl->shm.mem != MAP_FAILED);
+	ctrl->shm.mem = mremap(ctrl->shm.mem, sizeof(ctrl->shm.mem->hdr),
+			       ctrl->shm.mem->len, MREMAP_MAYMOVE, NULL);
+	USFSTL_ASSERT(ctrl->shm.mem);
+	/*
+	 * We need to dup the logfd due to it closed after callback is done,
+	 * resulting in closing any FILE access to it
+	 */
+	ctrl->shm.flog = fdopen(dup(schedshm_fds[UM_TIMETRAVEL_SHARED_LOGFD]), "w");
+	USFSTL_ASSERT(ctrl->shm.flog);
+}
+
+static uint64_t _schedctrl_get_time(struct usfstl_scheduler *sched)
+{
+	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
+	uint64_t shared_time = ctrl->shm.mem->current_time;
+
+	return DIV_ROUND_UP(shared_time - sched->link.offset,
+			    sched->link.tick_ratio);
+}
+
+static void _schedctrl_set_time(struct usfstl_scheduler *sched, uint64_t time)
+{
+	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
+	uint64_t old_time;
+	uint64_t new_time;
+
+	/* Only the running process can set the time */
+	USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id, ctrl->shm.id, "%d");
+	old_time = ctrl->shm.mem->current_time;
+	new_time = time * sched->link.tick_ratio + sched->link.offset;
+
+	DBG_SHAREDMEM(3, "new_time: %" PRIu64 ", free_until: %" PRIu64,
+		      (uint64_t)new_time,
+		      (uint64_t)ctrl->shm.mem->free_until);
+
+	USFSTL_ASSERT_TIME_CMP(sched, new_time, >=, old_time);
+
+	/* free until is upper limit for any time change by clients */
+	USFSTL_ASSERT_TIME_CMP(sched, new_time, <=, ctrl->shm.mem->free_until);
+
+	ctrl->shm.mem->current_time = new_time;
+}
+
+static enum usfstl_sched_req_status
+_schedctrl_request_shm(struct usfstl_scheduler *sched, uint64_t time)
+{
+	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
+	uint64_t shm_req_time;
+	union um_timetravel_schedshm_client *shm_self;
+
+	if (!ctrl->started)
+		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
+
+	/* In case we are waiting we need to reach out to request the time */
+	if (ctrl->waiting) {
+		usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_REQUEST,
+					   time * ctrl->nsec_per_tick + ctrl->offset);
+		return USFSTL_SCHED_REQ_STATUS_WAIT;
+	}
+
+	/* Assert that internal state is as external state */
+	USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id, ctrl->shm.id, "%d");
+	shm_req_time = time * sched->link.tick_ratio + sched->link.offset;
+	DBG_SHAREDMEM(3, "req %" PRIu64 ", free_until %" PRIu64,
+		      (uint64_t)shm_req_time,
+		      (uint64_t)ctrl->shm.mem->free_until);
+	/* Make sure we are not requesting to run in the past */
+	USFSTL_ASSERT_TIME_CMP(sched, shm_req_time, >=,
+			       ctrl->shm.mem->current_time);
+
+	if (shm_req_time < ctrl->shm.mem->free_until)
+		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
+
+	shm_self = &ctrl->shm.mem->clients[ctrl->shm.id];
+	shm_self->req_time = shm_req_time;
+	shm_self->flags |= UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN;
+	return USFSTL_SCHED_REQ_STATUS_WAIT;
+}
+
+static void _schedshm_cleanup(struct usfstl_sched_ctrl *ctrl)
+{
+	if (ctrl->shm.mem) {
+		munmap(ctrl->shm.mem, sizeof(ctrl->shm.mem));
+		ctrl->shm.mem = NULL;
+		fclose(ctrl->shm.flog);
+		ctrl->shm.flog = NULL;
+	}
+}
+
+static bool _schedshm_handle_fds(struct usfstl_sched_ctrl *ctrl,
+				 int schedshm_fds[], int nr_fds)
+{
+	_schedshm_setup_shared_mem(ctrl, schedshm_fds);
+
+	if (ctrl->shm.mem->version != UM_TIMETRAVEL_SCHEDSHM_VERSION) {
+		DBG_SHAREDMEM(0,
+			      "No support for this sharedmem - expected version %d, version %d",
+			      UM_TIMETRAVEL_SCHEDSHM_VERSION, ctrl->shm.mem->version);
+
+		_schedshm_cleanup(ctrl);
+		return true;
+	}
+
+	return false;
+}
+
+static void _sched_ctrl_ack_start_handle(struct usfstl_sched_ctrl *ctrl,
+					 struct um_timetravel_msg *msg,
+					 int *fds, int nr_fds)
+{
+	struct usfstl_scheduler *sched = ctrl->sched;
+
+	ctrl->shm.id = msg->time & UM_TIMETRAVEL_START_ACK_ID;
+
+	/* only used once, unset it */
+	ctrl->handle_msg_fds = NULL;
+	USFSTL_ASSERT_EQ(nr_fds, (int)UM_TIMETRAVEL_SHARED_MAX_FDS, "%d");
+	if (_schedshm_handle_fds(ctrl, fds, nr_fds))
+		return;
+
+	sched->link.tick_ratio = ctrl->nsec_per_tick;
+	sched->link.offset = ctrl->shm.mem->current_time - sched->current_time;
+	sched->external_get_time = _schedctrl_get_time;
+	sched->external_set_time = _schedctrl_set_time;
+	sched->external_request = _schedctrl_request_shm;
+	ctrl->shm.mem->clients[ctrl->shm.id].capa |= UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE;
+}
 
 void usfstl_sched_ctrl_start(struct usfstl_sched_ctrl *ctrl,
 			     const char *socket,
@@ -251,6 +426,9 @@ void usfstl_sched_ctrl_start(struct usfstl_sched_ctrl *ctrl,
 	ctrl->fd = usfstl_uds_connect(socket, usfstl_sched_ctrl_sock_read,
 				      ctrl);
 
+	/* until we get the RUN we are in waiting state */
+	ctrl->waiting = 1;
+	ctrl->handle_msg_fds = _sched_ctrl_ack_start_handle;
 	/* tell the other side we're starting  */
 	usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_START, client_id);
 	ctrl->started = 1;
@@ -274,6 +452,10 @@ void usfstl_sched_ctrl_sync_to(struct usfstl_sched_ctrl *ctrl)
 
 	USFSTL_ASSERT(ctrl->started, "cannot sync to scheduler until started");
 
+	/* Any sync is done already by shared memory external_set_time */
+	if (ctrl->shm.mem)
+		return;
+
 	time = usfstl_sched_current_time(ctrl->sched) * ctrl->nsec_per_tick;
 	time += ctrl->offset;
 
@@ -284,6 +466,11 @@ void usfstl_sched_ctrl_sync_from(struct usfstl_sched_ctrl *ctrl)
 {
 	if (!ctrl->started)
 		return;
+
+	/* Any sync is done already by shared memory external_get_time */
+	if (ctrl->shm.mem)
+		return;
+
 	usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_GET, -1);
 }
 
@@ -291,9 +478,14 @@ void usfstl_sched_ctrl_stop(struct usfstl_sched_ctrl *ctrl)
 {
 	USFSTL_ASSERT_EQ(ctrl, ctrl->sched->ext.ctrl, "%p");
 	usfstl_uds_disconnect(ctrl->fd);
+
+	_schedshm_cleanup(ctrl);
+
 	ctrl->sched->ext.ctrl = NULL;
 	ctrl->sched->external_request = NULL;
 	ctrl->sched->external_wait = NULL;
+	ctrl->sched->external_get_time = NULL;
+	ctrl->sched->external_set_time = NULL;
 	ctrl->sched = NULL;
 }
 

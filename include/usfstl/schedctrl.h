@@ -7,6 +7,7 @@
 #define _USFSTL_SCHEDCTRL_H_
 #include <stdint.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include "test.h"
 #include "loop.h"
 #include "sched.h"
@@ -29,6 +30,11 @@ struct usfstl_sched_ctrl {
 	int fd;
 	unsigned int waiting:1, acked:1, frozen:1, started:1;
 	uint32_t expected_ack_seq;
+	struct {
+		uint16_t id;
+		struct um_timetravel_schedshm *mem;
+		FILE *flog;
+	} shm;
 
 	void (*handle_bc_message)(struct usfstl_sched_ctrl *, uint64_t bc_message);
 	void (*handle_msg_fds)(struct usfstl_sched_ctrl *ctrl,

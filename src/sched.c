@@ -36,8 +36,12 @@ usfstl_sched_external_request(struct usfstl_scheduler *sched, uint64_t time)
 	    usfstl_time_cmp(time, <, sched->next_external_sync))
 		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
 
-	/* If we asked for this time slot already, don't ask again but wait. */
-	if (sched->prev_external_sync_set && time == sched->prev_external_sync)
+	/*
+	 * if we asked for this time slot already while waiting,
+	 * don't ask again but continue waiting
+	 */
+	if (sched->waiting && sched->prev_external_sync_set &&
+	    time == sched->prev_external_sync)
 		return USFSTL_SCHED_REQ_STATUS_WAIT;
 
 	sched->prev_external_sync = time;
