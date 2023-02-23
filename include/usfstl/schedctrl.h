@@ -10,11 +10,16 @@
 #include "test.h"
 #include "loop.h"
 #include "sched.h"
+#include <linux/um_timetravel.h>
 
 /**
  * struct usfstl_sched_ctrl - usfstl schedulure control structer
  *
  * @handle_bc_message: handler for receiving broadcast messages
+ * @handle_msg_fds: handler callback
+ * 	for handling file descriptors sent in ack message from controller,
+ * 	all passed FDs are closed after the handler callback, so any needed FDs
+ * 	for run time after callback, should be dup by the handler.
  */
 struct usfstl_sched_ctrl {
 	struct usfstl_scheduler *sched;
@@ -26,6 +31,9 @@ struct usfstl_sched_ctrl {
 	uint32_t expected_ack_seq;
 
 	void (*handle_bc_message)(struct usfstl_sched_ctrl *, uint64_t bc_message);
+	void (*handle_msg_fds)(struct usfstl_sched_ctrl *ctrl,
+			       struct um_timetravel_msg *msg,
+			       int *fds, int nr_fds);
 };
 
 void usfstl_sched_ctrl_start(struct usfstl_sched_ctrl *ctrl,

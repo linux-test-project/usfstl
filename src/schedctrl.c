@@ -3,9 +3,9 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
+#include <sys/socket.h>
 #include <usfstl/uds.h>
 #include <usfstl/schedctrl.h>
-#include <linux/um_timetravel.h>
 #include "internal.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,11 +24,59 @@ static void _usfstl_sched_ctrl_send_msg(struct usfstl_sched_ctrl *ctrl,
 			 (int)sizeof(msg), "%d");
 }
 
+static int _sched_ctrl_get_msg_fds(struct msghdr *msghdr,
+				   int *outfds, int max_fds)
+{
+	struct cmsghdr *msg;
+	int fds;
+
+	for (msg = CMSG_FIRSTHDR(msghdr); msg; msg = CMSG_NXTHDR(msghdr, msg)) {
+		if (msg->cmsg_level != SOL_SOCKET || msg->cmsg_type != SCM_RIGHTS)
+			continue;
+
+		fds = (msg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
+		USFSTL_ASSERT(fds <= max_fds);
+		memcpy(outfds, CMSG_DATA(msg), fds * sizeof(int));
+		return fds;
+	}
+
+	return 0;
+}
+
+static void _sched_ctrl_handle_fds(struct usfstl_sched_ctrl *ctrl,
+				   struct msghdr *msghdr)
+{
+	int msg_fds[UM_TIMETRAVEL_MAX_FDS];
+	struct um_timetravel_msg *msg = msghdr->msg_iov->iov_base;
+	int num_fds = _sched_ctrl_get_msg_fds(msghdr, msg_fds, UM_TIMETRAVEL_MAX_FDS);
+
+	if (!num_fds)
+		return;
+
+	if (ctrl->handle_msg_fds)
+		ctrl->handle_msg_fds(ctrl, msg, msg_fds, num_fds);
+
+	/* Always close all FDs, if any callback needs the FD it should dup it */
+	for (int i = 0; i < num_fds; i++)
+		close(msg_fds[i]);
+}
+
 static void usfstl_sched_ctrl_sock_read(int fd, void *data)
 {
 	struct usfstl_sched_ctrl *ctrl = data;
 	struct um_timetravel_msg msg;
-	int sz = read(fd, &msg, sizeof(msg));
+	int8_t msg_control[CMSG_SPACE(sizeof(int) * UM_TIMETRAVEL_MAX_FDS)];
+	struct iovec iov = {
+		.iov_base = &msg,
+		.iov_len = sizeof(msg),
+	};
+	struct msghdr msghdr = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = msg_control,
+		.msg_controllen = sizeof(msg_control),
+	};
+	int sz = recvmsg(fd, &msghdr, 0);
 	uint64_t time;
 
 	USFSTL_ASSERT_EQ(sz, (int)sizeof(msg), "%d");
@@ -38,6 +86,7 @@ static void usfstl_sched_ctrl_sock_read(int fd, void *data)
 		if (msg.seq == ctrl->expected_ack_seq) {
 			ctrl->acked = 1;
 			ctrl->ack_time = msg.time;
+			_sched_ctrl_handle_fds(ctrl, &msghdr);
 		}
 		return;
 	case UM_TIMETRAVEL_RUN:
