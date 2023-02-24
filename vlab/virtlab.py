@@ -234,7 +234,7 @@ def load_plugins(path: str) -> List[Type[Plugin]]:
     """
     ret: List[Type[Plugin]] = []
     sys.path.append(path)
-    for filename in glob.glob(os.path.join(path, '*.py')):
+    for filename in sorted(glob.glob(os.path.join(path, '*.py'))):
         modname = os.path.basename(filename)[:-3]
         clsname = modname.capitalize() + 'Plugin'
         mod = importlib.import_module(modname)
