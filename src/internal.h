@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2021, 2023 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -125,6 +125,7 @@ void _usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time);
 void usfstl_task_cleanup(void);
 
 /* rpc */
+#define USFSTL_MAX_RPC_SIZE_ON_STACK 256
 #define USFSTL_MAX_RPC_STACK	20
 extern struct usfstl_rpc_connection *g_usfstl_rpc_stack[USFSTL_MAX_RPC_STACK];
 extern unsigned int g_usfstl_rpc_stack_num;

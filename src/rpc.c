@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2021 Intel Corporation
+ * Copyright (C) 2019 - 2021, 2023 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -103,16 +103,32 @@ static void usfstl_rpc_handle_call(struct usfstl_rpc_connection *conn,
 				   struct usfstl_rpc_stub *stub,
 				   uint32_t argsize, uint32_t retsize)
 {
-	unsigned char arg[argsize]
+	unsigned char arg[argsize <= USFSTL_MAX_RPC_SIZE_ON_STACK ? argsize : 0]
 		__attribute__((aligned(sizeof(uint64_t))));
-	unsigned char ret[retsize]
+	unsigned char ret[retsize <= USFSTL_MAX_RPC_SIZE_ON_STACK ? retsize : 0]
 		__attribute__((aligned(sizeof(uint64_t))));
+	unsigned char *argbuf = NULL, *retbuf = NULL;
 
-	rpc_read(conn->conn.fd, arg, sizeof(arg));
+	if (sizeof(arg) < argsize) {
+		argbuf = malloc(argsize);
+		USFSTL_ASSERT(argbuf);
+	}
 
-	usfstl_rpc_make_call(conn, stub, arg, argsize, ret, retsize);
+	if (sizeof(ret) < retsize) {
+		retbuf = malloc(retsize);
+		USFSTL_ASSERT(retbuf);
+	}
 
-	_usfstl_rpc_send_response(conn, 0, ret, sizeof(ret));
+	rpc_read(conn->conn.fd, argbuf ?: arg, argsize);
+
+	usfstl_rpc_make_call(conn, stub, argbuf ?: arg, argsize, retbuf ?: ret, retsize);
+
+	_usfstl_rpc_send_response(conn, 0, retbuf ?: ret, retsize);
+
+	if (argbuf)
+		free(argbuf);
+	if (retbuf)
+		free(retbuf);
 }
 
 static struct usfstl_rpc_stub *
