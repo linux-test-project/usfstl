@@ -31,6 +31,7 @@ static uint64_t time_at_start;
 static int debug_level;
 static int nesting;
 static int process_start;
+static bool started_scheduling;
 
 #define CLIENT_FMT "%s"
 #define CLIENT_ARG(c) ((c)->name)
@@ -477,6 +478,9 @@ static void update_sync(struct usfstl_schedule_client *client)
 	else
 		running_client = client;
 
+	if (!started_scheduling)
+		return;
+
 	if (!client)
 		return;
 
@@ -649,6 +653,8 @@ int main(int argc, char **argv)
 	}
 
 	DBG(0, "have %d clients now", __builtin_popcountll(clients));
+
+	started_scheduling = true;
 
 	while (wallclock_network) {
 		usfstl_sched_wallclock_wait_and_handle(&scheduler);
