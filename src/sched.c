@@ -414,6 +414,16 @@ static uint64_t usfstl_sched_link_external_get_time(struct usfstl_scheduler *sch
 			    sched->link.tick_ratio);
 }
 
+static void
+usfstl_sched_link_external_set_time(struct usfstl_scheduler *sched,
+				    uint64_t time)
+{
+	uint64_t parent_time;
+
+	parent_time = sched->link.tick_ratio * time + sched->link.offset;
+	usfstl_sched_set_time(sched->link.parent, parent_time);
+}
+
 static void usfstl_sched_link_external_wait(struct usfstl_scheduler *sched)
 {
 	sched->link.waiting = true;
@@ -456,6 +466,9 @@ void usfstl_sched_link(struct usfstl_scheduler *sched,
 	USFSTL_ASSERT_EQ(sched->external_get_time, NULL, "%p");
 	sched->external_get_time = usfstl_sched_link_external_get_time;
 
+	USFSTL_ASSERT_EQ(sched->external_set_time, NULL, "%p");
+	sched->external_set_time = usfstl_sched_link_external_set_time;
+
 	sched->link.tick_ratio = tick_ratio;
 	sched->link.parent = parent;
 
@@ -481,6 +494,7 @@ void usfstl_sched_unlink(struct usfstl_scheduler *sched)
 	sched->current_time = usfstl_sched_current_time(sched);
 
 	sched->external_get_time = NULL;
+	sched->external_set_time = NULL;
 	sched->external_wait = NULL;
 	sched->external_request = NULL;
 
