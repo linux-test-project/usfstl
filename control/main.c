@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2021 Intel Corporation
+ * Copyright (C) 2019 - 2023 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -181,6 +181,31 @@ static void free_client(struct usfstl_job *job)
 	free(client);
 }
 
+static bool _schedshm_client_has_shm(uint16_t client_id)
+{
+	return g_schedshm_mem->clients[client_id].capa &
+		UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE;
+}
+
+/*
+ * Set the running client, both our own pointer and the
+ * shared memory running_id. Use the 'force' parameter
+ * only when setting before the ACK to the START since
+ * at that point we don't yet know if the client will
+ * use shared memory.
+ */
+static void set_running_client(struct usfstl_schedule_client *client,
+			       bool force)
+{
+	if (client && (force || _schedshm_client_has_shm(client->id)))
+		g_schedshm_mem->running_id = client->id;
+	else
+		/* controller runs on behalf of the client */
+		g_schedshm_mem->running_id = CTRL_CLIENT_ID;
+
+	running_client = client;
+}
+
 static void remove_client(struct usfstl_schedule_client *client)
 {
 	struct usfstl_job *job;
@@ -213,7 +238,7 @@ static void remove_client(struct usfstl_schedule_client *client)
 	client->job.callback = free_client;
 
 	if (running_client == client)
-		running_client = NULL;
+		set_running_client(NULL, false);
 
 	usfstl_sched_add_job(&scheduler, &client->job);
 }
@@ -276,12 +301,6 @@ static bool write_message(struct usfstl_schedule_client *client,
 			  uint32_t op, uint32_t seq, uint64_t time)
 {
 	return write_message_fds(client, op, seq, time, NULL, 0);
-}
-
-static bool _schedshm_client_has_shm(uint16_t client_id)
-{
-	return (g_schedshm_mem->clients[client_id].capa &
-		UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE);
 }
 
 static void _schedshm_client_req_time(struct usfstl_schedule_client *client)
@@ -367,7 +386,7 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		if (running_client) {
 			USFSTL_ASSERT_EQ(running_client, client,
 					 CLIENT_FMT, CLIENT_ARG);
-			running_client = NULL;
+			set_running_client(NULL, false);
 		}
 		/* In shared memory mode we don't wait send ack on wait message
 		 * as required by linux/um_timetravel.h
@@ -519,7 +538,7 @@ static void update_sync(struct usfstl_schedule_client *client)
 	if (!client)
 		client = running_client;
 	else
-		running_client = client;
+		set_running_client(client, false);
 
 	if (!started_scheduling)
 		return;
@@ -570,6 +589,8 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 	mem_client->name = client->shm_name;
 	clients |= CTRL_CLIENT_BIT(client->id);
 
+	set_running_client(client, true);
+
 	// assert that the ID can be sent as part of the message
 	USFSTL_ASSERT_EQ((uint64_t)client->id & ~UM_TIMETRAVEL_START_ACK_ID,
 			 (uint64_t)0, "%" PRIu64);
@@ -611,15 +632,6 @@ static void process_starting_clients(void)
 	}
 }
 
-static void _schedshm_set_running_client(uint16_t client_id)
-{
-	if (_schedshm_client_has_shm(client_id))
-		g_schedshm_mem->running_id = client_id;
-	else
-		/* controller runs on behalf of the client */
-		g_schedshm_mem->running_id = CTRL_CLIENT_ID;
-}
-
 static void run_client(struct usfstl_job *job)
 {
 	struct usfstl_schedule_client *client;
@@ -630,11 +642,9 @@ static void run_client(struct usfstl_job *job)
 
 	update_sync(client);
 
-	_schedshm_set_running_client(client->id);
 	if (send_message(client, UM_TIMETRAVEL_RUN,
 			 usfstl_sched_current_time(&scheduler) - client->offset))
 		wait_for(client, UM_TIMETRAVEL_WAIT);
-	_schedshm_set_running_client(CTRL_CLIENT_ID);
 }
 
 static void handle_new_connection(int fd, void *data)
