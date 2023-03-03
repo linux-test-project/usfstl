@@ -204,6 +204,7 @@ static void set_running_client(struct usfstl_schedule_client *client)
 
 static void remove_client(struct usfstl_schedule_client *client)
 {
+	union um_timetravel_schedshm_client *shm_client;
 	struct usfstl_job *job;
 
 	usfstl_sched_del_job(&client->job);
@@ -211,6 +212,11 @@ static void remove_client(struct usfstl_schedule_client *client)
 	close(client->conn.fd);
 	if (client->state == USCS_STARTED)
 		clients &= ~CTRL_CLIENT_BIT(client->id);
+
+	/* remove from shared memory as well */
+	shm_client = &g_schedshm_mem->clients[client->id];
+	memset(shm_client, 0, sizeof(*shm_client));
+
 	DBG_CLIENT(0, client,
 		   "removed (req: %"PRIu64", wait: %"PRIu64", update: %"PRIu64")",
 		   client->n_req, client->n_wait, client->n_update);
