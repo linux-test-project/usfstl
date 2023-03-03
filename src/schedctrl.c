@@ -280,6 +280,14 @@ static uint64_t _schedctrl_get_time(struct usfstl_scheduler *sched)
 	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
 	uint64_t shared_time = ctrl->shm.mem->current_time;
 
+	if (ctrl->frozen) {
+		uint64_t local = ctrl->sched->current_time * sched->link.tick_ratio;
+
+		sched->link.offset = shared_time - local;
+
+		return ctrl->sched->current_time;
+	}
+
 	return DIV_ROUND_UP(shared_time - sched->link.offset,
 			    sched->link.tick_ratio);
 }
@@ -289,6 +297,8 @@ static void _schedctrl_set_time(struct usfstl_scheduler *sched, uint64_t time)
 	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
 	uint64_t old_time;
 	uint64_t new_time;
+
+	USFSTL_ASSERT(!ctrl->frozen);
 
 	/* Only the running process can set the time */
 	USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id, ctrl->shm.id, "%d");
