@@ -318,27 +318,37 @@ _schedctrl_request_shm(struct usfstl_scheduler *sched, uint64_t time)
 {
 	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
 	uint64_t req_time = time * ctrl->nsec_per_tick + ctrl->offset;
-	union um_timetravel_schedshm_client *shm_self;
+	union um_timetravel_schedshm_client *shm_self, *shm_running;
 
 	if (!ctrl->started)
 		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
 
-	/* In case we are waiting we need to reach out to request the time */
-	if (ctrl->waiting) {
+	/*
+	 * In case the running peer can't do shared mem we need to reach
+	 * out to request the time via a message. If it can, we just need
+	 * to update our request and free_until and the controller will
+	 * put us on the schedule when the client finishes running.
+	 *
+	 * (If we're not waiting, obviously we have the capability.)
+	 */
+	shm_running = &ctrl->shm.mem->clients[ctrl->shm.mem->running_id];
+	if (!(shm_running->capa & UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE)) {
 		usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_REQUEST,
 					   time * ctrl->nsec_per_tick + ctrl->offset);
 		return USFSTL_SCHED_REQ_STATUS_WAIT;
 	}
 
-	/* Assert that internal state is as external state */
-	USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id, ctrl->shm.id, "%d");
 	DBG_SHAREDMEM(3, "req %" PRIu64 ", free_until %" PRIu64,
 		      req_time, (uint64_t)ctrl->shm.mem->free_until);
 	/* Make sure we are not requesting to run in the past */
 	USFSTL_ASSERT_TIME_CMP(sched, req_time, >=, ctrl->shm.mem->current_time);
 
-	if (req_time < ctrl->shm.mem->free_until)
-		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
+	if (usfstl_time_cmp(req_time, <, (uint64_t)ctrl->shm.mem->free_until)) {
+		if (!ctrl->waiting)
+			return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
+		/* if we're waiting, update free_until to new minimum */
+		ctrl->shm.mem->free_until = req_time;
+	}
 
 	shm_self = &ctrl->shm.mem->clients[ctrl->shm.id];
 	shm_self->req_time = req_time;
