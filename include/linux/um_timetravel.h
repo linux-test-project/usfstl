@@ -158,10 +158,13 @@ enum um_timetravel_ops {
 };
 
 /* version of struct um_timetravel_schedshm */
-#define UM_TIMETRAVEL_SCHEDSHM_VERSION 1
+#define UM_TIMETRAVEL_SCHEDSHM_VERSION 2
 
 /**
  * enum um_timetravel_schedshm_cap - time travel capabilities of every client
+ *
+ * These flags must be set immediately after processing the ACK to
+ * the START message, before sending any message to the controller.
  */
 enum um_timetravel_schedshm_cap {
 	/**
@@ -200,8 +203,10 @@ enum um_timetravel_schedshm_flags {
  * creates the shared memory space, all time values are absolute to controller
  * time. So first time client connects to shared memory mode it should take the
  * current_time value in shared memory and keep it internally as a diff to
- * shared memory times, and any write/read to any time value must be converted
- * to/from controller time domain of shared memory creator.
+ * shared memory times, and once shared memory is initialized, any interaction
+ * with the controller must happen in the controller time domain, including any
+ * messages (for clients that are not using shared memory, the controller will
+ * handle an offset and make the clients think they start at time zero.)
  *
  * Along with the shared memory file descriptor is sent to the client a logging
  * file descriptor, to have all logs related to shared memory,

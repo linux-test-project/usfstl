@@ -358,7 +358,7 @@ static bool _schedshm_handle_fds(struct usfstl_sched_ctrl *ctrl,
 {
 	_schedshm_setup_shared_mem(ctrl, schedshm_fds);
 
-	if (ctrl->shm.mem->version != UM_TIMETRAVEL_SCHEDSHM_VERSION) {
+	if (ctrl->shm.mem->version != 1) {
 		DBG_SHAREDMEM(0,
 			      "No support for this sharedmem - expected version %d, version %d",
 			      UM_TIMETRAVEL_SCHEDSHM_VERSION, ctrl->shm.mem->version);

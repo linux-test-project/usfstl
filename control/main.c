@@ -63,6 +63,7 @@ void usfstl_abort(const char *fn, unsigned int line,
 enum usfstl_schedule_client_state {
 	USCS_CONNECTED = 0,
 	USCS_START_REQUESTED,
+	USCS_SHM_CHECK,
 	USCS_STARTED,
 };
 
@@ -111,7 +112,7 @@ static char *client_ts(struct usfstl_schedule_client *client)
 {
 	static char buf[21] = {};
 
-	if (client->state != USCS_STARTED)
+	if (client->state != USCS_STARTED && client->state != USCS_SHM_CHECK)
 		return "tbd";
 
 	if (!client->offset)
@@ -212,7 +213,7 @@ static void remove_client(struct usfstl_schedule_client *client)
 	usfstl_sched_del_job(&client->job);
 	usfstl_loop_unregister(&client->conn);
 	close(client->conn.fd);
-	if (client->state == USCS_STARTED) {
+	if (client->state == USCS_STARTED || client->state == USCS_SHM_CHECK) {
 		clients &= ~CTRL_CLIENT_BIT(client->id);
 		usfstl_list_item_remove(&client->list);
 	}
@@ -356,6 +357,18 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 	DBG_RX(2, client, &msg);
 	if (client->waiting_for == msg.op)
 		nesting++;
+
+	if (client->state == USCS_SHM_CHECK) {
+		client->state = USCS_STARTED;
+
+		/*
+		 * If it's doing shared memory, it must track the offset itself,
+		 * set our offset to zero for the case of handling messages even
+		 * while it's in shared memory mode.
+		 */
+		if (_schedshm_client_has_shm(client->id))
+			client->offset = 0;
+	}
 
 	switch (msg.op) {
 	case UM_TIMETRAVEL_ACK:
@@ -611,7 +624,7 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 	};
 
 	client->offset = usfstl_sched_current_time(&scheduler);
-	client->state = USCS_STARTED;
+	client->state = USCS_SHM_CHECK;
 	client->id = __builtin_ffsll(~clients);
 	/* If you hit this assert and have the need for move than 64
 	 * clients, it can be handled by an array of clients bits.
