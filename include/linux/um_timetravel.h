@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (C) 2019 - 2020 Intel Corporation
- *
- * SPDX-License-Identifier: BSD-3-Clause
+ * Copyright (C) 2019 - 2023 Intel Corporation
  */
 #ifndef _UAPI_LINUX_UM_TIMETRAVEL_H
 #define _UAPI_LINUX_UM_TIMETRAVEL_H
@@ -42,6 +41,7 @@ struct um_timetravel_msg {
 
 /* max number of file descriptors that can be sent/received in a message */
 #define UM_TIMETRAVEL_MAX_FDS 2
+
 /**
  * enum um_timetravel_shared_mem_fds - fds sent in ACK message for START message
  */
@@ -146,13 +146,13 @@ enum um_timetravel_ops {
 	UM_TIMETRAVEL_GET_TOD		= 8,
 
 	/**
-	 * @UM_TIMETRAVEL_BROADCAST: Send/Receive a broadcast messge
-	 * 	This message can be used to sync all components in the system
-	 * 	with a single message, if the calender gets the message, the
-	 * 	calender broadcast the message to all components, and if a
-	 * 	component receives it it should act based on it e.g print a
-	 * 	message to it's log system.
-	 * 	(calendar <-> host)
+	 * @UM_TIMETRAVEL_BROADCAST: Send/Receive a broadcast message.
+	 *	This message can be used to sync all components in the system
+	 *	with a single message, if the calender gets the message, the
+	 *	calender broadcast the message to all components, and if a
+	 *	component receives it it should act based on it e.g print a
+	 *	message to it's log system.
+	 *	(calendar <-> host)
 	 */
 	UM_TIMETRAVEL_BROADCAST		= 9,
 };
