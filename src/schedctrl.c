@@ -281,33 +281,29 @@ static uint64_t _schedctrl_get_time(struct usfstl_scheduler *sched)
 	uint64_t shared_time = ctrl->shm.mem->current_time;
 
 	if (ctrl->frozen) {
-		uint64_t local = ctrl->sched->current_time * sched->link.tick_ratio;
+		uint64_t local = ctrl->sched->current_time * ctrl->nsec_per_tick;
 
-		sched->link.offset = shared_time - local;
+		ctrl->offset = shared_time - local;
 
 		return ctrl->sched->current_time;
 	}
 
-	return DIV_ROUND_UP(shared_time - sched->link.offset,
-			    sched->link.tick_ratio);
+	return DIV_ROUND_UP(shared_time - ctrl->offset, ctrl->nsec_per_tick);
 }
 
 static void _schedctrl_set_time(struct usfstl_scheduler *sched, uint64_t time)
 {
 	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
-	uint64_t old_time;
-	uint64_t new_time;
+	uint64_t old_time = ctrl->shm.mem->current_time;
+	uint64_t new_time = time * ctrl->nsec_per_tick + ctrl->offset;
 
 	USFSTL_ASSERT(!ctrl->frozen);
 
 	/* Only the running process can set the time */
 	USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id, ctrl->shm.id, "%d");
-	old_time = ctrl->shm.mem->current_time;
-	new_time = time * sched->link.tick_ratio + sched->link.offset;
 
 	DBG_SHAREDMEM(3, "new_time: %" PRIu64 ", free_until: %" PRIu64,
-		      (uint64_t)new_time,
-		      (uint64_t)ctrl->shm.mem->free_until);
+		      new_time, (uint64_t)ctrl->shm.mem->free_until);
 
 	USFSTL_ASSERT_TIME_CMP(sched, new_time, >=, old_time);
 
@@ -321,7 +317,7 @@ static enum usfstl_sched_req_status
 _schedctrl_request_shm(struct usfstl_scheduler *sched, uint64_t time)
 {
 	struct usfstl_sched_ctrl *ctrl = sched->ext.ctrl;
-	uint64_t shm_req_time;
+	uint64_t req_time = time * ctrl->nsec_per_tick + ctrl->offset;
 	union um_timetravel_schedshm_client *shm_self;
 
 	if (!ctrl->started)
@@ -336,19 +332,16 @@ _schedctrl_request_shm(struct usfstl_scheduler *sched, uint64_t time)
 
 	/* Assert that internal state is as external state */
 	USFSTL_ASSERT_EQ(ctrl->shm.mem->running_id, ctrl->shm.id, "%d");
-	shm_req_time = time * sched->link.tick_ratio + sched->link.offset;
 	DBG_SHAREDMEM(3, "req %" PRIu64 ", free_until %" PRIu64,
-		      (uint64_t)shm_req_time,
-		      (uint64_t)ctrl->shm.mem->free_until);
+		      req_time, (uint64_t)ctrl->shm.mem->free_until);
 	/* Make sure we are not requesting to run in the past */
-	USFSTL_ASSERT_TIME_CMP(sched, shm_req_time, >=,
-			       ctrl->shm.mem->current_time);
+	USFSTL_ASSERT_TIME_CMP(sched, req_time, >=, ctrl->shm.mem->current_time);
 
-	if (shm_req_time < ctrl->shm.mem->free_until)
+	if (req_time < ctrl->shm.mem->free_until)
 		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
 
 	shm_self = &ctrl->shm.mem->clients[ctrl->shm.id];
-	shm_self->req_time = shm_req_time;
+	shm_self->req_time = req_time;
 	shm_self->flags |= UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN;
 	return USFSTL_SCHED_REQ_STATUS_WAIT;
 }
@@ -368,7 +361,7 @@ static bool _schedshm_handle_fds(struct usfstl_sched_ctrl *ctrl,
 {
 	_schedshm_setup_shared_mem(ctrl, schedshm_fds);
 
-	if (ctrl->shm.mem->version != 1) {
+	if (ctrl->shm.mem->version != UM_TIMETRAVEL_SCHEDSHM_VERSION) {
 		DBG_SHAREDMEM(0,
 			      "No support for this sharedmem - expected version %d, version %d",
 			      UM_TIMETRAVEL_SCHEDSHM_VERSION, ctrl->shm.mem->version);
@@ -385,6 +378,7 @@ static void _sched_ctrl_ack_start_handle(struct usfstl_sched_ctrl *ctrl,
 					 int *fds, int nr_fds)
 {
 	struct usfstl_scheduler *sched = ctrl->sched;
+	uint64_t local;
 
 	ctrl->shm.id = msg->time & UM_TIMETRAVEL_START_ACK_ID;
 
@@ -394,8 +388,13 @@ static void _sched_ctrl_ack_start_handle(struct usfstl_sched_ctrl *ctrl,
 	if (_schedshm_handle_fds(ctrl, fds, nr_fds))
 		return;
 
-	sched->link.tick_ratio = ctrl->nsec_per_tick;
-	sched->link.offset = ctrl->shm.mem->current_time - sched->current_time;
+	/*
+	 * update offset now that we got to run, since in case of shared memory
+	 * the controller cannot keep doing offset calculations for us
+	 */
+	local = usfstl_sched_current_time(ctrl->sched) * ctrl->nsec_per_tick;
+	ctrl->offset = ctrl->shm.mem->current_time - local;
+
 	sched->external_get_time = _schedctrl_get_time;
 	sched->external_set_time = _schedctrl_set_time;
 	sched->external_request = _schedctrl_request_shm;
