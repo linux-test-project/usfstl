@@ -260,8 +260,7 @@ union um_timetravel_schedshm_client {
  *	(indicated by @running_id), though that client may only run until @free_until,
  *	so it must remain smaller than @free_until.
  * @running_id: The current client in state running, set before a client is
- *	notified that it's now running but only for capable shared memory
- *	client &UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE.
+ *	notified that it's now running.
  * @max_clients: size of @clients array, set once at init by the controller.
  * @clients: clients array see &union um_timetravel_schedshm_client for doc,
  *	set only by client.
