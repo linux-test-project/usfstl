@@ -37,6 +37,7 @@ static int process_start;
 static struct um_timetravel_schedshm *g_schedshm_mem;
 static int g_schedshm_fd_mem = -1;
 static bool started_scheduling;
+static USFSTL_LIST(client_list);
 
 #define CLIENT_FMT "%s"
 #define CLIENT_ARG(c) ((c)->name)
@@ -68,6 +69,7 @@ enum usfstl_schedule_client_state {
 struct usfstl_schedule_client {
 	struct usfstl_job job;
 	struct usfstl_loop_entry conn;
+	struct usfstl_list_entry list;
 	enum usfstl_schedule_client_state state;
 	bool sync_set;
 	uint64_t sync;
@@ -210,8 +212,10 @@ static void remove_client(struct usfstl_schedule_client *client)
 	usfstl_sched_del_job(&client->job);
 	usfstl_loop_unregister(&client->conn);
 	close(client->conn.fd);
-	if (client->state == USCS_STARTED)
+	if (client->state == USCS_STARTED) {
 		clients &= ~CTRL_CLIENT_BIT(client->id);
+		usfstl_list_item_remove(&client->list);
+	}
 
 	/* remove from shared memory as well */
 	shm_client = &g_schedshm_mem->clients[client->id];
@@ -310,11 +314,13 @@ static void _schedshm_client_req_time(struct usfstl_schedule_client *client)
 	uint16_t client_id = client->id;
 	union um_timetravel_schedshm_client *shm_client;
 
-	if (!_schedshm_client_has_shm(client_id))
-		return;
-
 	shm_client = &g_schedshm_mem->clients[client_id];
 	if (!(shm_client->flags & UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN))
+		return;
+
+	/* don't move it to the end of the list if it's already scheduled */
+	if (usfstl_job_scheduled(&client->job) &&
+	    client->job.start == shm_client->req_time)
 		return;
 
 	usfstl_sched_del_job(&client->job);
@@ -354,13 +360,39 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 	switch (msg.op) {
 	case UM_TIMETRAVEL_ACK:
 		return UM_TIMETRAVEL_ACK;
-	case UM_TIMETRAVEL_REQUEST:
+	case UM_TIMETRAVEL_REQUEST: {
+		uint64_t req_time = client->offset + msg.time;
+
 		USFSTL_ASSERT(client->state == USCS_STARTED,
 			      "Client must not request runtime while not started!");
-		usfstl_sched_del_job(&client->job);
-		client->job.start = client->offset + msg.time;
-		usfstl_sched_add_job(&scheduler, &client->job);
+
+		/*
+		 * Update shared memory on behalf of the client.
+		 *
+		 * Note we need to _always_ do this since it may also have a request
+		 * in shared memory already and send a REQUEST, and later we then
+		 * honour only the shared memory request.
+		 */
+		g_schedshm_mem->clients[client->id].flags |=
+			UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN;
+		g_schedshm_mem->clients[client->id].req_time = req_time;
+
+		/*
+		 * If the running client (including ourselves, since we don't
+		 * handle shared memory free_until correctly yet) doesn't know
+		 * about shared memory, then update scheduling immediately.
+		 */
+		if (!_schedshm_client_has_shm(g_schedshm_mem->running_id)) {
+			usfstl_sched_del_job(&client->job);
+			client->job.start = req_time;
+			usfstl_sched_add_job(&scheduler, &client->job);
+			/* adding job also updated free_until in shm */
+		} else if (usfstl_time_cmp(req_time, <,
+					   (uint64_t)g_schedshm_mem->free_until)) {
+			g_schedshm_mem->free_until = req_time;
+		}
 		client->n_req++;
+		}
 		break;
 	case UM_TIMETRAVEL_START:
 		/*
@@ -390,14 +422,12 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 					 CLIENT_FMT, CLIENT_ARG);
 			set_running_client(NULL);
 		}
+
 		/* In shared memory mode we don't wait send ack on wait message
 		 * as required by linux/um_timetravel.h
 		 */
-		if (_schedshm_client_has_shm(client->id)) {
-			/* check for client request time and resched */
-			_schedshm_client_req_time(client);
+		if (_schedshm_client_has_shm(client->id))
 			return UM_TIMETRAVEL_WAIT;
-		}
 		break;
 	case UM_TIMETRAVEL_GET:
 		USFSTL_ASSERT(client->state == USCS_STARTED,
@@ -590,6 +620,7 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 	mem_client = &g_schedshm_mem->clients[client->id];
 	mem_client->name = client->shm_name;
 	clients |= CTRL_CLIENT_BIT(client->id);
+	usfstl_list_append(&client_list, &client->list);
 
 	set_running_client(client);
 
@@ -643,6 +674,11 @@ static void run_client(struct usfstl_job *job)
 	DBG_CLIENT(2, client, "running");
 
 	update_sync(client);
+
+	/* shared mem clients will clear it themselves, but others can't */
+	if (!_schedshm_client_has_shm(client->id))
+		g_schedshm_mem->clients[client->id].flags &=
+			~UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN;
 
 	if (send_message(client, UM_TIMETRAVEL_RUN,
 			 usfstl_sched_current_time(&scheduler) - client->offset))
@@ -749,6 +785,7 @@ static void next_time_changed(struct usfstl_scheduler *sched)
 int main(int argc, char **argv)
 {
 	int ret = usfstl_parse_options(argc, argv);
+	struct usfstl_schedule_client *tmp;
 
 	if (ret)
 		return ret;
@@ -792,6 +829,8 @@ int main(int argc, char **argv)
 
 	DBG(0, "have %d clients now", __builtin_popcountll(clients));
 
+	usfstl_for_each_list_item(tmp, &client_list, list)
+		_schedshm_client_req_time(tmp);
 	started_scheduling = true;
 
 	while (wallclock_network) {
@@ -802,12 +841,16 @@ int main(int argc, char **argv)
 		}
 
 		process_starting_clients();
+		usfstl_for_each_list_item(tmp, &client_list, list)
+			_schedshm_client_req_time(tmp);
 	}
 
 	while (clients && usfstl_sched_next_pending(&scheduler, NULL)) {
 		dump_sched("schedule");
 		usfstl_sched_next(&scheduler);
 		process_starting_clients();
+		usfstl_for_each_list_item(tmp, &client_list, list)
+			_schedshm_client_req_time(tmp);
 	}
 
 	usfstl_uds_remove(path);

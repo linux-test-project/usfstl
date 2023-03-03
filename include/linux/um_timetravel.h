@@ -179,10 +179,11 @@ enum um_timetravel_schedshm_cap {
 enum um_timetravel_schedshm_flags {
 	/**
 	 * @UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN: client has a request to run.
-	 *	It's set by client only while client is running, and clears the
-	 *	flag after client gets a RUN message, after client sends a WAIT
-	 *	message controller reads the flag and if set reschedules the
-	 *	client to requested time.
+	 *	It's set by client when it has a request to run, if (and only
+	 *	if) the @running_id points to a client that is able to use
+	 *	shared memory, i.e. has %UM_TIMETRAVEL_SCHEDSHM_CAP_TIME_SHARE
+	 *	(this includes the client itself). Otherwise, a message must
+	 *	be used.
 	 */
 	UM_TIMETRAVEL_SCHEDSHM_FLAGS_REQ_RUN = 0x1,
 };
@@ -255,7 +256,9 @@ union um_timetravel_schedshm_client {
  *	current client to know how long it can still run. A client needs to (at
  *	least) reload this value immediately after communicating with any other
  *	client, since the controller will update this field when a new request
- *	is made by any client.
+ *	is made by any client. Clients also must update this value when they
+ *	insert/update an own request into the shared memory while not running
+ *	themselves, and the new request is before than the current value.
  * current_time: Current time, can only be set by the client in running state
  *	(indicated by @running_id), though that client may only run until @free_until,
  *	so it must remain smaller than @free_until.
