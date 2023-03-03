@@ -445,12 +445,14 @@ void usfstl_sched_ctrl_start(struct usfstl_sched_ctrl *ctrl,
 	ctrl->fd = usfstl_uds_connect(socket, usfstl_sched_ctrl_sock_read,
 				      ctrl);
 
-	/* until we get the RUN we are in waiting state */
+	/* until we get the ack we are in waiting state */
 	ctrl->waiting = 1;
 	ctrl->handle_msg_fds = _sched_ctrl_ack_start_handle;
 	/* tell the other side we're starting  */
 	usfstl_sched_ctrl_send_msg(ctrl, UM_TIMETRAVEL_START, client_id);
 	ctrl->started = 1;
+	/* now we're running until we send WAIT */
+	ctrl->waiting = 0;
 
 	/* if we have a job already, request it */
 	job = usfstl_sched_next_pending(sched, NULL);
