@@ -88,6 +88,17 @@ extern struct usfstl_multi_participant g_usfstl_multi_local_participant;
  */
 extern struct usfstl_rpc_connection *g_usfstl_multi_ctrl_conn;
 
+/*
+ * To prevent synchronization messages from being sent from multi-ctrl
+ * to multi-ptc, use the option to disable them. This option is useful
+ * when multi-ctrl is connected to external scheduler and the synchronization
+ * messages from the external scheduler are not transferred to multi-ctrl,
+ * resulting in a mismatch between multi-ctrl and the external scheduler sync
+ * time. Note that in this case, it is recommended to connect multi-ptc
+ * directly to the external scheduler itself instead.
+ */
+extern bool g_usfstl_multi_ctrl_disable_sync;
+
 /**
  * usfstl_multi_add_rpc_connection_sched - add a multi-participant RPC connection
  * @conn: the RPC connection to set up and add

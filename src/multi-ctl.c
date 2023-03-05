@@ -31,6 +31,8 @@ static bool g_usfstl_debug_subprocesses;
 USFSTL_OPT_FLAG("multi-debug-subprocs", 0, g_usfstl_debug_subprocesses,
 		"Break into a debugger once all sub-processes are started");
 
+bool USFSTL_NORESTORE_VAR(g_usfstl_multi_ctrl_disable_sync);
+
 /* variables for controller */
 // make the section exist even in non-multi builds
 static const struct usfstl_multi_participant * const usfstl_multi_participant_NULL
@@ -101,7 +103,12 @@ static void usfstl_multi_ctl_wait(struct usfstl_multi_participant *p)
 void
 usfstl_multi_controller_update_sync_time(struct usfstl_multi_participant *update)
 {
-	uint64_t sync = usfstl_sched_get_sync_time(&g_usfstl_multi_sched);
+	uint64_t sync;
+
+	if (g_usfstl_multi_ctrl_disable_sync)
+		return;
+
+	sync = usfstl_sched_get_sync_time(&g_usfstl_multi_sched);
 
 	if (!update)
 		update = g_usfstl_multi_running_participant;
