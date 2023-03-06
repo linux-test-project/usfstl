@@ -38,6 +38,7 @@ static struct um_timetravel_schedshm *g_schedshm_mem;
 static int g_schedshm_fd_mem = -1;
 static bool started_scheduling;
 static USFSTL_LIST(client_list);
+static bool disable_shm;
 
 #define CLIENT_FMT "%s"
 #define CLIENT_ARG(c) ((c)->name)
@@ -640,9 +641,12 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 	// assert that the ID can be sent as part of the message
 	USFSTL_ASSERT_EQ((uint64_t)client->id & ~UM_TIMETRAVEL_START_ACK_ID,
 			 (uint64_t)0, "%" PRIu64);
-	write_message_fds(client, UM_TIMETRAVEL_ACK, client->start_seq,
-			  client->id & UM_TIMETRAVEL_START_ACK_ID,
-			  schedshm_fds, UM_TIMETRAVEL_SHARED_MAX_FDS);
+	if (disable_shm)
+		write_message(client, UM_TIMETRAVEL_ACK, client->start_seq, 0);
+	else
+		write_message_fds(client, UM_TIMETRAVEL_ACK, client->start_seq,
+				  client->id & UM_TIMETRAVEL_START_ACK_ID,
+				  schedshm_fds, UM_TIMETRAVEL_SHARED_MAX_FDS);
 	wait_for(client, UM_TIMETRAVEL_WAIT);
 }
 
@@ -789,6 +793,8 @@ USFSTL_OPT_FLAG("wallclock-network", 0, wallclock_network,
 USFSTL_OPT_INT("debug", 0, "level", debug_level, "debug level");
 USFSTL_OPT_U64("time-at-start", 0, "opt_time_at_start", time_at_start,
 	       "set the start time");
+
+USFSTL_OPT_FLAG("no-shm", 0, disable_shm, "Disable shared memory");
 
 static void next_time_changed(struct usfstl_scheduler *sched)
 {
