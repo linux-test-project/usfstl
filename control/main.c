@@ -33,11 +33,11 @@ static struct usfstl_schedule_client *running_client;
 static uint64_t time_at_start;
 static int debug_level;
 static int nesting;
-static int process_start;
 static struct um_timetravel_schedshm *g_schedshm_mem;
 static int g_schedshm_fd_mem = -1;
 static bool started_scheduling;
 static USFSTL_LIST(client_list);
+static USFSTL_LIST(new_clients);
 static bool disable_shm;
 
 #define CLIENT_FMT "%s"
@@ -214,10 +214,10 @@ static void remove_client(struct usfstl_schedule_client *client)
 	usfstl_sched_del_job(&client->job);
 	usfstl_loop_unregister(&client->conn);
 	close(client->conn.fd);
-	if (client->state == USCS_STARTED || client->state == USCS_SHM_CHECK) {
+
+	if (client->state == USCS_STARTED || client->state == USCS_SHM_CHECK)
 		clients &= ~CTRL_CLIENT_BIT(client->id);
-		usfstl_list_item_remove(&client->list);
-	}
+	usfstl_list_item_remove(&client->list);
 
 	/* remove from shared memory as well */
 	shm_client = &g_schedshm_mem->clients[client->id];
@@ -419,13 +419,16 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		 * new FREE_UNTIL, which is unsafe anyway as it might be past
 		 * that point already.
 		 *
-		 * Thus, we just set the "process_start" flag here and later
+		 * Thus, we just add the client to the new_clients list and
 		 * call process_starting_clients() in the right place on the
 		 * outermost scheduling layer, including sending the ACK.
 		 */
-		process_start = true;
 		client->start_seq = msg.seq;
+		USFSTL_ASSERT(client->state != USCS_STARTED &&
+			      client->state != USCS_START_REQUESTED,
+			      "Client must not send START twice!");
 		client->state = USCS_START_REQUESTED;
+		usfstl_list_append(&new_clients, &client->list);
 		return UM_TIMETRAVEL_START;
 	case UM_TIMETRAVEL_WAIT:
 		USFSTL_ASSERT(client == running_client || !running_client,
@@ -634,6 +637,7 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 	mem_client = &g_schedshm_mem->clients[client->id];
 	mem_client->name = client->shm_name;
 	clients |= CTRL_CLIENT_BIT(client->id);
+	usfstl_list_item_remove(&client->list);
 	usfstl_list_append(&client_list, &client->list);
 
 	set_running_client(client);
@@ -652,33 +656,14 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 
 static void process_starting_clients(void)
 {
-	struct usfstl_loop_entry *entry, *tmp;
+	// Note: cannot use usfstl_for_each_list_item() since we might get a
+	// new start message from another new client while we wait for the
+	// WAIT message from this one in process_starting_client().
+	while (!usfstl_list_empty(&new_clients)) {
+		struct usfstl_schedule_client *client;
 
-	// Note: need to loop since we might get a new start message
-	// from another new client while we wait for the WAIT message
-	// from this one in process_starting_client().
-	while (process_start) {
-		// We need _safe since we could remove an entry as well.
-		usfstl_loop_for_each_entry_safe(entry, tmp) {
-			struct usfstl_schedule_client *client;
-
-			// Note: we do mangle this sometimes, but here we are outside
-			// of the scheduling, so can't be in a wait_for()
-			if (entry->handler != handle_message)
-				continue;
-
-			client = container_of(entry, struct usfstl_schedule_client, conn);
-
-			if (client->state != USCS_START_REQUESTED)
-				continue;
-
-			process_start = false;
-			process_starting_client(client);
-			// start again from the beginning if we have a new one,
-			// to avoid missing one ...
-			if (process_start)
-				break;
-		}
+		client = usfstl_list_first_item(&new_clients, typeof(*client), list);
+		process_starting_client(client);
 	}
 }
 
