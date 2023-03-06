@@ -321,6 +321,7 @@ class VlabArguments:
     plugins: List[Plugin] = []
     config: Config
     sigquit_on_timeout: bool = False
+    no_shm: bool = False
 
     def __init__(self) -> None:
         self.machineid = 1
@@ -428,6 +429,8 @@ class VlabArguments:
                             help="Send SIGQUIT on timeout to get core dumps")
         parser.add_argument(type=str, dest='command', nargs='*', metavar='cmd/arg',
                             help=f"command (with arguments) to run inside the vLab")
+        parser.add_argument('--no-shm', action='store_const', const=True,
+                            help="Disable shared memory in controller")
         data = parser.parse_args(args)
 
         new = VlabArguments()
@@ -440,6 +443,7 @@ class VlabArguments:
         new.command = data.command
         new.nodes = data.nodes
         new.sigquit_on_timeout = data.sigquit_on_timeout
+        new.no_shm = data.no_shm
 
         if new.interactive:
             if new.command:
@@ -690,6 +694,8 @@ poweroff -f
                      f'--time-at-start={cfg.start_time}']
         if args.dbg:
             ctrl_args += [f'--debug=3']
+        if args.no_shm:
+            ctrl_args += ['--no-shm']
 
         if cfg.net_delay is not None:
             ctrl_args.append('--net-delay=%f' % cfg.net_delay)
