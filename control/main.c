@@ -463,18 +463,11 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		client->n_update++;
 		break;
 	case UM_TIMETRAVEL_BROADCAST: {
-		struct usfstl_loop_entry *entry, *tmp;
+		struct usfstl_schedule_client *other_client, *tmp;
 
 		DBG_CLIENT(3, client, "Got BROADCAST message %llx", msg.time);
 		/* we need to use safe due to change the list while waiting for ack */
-		usfstl_loop_for_each_entry_safe(entry, tmp) {
-			struct usfstl_schedule_client *other_client;
-			other_client = container_of(entry, struct usfstl_schedule_client, conn);
-
-			/* To be on the safe side only send to started clients */
-			if (other_client->state != USCS_STARTED)
-				continue;
-
+		usfstl_for_each_list_item_safe(other_client, tmp, &client_list, list) {
 			/* Don't send the message to whom sent the message */
 			if (other_client == client)
 				continue;
