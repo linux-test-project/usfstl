@@ -215,6 +215,7 @@ class Config:
     net_delay: Union[None, float] = attr.ib(None)
     nodes: List[Node] = attr.ib([])
     start_time: int = 0
+    no_shm: bool = False
 
 class Failure(Exception):
     """
@@ -392,6 +393,7 @@ class VlabArguments:
 
         if 'controller' in cfg:
             config.start_time = cfg['controller'].get('start-time', 0)
+            config.no_shm = 'no-shm' in cfg['controller']
 
         config.nodes = nodes
         self.config = config
@@ -694,7 +696,7 @@ poweroff -f
                      f'--time-at-start={cfg.start_time}']
         if args.dbg:
             ctrl_args += [f'--debug=3']
-        if args.no_shm:
+        if args.no_shm or cfg.no_shm:
             ctrl_args += ['--no-shm']
 
         if cfg.net_delay is not None:
