@@ -53,9 +53,13 @@ run_vlab()
 	else
 		$exampledir/../virtlab.py $args "$@" 2>&1 | tee $tee_file
 
-		# NOTE: this assumes the first machine is always called m1
-		test -f logs/current/m1/dmesg && exit 2
-		mv $tee_file logs/current/m1/
+		# NOTE: this assumes the first machine name is m1 or starts with m1(-|_) prefix
+		dmesg_dir=$(find logs/current/ -type d -regex ".*/\(m1\|m1[-_][^/]*\)")
+		# Check that we found exactly one dir
+		test ! -d ${dmesg_dir} && exit 2
+		# Don't overwrite an existing dmesg
+		test -f ${dmesg_dir}/dmesg && exit 2
+		mv $tee_file ${dmesg_dir}/
 	fi
 
 	if grep -E 'WARNING:|BUG:|UBSAN:|^unreferenced object' "$check_logs"/*/dmesg ; then
