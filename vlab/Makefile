@@ -42,10 +42,18 @@ iw:
 iw/iw: iw
 	$(Q)cd iw && $(MAKE)
 
+_PYFILES := virtlab.py plugins/*.py
+
 .PHONY: pychecks
-pychecks:
-	$(Q)mypy --strict virtlab.py plugins/*.py
-	$(Q)pylint virtlab.py plugins/*.py
+pychecks: pychecks-mypy pychecks-pylint
+
+.PHONY: pychecks-mypy
+pychecks-mypy:
+	$(Q)mypy --strict $(_PYFILES)
+
+.PHONY: pychecks-pylint
+pychecks-pylint:
+	$(Q)pylint $(_PYFILES)
 
 EXAMPLES := $(sort $(wildcard examples/*.sh))
 TESTRUNS := $(patsubst examples/%,run_test_%,$(EXAMPLES))
