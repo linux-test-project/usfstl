@@ -21,7 +21,7 @@ import argparse
 import subprocess
 import importlib
 import tempfile
-from typing import List, Union, Dict, Any, Optional, Type, BinaryIO
+from typing import List, Union, Dict, Any, Optional, Type, BinaryIO, TYPE_CHECKING
 import itertools
 import yaml
 import attr
@@ -256,8 +256,27 @@ def addr(idx: int) -> str:
     return '10.0.0.%d' % idx
 
 
+if TYPE_CHECKING:
+    # pylint: disable=invalid-name,unsubscriptable-object
+    _VlabNamedProcessBase = subprocess.Popen[bytes]
+else:
+    _VlabNamedProcessBase = subprocess.Popen
+
+class VlabNamedProcess(_VlabNamedProcessBase):
+    # pylint: disable=too-few-public-methods
+    """
+    Vlab process class to have an extra vlab name for debug
+    """
+    def __init__(self, *args: Any, vlab_name: Optional[str] = None, **kw: Any):
+        # work around some stupid mypy version dependent issues
+        _args = [self] + list(args)
+        _VlabNamedProcessBase.__init__(*_args, **kw)
+        self.vlab_name = vlab_name
+
+
 def start_process(args: List[str], outfile: Union[None, str] = None,
-                  interactive: bool = False, cwd: Union[None, str] = None) -> Any:
+                  interactive: bool = False, cwd: Union[None, str] = None,
+                  vlab_name: Optional[str] = None) -> Any:
     """
     Start a single process and returns its Popen object.
     """
@@ -275,8 +294,9 @@ def start_process(args: List[str], outfile: Union[None, str] = None,
     else:
         s_in = subprocess.DEVNULL
 
-    return subprocess.Popen(args, start_new_session=True, cwd=cwd,
-                            stdout=s_out, stdin=s_in, stderr=s_err)
+    return VlabNamedProcess(args, start_new_session=True, cwd=cwd,
+                            stdout=s_out, stdin=s_in, stderr=s_err,
+                            vlab_name=vlab_name)
 
 
 def wait_for_socket(which: str, sockname: Optional[str], timeout: int = 2) -> None:
@@ -558,7 +578,8 @@ class Vlab:
         outfile = os.path.join(node.logdir,
                                f'dmesg') if logfile else None
         self.processes.append(start_process(args, outfile=outfile,
-                                            interactive=interactive))
+                                            interactive=interactive,
+                                            vlab_name=node.name))
 
     def get_log_dir(self) -> str:
         """
@@ -774,7 +795,11 @@ poweroff -f
             if args.dbg:
                 gdb_log: List[str] = []
                 for process in itertools.chain(self.killprocesses, self.processes):
-                    gdb_log += [f'\npid: {process.pid} ({os.path.basename(process.args[0])})']
+                    extra = ''
+                    if isinstance(process, VlabNamedProcess) and process.vlab_name:
+                        extra = f' {process.vlab_name}'
+                    basename = os.path.basename(process.args[0])
+                    gdb_log += [f'\npid: {process.pid} ({basename}{extra})']
                     gdb: List[str] = ['gdb']
                     if os.path.basename(process.args[0]) == 'linux':
                         linux_gdb = os.path.join(os.path.dirname(__file__), 'linux.gdb')
