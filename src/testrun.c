@@ -59,7 +59,8 @@ void usfstl_abort(const char *fn, unsigned int line, const char *cond,
 {
 	va_list va;
 
-	if (g_usfstl_abort_handler) {
+	if (g_usfstl_abort_handler &&
+	    g_usfstl_failure_reason != USFSTL_STATUS_ASSERTION_FAILED) {
 		usfstl_printf("Calling user-defined abort handler\n");
 		fflush(stdout);
 		g_usfstl_abort_handler(fn, line, cond);
@@ -116,7 +117,15 @@ void usfstl_abort(const char *fn, unsigned int line, const char *cond,
 		abort();
 
 	g_usfstl_test_aborted = true;
-	g_usfstl_failure_reason = USFSTL_STATUS_ASSERTION_FAILED;
+
+	/* if status is ASSERTION_FAILED, it means we're already in abort flow */
+	if (g_usfstl_failure_reason == USFSTL_STATUS_ASSERTION_FAILED)
+		g_usfstl_failure_reason = USFSTL_STATUS_ABORT_TWICE;
+	else if (g_usfstl_failure_reason == USFSTL_STATUS_ABORT_TWICE)
+		abort();
+	else
+		g_usfstl_failure_reason = USFSTL_STATUS_ASSERTION_FAILED;
+
 	usfstl_ctx_abort_test();
 
 	/* this cannot happen, but make __attribute__((noreturn)) happy */
@@ -217,6 +226,7 @@ enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
 		status = USFSTL_STATUS_SUCCESS;
 		break;
 	case USFSTL_STATUS_WATCHDOG_TIMEOUT:
+	case USFSTL_STATUS_ABORT_TWICE:
 	case USFSTL_STATUS_ASSERTION_FAILED:
 		break;
 	default:
@@ -229,7 +239,7 @@ enum usfstl_testcase_status usfstl_execute_test(const struct usfstl_test *test,
         if (g_usfstl_assert_coverage_file)
                 usfstl_log_reached_asserts();
 
-	if (test->post)
+	if (test->post && status != USFSTL_STATUS_ABORT_TWICE)
 		test->post(g_usfstl_current_test, g_usfstl_current_test_case_data,
 			   test_num, case_num, status);
 
