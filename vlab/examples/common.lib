@@ -67,6 +67,26 @@ run_vlab()
 	fi
 }
 
+get_vlab_pid()
+{
+	# run_vlab launches a subshell
+	pgrep -f virtlab.py -P $1
+}
+
+get_uml_pid()
+{
+	pgrep -o -f "/linux .* hostname=$2" -P $( get_vlab_pid $1 )
+}
+
+wait_uml_pid()
+{
+	for i in $( seq 20 ); do
+		p=$( pgrep -o -f "/linux .* hostname=$2" -P $( get_vlab_pid $1 ) )
+		test -n "$p" && echo $p && return
+		sleep 0.1
+	done
+}
+
 delete() {
         rm -rf $tmpdir
 }
