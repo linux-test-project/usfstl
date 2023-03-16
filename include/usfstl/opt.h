@@ -54,6 +54,8 @@ bool usfstl_opt_parse_str(struct usfstl_opt *opt, const char *arg);
 #define USFSTL_OPT_INT(_long, _short, _arg, _val, _desc)	\
 	USFSTL_BUILD_BUG_ON(					\
 		!__builtin_types_compatible_p(int,		\
+					      typeof(_val)) &&	\
+		!__builtin_types_compatible_p(unsigned int,		\
 					      typeof(_val)));	\
 	_USFSTL_OPT(__LINE__,					\
 		.desc = _desc,					\

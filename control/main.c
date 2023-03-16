@@ -27,7 +27,7 @@ static uint64_t clients;
 #define CTRL_CLIENT_ID 0
 #define CTRL_CLIENT_BIT(client_id) (1ULL << ((client_id) - 1))
 #define CTRL_SCHEDSHM_MAX_CLIENTS (sizeof(clients) * 8)
-static int expected_clients;
+static unsigned int expected_clients;
 USFSTL_SCHEDULER(scheduler);
 static struct usfstl_schedule_client *running_client;
 static uint64_t time_at_start;
@@ -408,7 +408,10 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 		client->n_req++;
 		}
 		break;
-	case UM_TIMETRAVEL_START:
+	case UM_TIMETRAVEL_START: {
+		struct usfstl_schedule_client *c = NULL;
+		struct usfstl_schedule_client *before = NULL;
+
 		/*
 		 * This is complicated. We need to set the client offset and
 		 * so process the startup message not in some arbitrary loop
@@ -428,8 +431,22 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 			      client->state != USCS_START_REQUESTED,
 			      "Client must not send START twice!");
 		client->state = USCS_START_REQUESTED;
-		usfstl_list_append(&new_clients, &client->list);
+
+		/* Do an insertion sort here based on shm_name (i.e. ID) */
+		usfstl_for_each_list_item(c, &new_clients, list) {
+			if (c->shm_name > client->shm_name) {
+				before = c;
+				break;
+			}
+		}
+
+		if (before)
+			usfstl_list_insert_before(&before->list, &client->list);
+		else
+			usfstl_list_append(&new_clients, &client->list);
+
 		return UM_TIMETRAVEL_START;
+		}
 	case UM_TIMETRAVEL_WAIT:
 		USFSTL_ASSERT(client == running_client || !running_client,
 			      "Client must not wait while not running!");
@@ -819,12 +836,13 @@ int main(int argc, char **argv)
 
 	DBG(0, "waiting for %d clients", expected_clients);
 
-	while (__builtin_popcountll(clients) < expected_clients) {
+	/* Wait for all clients to connect (so that we can sort them) */
+	while (usfstl_list_length(&new_clients) < expected_clients)
 		usfstl_loop_wait_and_handle();
-		process_starting_clients();
-	}
 
-	DBG(0, "have %d clients now", __builtin_popcountll(clients));
+	DBG(0, "have %d clients now", expected_clients);
+
+	process_starting_clients();
 
 	usfstl_for_each_list_item(tmp, &client_list, list)
 		_schedshm_client_req_time(tmp);

@@ -94,4 +94,15 @@ static inline void usfstl_list_item_remove(struct usfstl_list_entry *entry)
 	entry->prev = NULL;
 }
 
+static inline unsigned int usfstl_list_length(struct usfstl_list *list)
+{
+	struct usfstl_list_entry *item;
+	unsigned int count = 0;
+
+	for (item = list->list.next; item != &list->list; item = item->next)
+		count++;
+
+	return count;
+}
+
 #endif // _USFSTL_LIST_H_
