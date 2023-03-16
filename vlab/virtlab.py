@@ -337,6 +337,7 @@ class VlabArguments:
     timeout: Union[None, int] = 120
     nodes: str = 'nodes.yaml'
     logpath: Union[str, None] = None
+    tmpdir: Union[str, None] = None
     dbg: bool = False
     command: Union[List[str], None] = None
     plugins: List[Plugin] = []
@@ -443,6 +444,9 @@ class VlabArguments:
                             help=("path to the test logs. If given, write to 'logs/<timestamp>/' " +
                                   "and create/update the 'logs/current' symlink; " +
                                   " otherwise use as is."))
+        parser.add_argument("--tmpdir", default=cls.tmpdir,
+                            help=("path for temporary files. If given, use this directory for " +
+                                  "temporary data. Otherwise create a new directory."))
         parser.add_argument('--dbg', action='store_const', const=True,
                             default=cls.dbg,
                             help="stop and allow gdb (disables timeout)")
@@ -461,6 +465,7 @@ class VlabArguments:
         new.wallclock = data.wallclock
         new.timeout = data.timeout
         new.logpath = data.logpath
+        new.tmpdir = data.tmpdir
         new.dbg = data.dbg
         new.command = data.command
         new.nodes = data.nodes
@@ -861,8 +866,11 @@ poweroff -f
         """
         Run the virtual lab.
         """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            self._run(tmpdir)
+        if self.args.tmpdir is not None:
+            self._run(self.args.tmpdir)
+        else:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                self._run(tmpdir)
 
 if __name__ == '__main__':
     try:
