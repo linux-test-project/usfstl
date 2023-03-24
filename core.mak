@@ -144,7 +144,8 @@
 _USFSTL_MACHINE := $(shell $(CC) -dumpmachine)
 _USFSTL_M_CYGWIN := $(findstring cygwin,$(_USFSTL_MACHINE))
 _USFSTL_M_MINGW := $(findstring mingw,$(_USFSTL_MACHINE))
-ifeq ($(_USFSTL_M_CYGWIN)$(_USFSTL_M_MINGW),)
+_USFSTL_M_WIN := $(findstring windows,$(_USFSTL_MACHINE))
+ifeq ($(_USFSTL_M_CYGWIN)$(_USFSTL_M_MINGW)$(_USFSTL_M_WIN),)
 _USFSTL_WINDOWS := 0
 _USFSTL_EXESUFFIX :=
 USFSTL_CONTEXT_BACKEND ?= ucontext
@@ -242,7 +243,7 @@ USFSTL_TESTSRC_DIR ?=
 USFSTL_TEST_SECTION := text_test
 
 ifeq ($(USFSTL_CONTEXT_BACKEND),pthread)
-USFSTL_TEST_LINK_OPT += -lpthread
+USFSTL_TEST_LINK_OPT += -pthread
 endif
 
 USFSTL_TESTED_LIB_CFG ?= $$(USFSTL_TEST_CFG)

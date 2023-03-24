@@ -47,6 +47,31 @@ static void error_callback(void *data, const char *msg, int error_number)
 	for (unsigned int i = 0; i < static_reference_count(); i++) \
 		if ((p = __start_static_reference_data[i]) && (!(*p->ptr)))
 
+static int usfstl_compare_paths(const char *s1, const char *s2)
+{
+#ifndef _WIN32
+	return strcmp(s1, s2);
+#else
+	while (*s1 && *s2) {
+		char c1 = *s1;
+		char c2 = *s2;
+
+		if ((c1 == '/' || c1 == '\\') && (c2 == '/' || c2 == '\\')) {
+			s1++;
+			s2++;
+			continue;
+		}
+
+		if (c1 != c2)
+			return c1 - c2;
+		s1++;
+		s2++;
+	}
+
+	return *s1 - *s2;
+#endif
+}
+
 static void usfstl_resolve_static_variable(const char *varname, const char *filename, void *varptr)
 {
 	const struct usfstl_static_reference *reference;
@@ -58,8 +83,8 @@ static void usfstl_resolve_static_variable(const char *varname, const char *file
 		if (strcmp(reference->name, varname))
 			continue;
 
-		if (strcmp(filename + strlen(filename) - strlen(reference->filename),
-			   reference->filename)) {
+		if (usfstl_compare_paths(filename + strlen(filename) - strlen(reference->filename),
+			reference->filename)) {
 			continue;
 		}
 

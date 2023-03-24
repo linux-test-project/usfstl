@@ -65,7 +65,7 @@ macro(usfstl_configure_framework)
     set(USFSTL_FRAMEWORK_TARGET "usfstl${USFSTL_POSTFIX}")
 
     if("${USFSTL_CONTEXT_BACKEND}" STREQUAL "pthread")
-        string(APPEND USFSTL_LINK_OPT " -lpthread")
+        string(APPEND USFSTL_LINK_OPT " -pthread")
     endif()
 
     if("${USFSTL_FUZZING}"  STREQUAL "1")
