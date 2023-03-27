@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2020, 2022 Intel Corporation
+ * Copyright (C) 2018 - 2020, 2022 - 2023 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -158,6 +158,8 @@ struct usfstl_test {
 int usfstl_init(int argc, char **argv);
 
 enum usfstl_testcase_status usfstl_run_test(const struct usfstl_test *tc);
+
+int usfstl_library_run_participant(void);
 #endif /* USFSTL_LIBRARY */
 
 /*

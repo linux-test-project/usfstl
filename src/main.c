@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2021, 2023 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -309,6 +309,12 @@ enum usfstl_testcase_status usfstl_run_test(const struct usfstl_test *tc)
 	close_requirements();
 
 	return status;
+}
+
+int usfstl_library_run_participant(void)
+{
+	USFSTL_ASSERT(usfstl_is_multi_participant());
+	return usfstl_multi_participant_run();
 }
 #else
 int main(int argc, char **argv)

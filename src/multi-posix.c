@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 - 2021 Intel Corporation
+ * Copyright (C) 2019 - 2021, 2023 Intel Corporation
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -11,7 +11,6 @@
 #include "internal.h"
 
 /* participant side */
-#ifndef USFSTL_LIBRARY
 static struct usfstl_rpc_connection USFSTL_NORESTORE_VAR(g_usfstl_multi_ctrl_conn_inst);
 
 static bool usfstl_multi_init_control(struct usfstl_opt *opt, const char *arg)
@@ -37,7 +36,6 @@ USFSTL_OPT("control", 0, "connection", usfstl_multi_init_control, NULL,
 USFSTL_OPT_STR("multi-ptc-ctl", 0, "name",
 	       g_usfstl_multi_ctrl_conn_inst.name,
 	       "Controller name, set by the controller");
-#endif
 
 /* controller side */
 void usfstl_run_participant(struct usfstl_multi_participant *p, int nargs)
