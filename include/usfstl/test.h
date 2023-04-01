@@ -160,6 +160,8 @@ int usfstl_init(int argc, char **argv);
 enum usfstl_testcase_status usfstl_run_test(const struct usfstl_test *tc);
 
 int usfstl_library_run_participant(void);
+
+void usfstl_library_finish(void);
 #endif /* USFSTL_LIBRARY */
 
 /*

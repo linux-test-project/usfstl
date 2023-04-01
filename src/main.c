@@ -54,6 +54,10 @@ bool USFSTL_NORESTORE_VAR(g_usfstl_flush_each_log);
 bool USFSTL_NORESTORE_VAR(g_usfstl_list_tests);
 static bool USFSTL_NORESTORE_VAR(g_usfstl_list_projnames);
 
+#ifdef USFSTL_LIBRARY
+static bool USFSTL_NORESTORE_VAR(g_usfstl_multi_init);
+#endif
+
 #ifndef USFSTL_LIBRARY
 static bool g_usfstl_list_asserts;
 #endif // USFSTL_LIBRARY
@@ -259,6 +263,9 @@ int usfstl_init(int argc, char **argv)
 	if (!single_case && execute)
 		usfstl_save_globals(argv[0]);
 	usfstl_multi_init();
+#ifdef USFSTL_LIBRARY
+	g_usfstl_multi_init = true;
+#endif
 
 	return 0;
 }
@@ -315,6 +322,14 @@ int usfstl_library_run_participant(void)
 {
 	USFSTL_ASSERT(usfstl_is_multi_participant());
 	return usfstl_multi_participant_run();
+}
+
+void usfstl_library_finish(void)
+{
+	if (g_usfstl_multi_init) {
+		usfstl_multi_finish();
+		g_usfstl_multi_init = false;
+	}
 }
 #else
 int main(int argc, char **argv)
