@@ -18,10 +18,10 @@ int dummy1(void)
 #endif
 }
 
-int dummy2(int x)
+int dummy2(int x, int y, int z, int zz)
 {
-	g_sum += x;
-	return dummy1() + x;
+	g_sum += x + y + z + zz;
+	return dummy1() + x + y + z + zz;
 }
 
 void dummy3(int x)
@@ -31,5 +31,5 @@ void dummy3(int x)
 	 * the print function only exists in the main.c
 	 * and in the support code.
 	 */
-	print(dummy2(x));
+	print(dummy2(x, 0, 0, 0));
 }

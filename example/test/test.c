@@ -18,7 +18,7 @@
 void test_simple(const struct usfstl_test *test, void *testcase)
 {
 	USFSTL_ASSERT_EQ(dummy1(), OFFSET, "%d");
-	USFSTL_ASSERT_EQ(dummy2(100), 100 + OFFSET, "%d");
+	USFSTL_ASSERT_EQ(dummy2(100, 0, 0, 0), 100 + OFFSET, "%d");
 }
 USFSTL_UNIT_TEST(test_simple, NULL, NO_CASES);
 
@@ -33,7 +33,7 @@ void test_cases(const struct usfstl_test *test, void *testcase)
 {
 	struct testcase *tc = testcase;
 
-	USFSTL_ASSERT_EQ(dummy2(tc->input), tc->output, "%d");
+	USFSTL_ASSERT_EQ(dummy2(tc->input, 0, 0, 0), tc->output, "%d");
 
 	// also check that the globals are restored between
 	// each test run, i.e. the g_sum is just one input
@@ -76,7 +76,7 @@ void test_override(const struct usfstl_test *test, void *testcase)
 {
 	USFSTL_STUB(dummy1, dummy1_stub);
 
-	USFSTL_ASSERT_EQ(dummy2(100), 155, "%d");
+	USFSTL_ASSERT_EQ(dummy2(100, 0, 0, 0), 155, "%d");
 }
 USFSTL_UNIT_TEST(test_override, NULL, NO_CASES);
 

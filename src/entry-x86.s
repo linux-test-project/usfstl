@@ -5,8 +5,10 @@
 //
 #ifdef __x86_64__
 #define REG(_r) %r##_r
+#define TMP_REG	%r11
 #else
 #define REG(_r) %e##_r
+#define TMP_REG	%ecx
 #endif
 
 .data
@@ -48,7 +50,7 @@ __fentry__:
 	// pop our return address and jump to the stub
 	// our return address was to the original function,
 	// so the stub will return to its caller...
-	pop REG(cx)
+	pop TMP_REG
 	jmp *REG(ax)
 CALL_ORIG:
 	// If we're recursing a function that was OK to call
@@ -70,15 +72,15 @@ CALL_ORIG:
 	jne RETURN
 
 	// pop our return address
-	pop REG(cx)
+	pop TMP_REG
 	// pop return address of the caller
 	pop REG(ax)
 	mov REG(ax),(_g_usfstl_recurse)
 
-	call *REG(cx)
+	call *TMP_REG
 	// return to caller
-	mov (_g_usfstl_recurse),REG(cx)
-	push REG(cx)
+	mov (_g_usfstl_recurse),TMP_REG
+	push TMP_REG
 	movl $0,(_g_usfstl_recurse)
 RETURN:
 	ret
