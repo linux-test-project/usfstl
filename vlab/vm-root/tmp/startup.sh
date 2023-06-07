@@ -29,6 +29,8 @@ chmod +x /tmp/.host$tmpdir/early.sh
 /tmp/.host$tmpdir/early.sh
 
 chmod 0600 /root
+# used for pipe on tmpfiles operation, e.g source<(cmd)
+ln -s /proc/self/fd /dev/fd
 
 # pretend we have some entropy ...
 PYTHONHASHSEED=0 python -c 'import fcntl; fd=open("/dev/random", "w"); fcntl.ioctl(fd.fileno(), 0x40045201, b"\x00\x01\x00\x00")'
