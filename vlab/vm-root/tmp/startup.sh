@@ -80,7 +80,7 @@ ln -s /tmp/.host$tmpdir/hosts /etc/hosts
 
 cat >/root/.ssh/environment <<EOF
 PATH=$PATH
-TMPDIR=$tmpdir
+TMPDIR=/tmp/.host$tmpdir
 HOSTNAME=$hostname
 EOF
 
@@ -110,7 +110,7 @@ if [ "$addr" != "" ] ; then
 fi
 
 export HOME=/root/
-export TMPDIR=$tmpdir
+export TMPDIR=/tmp/.host$tmpdir
 export HOSTNAME=$hostname
 
 cat > /etc/rsyslog.conf << EOF
