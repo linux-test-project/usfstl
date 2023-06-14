@@ -18,9 +18,11 @@ mount tmp -t tmpfs /etc
 mount tmp -t tmpfs /tmp
 mount tmp -t tmpfs /root
 mount tmp -t tmpfs /var
+mount tmp -t tmpfs /run
 
 mkdir /tmp/.host/
-mkdir /var/log /var/run /var/empty /var/empty/sshd
+mkdir /var/log /var/empty /var/empty/sshd
+ln -s /run /var/run
 
 mount -o remount,rw /
 mount --bind / /tmp/.host/
