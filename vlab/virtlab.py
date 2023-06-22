@@ -213,9 +213,9 @@ class Node:
     _name: Optional[str] = None
     run: Optional[str] = None
     plugins: dict[Type[Plugin], PluginNode] = field(default_factory=dict)
-    rootfs: Optional[str] = None
     baseid: int = 0
     logdir: str = ''
+    host_binds: Optional[Dict[str, str] | List[str]] = None
 
     def set_name(self, value: str) -> None:
         """
@@ -250,6 +250,7 @@ class Config:
     nodes: List[Node] = field(default_factory=list)
     start_time: int = 0
     no_shm: bool = False
+    host_binds: Optional[Dict[str, str] | List[str]] = None
 
 class Failure(Exception):
     """
@@ -385,7 +386,7 @@ class VlabArguments:
     def __init__(self) -> None:
         self.machineid = 1
 
-    def create_node(self, cfgdir: str, nodecfg: Dict[str, Any]) -> Node:
+    def create_node(self, nodecfg: Dict[str, Any]) -> Node:
         """
         Create a node from a configuration dictionary
         """
@@ -398,8 +399,8 @@ class VlabArguments:
             ret.mem = nodecfg['mem']
         if 'name' in nodecfg:
             ret.name = nodecfg['name']
-        if 'rootfs' in nodecfg:
-            ret.rootfs = os.path.join(cfgdir, nodecfg['rootfs'])
+        if 'host_binds' in nodecfg:
+            ret.host_binds = nodecfg['host_binds']
         ret.baseid = self.machineid
         self.machineid += 1
         for plugin in self.plugins:
@@ -418,7 +419,7 @@ class VlabArguments:
         cfgdir = os.path.dirname(filename)
         with open(filename, encoding='utf-8') as yaml_f:
             cfg = yaml.safe_load(yaml_f)
-        nodes = [self.create_node(cfgdir, nodecfg) for nodecfg in cfg['nodes']]
+        nodes = [self.create_node(nodecfg) for nodecfg in cfg['nodes']]
         addrs = []
         for node in nodes:
             addrs.append(node.addr)
@@ -454,6 +455,9 @@ class VlabArguments:
         if 'controller' in cfg:
             config.start_time = cfg['controller'].get('start-time', 0)
             config.no_shm = 'no-shm' in cfg['controller']
+
+        if 'host_binds' in cfg:
+            config.host_binds = cfg['host_binds']
 
         config.nodes = nodes
         self.config = config
@@ -542,6 +546,7 @@ class VlabRuntimeData:
     """
     tmpdir: str = ""
     logdir: str = ""
+    host_binds: Optional[Dict[str, str] | List[str]] = None
     startup: str = ""
     clock: Optional[str] = None
     net: Optional[str] = None
@@ -593,6 +598,7 @@ class Vlab:
     def start_node(self, node: Node, logfile: bool = True,
                    interactive: bool = False,
                    statusfile: Union[None, str] = None) -> None:
+        # pylint: disable=too-many-locals
         """
         Start a UML node in the virtual lab.
         """
@@ -609,8 +615,27 @@ class Vlab:
                 f'vmroots={":".join(vmroots)}',
                 f'vlab={Paths.vlab}',
                 f'VLAB_VAR_LOG_DIR={node.logdir}/logs/']
-        if node.rootfs:
-            args.append(f'customrootfs={node.rootfs}')
+
+        path = os.path.join(self.runtime.tmpdir, f'host_binds-{node.name}')
+        with open(path, 'w', encoding='utf-8') as host_binds_f:
+            if node.host_binds is not None:
+                host_binds = node.host_binds
+            elif self.args.config.host_binds is not None:
+                host_binds = self.args.config.host_binds
+            else:
+                # All directories in / except ones that vlab creates by default
+                dirs = set(f'/{file}' for file in os.listdir('/') if os.path.isdir(f'/{file}'))
+                dirs -= { '/proc', '/sys', '/dev' }
+                dirs -= { '/etc', '/var', '/tmp', '/run', '/root' }
+                host_binds = sorted(dirs)
+
+            if isinstance(host_binds, list):
+                host_binds = { dir: dir for dir in host_binds }
+
+            for dest, src in host_binds.items():
+                # Assumes no whitespace in (destination) directory names
+                host_binds_f.write(f'{dest} {src}\n')
+
 
         if self.runtime.clock is not None:
             args.append(f'time-travel=ext:0x{node.getid(1):x}:{self.runtime.clock}')

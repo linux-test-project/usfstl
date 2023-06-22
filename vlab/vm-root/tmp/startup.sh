@@ -7,41 +7,68 @@
 
 set -euo pipefail
 
-export PATH=/tmp/bin:$(< $tmpdir/path)
+export PATH=$(< $tmpdir/path)
 
-ip link set lo up
+# New root file system (this shadows the host /tmp until pivoting!)
+mount --no-mtab vlab-root -t tmpfs /tmp
 
-mount proc -t proc /proc
-mount sys -t sysfs /sys
-mount debug -t debugfs /sys/kernel/debug
-mount tmp -t tmpfs /tmp
+# mount special file systems into our new root
+mkdir /tmp/proc /tmp/sys /tmp/dev
+mount --no-mtab proc -t proc /tmp/proc
+mount --no-mtab sysfs -t sysfs /tmp/sys
+mount --no-mtab debugfs -t debugfs /tmp/sys/kernel/debug || true
+mount --no-mtab devtmpfs -t devtmpfs /tmp/dev
+
+# Ensure some standard directories exist
+mkdir /tmp/etc
+mkdir /tmp/var /tmp/var/log /tmp/var/empty /tmp/var/empty/sshd
+mkdir /tmp/tmp /tmp/tmp/.host
+mkdir /tmp/run
+mkdir /tmp/root
+mkdir /tmp/home
 
 # preserve /etc/alternatives for Ubuntu/Debian
 if test -d /etc/alternatives ; then
-	mkdir /tmp/alternatives
-	mount --no-mtab --bind /etc/alternatives /tmp/alternatives
-
-	mount tmp -t tmpfs /etc
-
-	mkdir /etc/alternatives
-	mount --no-mtab --move /tmp/alternatives /etc/alternatives
-	rmdir /tmp/alternatives
-else
-	mount tmp -t tmpfs /etc
+	mkdir /tmp/etc/alternatives
+	mount --no-mtab --bind /etc/alternatives /tmp/etc/alternatives
 fi
 
-ln -s /proc/mounts /etc/mtab
+# Setup hostname now, we need it to load host_binds
+# Linux < 5.19 will not parse the hostname= parameter and we need to set it here
+if test -z "$(cat /tmp/proc/sys/kernel/hostname)" ; then
+	echo "$hostname" > /tmp/proc/sys/kernel/hostname
+else
+	hostname="$(cat /tmp/proc/sys/kernel/hostname)"
+fi
 
-mount tmp -t tmpfs /root
-mount tmp -t tmpfs /var
-mount tmp -t tmpfs /run
+echo "$hostname" > /tmp/etc/hostname
 
-mkdir /tmp/.host/
-mkdir /var/log /var/empty /var/empty/sshd
-ln -s /run /var/run
+# Valid after pivot_root
+ln -s /proc/self/mounts /tmp/etc/mtab
+ln -s /run /tmp/var/run
 
-mount -o remount,rw /
-mount --bind / /tmp/.host/
+# mount the requested host_binds into our new root. Note that /tmp is shadowed,
+# so bind-mount / elsewhere temporarily to ensure we can access everything.
+#
+# If source directory is undefined/empty, then just create an empty directory.
+mount --no-mtab --bind / /tmp/tmp/.host
+echo "$(cat /tmp/tmp/.host/$tmpdir/host_binds-$hostname)" | while read dest src ; do
+    mkdir -p "/tmp/$dest"
+    if [ -n "$src" ]; then
+        mount --no-mtab --bind "/tmp/tmp/.host/$src" "/tmp/$dest"
+    fi
+done
+umount --no-mtab /tmp/tmp/.host
+
+# Pivot root, remount hostfs as RW and get rid of the old /dev
+pivot_root /tmp/ /tmp/tmp/.host
+mount --no-mtab -o remount,rw /tmp/.host
+umount --no-mtab /tmp/.host/dev
+
+
+# Now we have a clean root, continue
+
+ip link set lo up
 
 mount --bind -o rw /tmp/.host$VLAB_VAR_LOG_DIR /var/log/
 
@@ -57,15 +84,12 @@ PYTHONHASHSEED=0 python -c 'import fcntl; fd=open("/dev/random", "w"); fcntl.ioc
 
 mkdir /var/run/sshd
 
-if test -z $(cat /proc/sys/kernel/hostname) ; then
-	echo $hostname > /proc/sys/kernel/hostname
-else
-	hostname=$(cat /proc/sys/kernel/hostname)
-fi
-echo $hostname > /etc/hostname
+
+# Add /tmp/bin to override executables
+export PATH=/tmp/bin:$PATH
+mkdir /tmp/bin
 
 # pretend there's no sudo - note we need to do this before setting $PATH
-mkdir /tmp/bin
 cat > /tmp/bin/which << EOF
 #!/bin/sh
 
@@ -114,15 +138,6 @@ if test -f $real_cfg ; then
 fi
 
 $(which sshd) -f /tmp/sshd.conf >/dev/console 2>&1 &
-
-if ! [ -z "${customrootfs+x}" ] ; then
-    test -d /tmp/.host/$customrootfs || (
-        echo "specified rootfs $customrootfs doesn't exist"
-        exit 2
-    )
-    # use cpio to copy over the rootfs folder contents
-    (cd "/tmp/.host/$customrootfs" && find . -type f -print0 | cpio -L --quiet -v -0 --no-preserve-owner -d -p /)
-fi
 
 if [ "$addr" != "" ] ; then
     ip link set eth0 up || true
