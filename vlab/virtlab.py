@@ -44,7 +44,7 @@ class PluginNode:
 
     @property
     def wmediumd_api_connections(self) -> int:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Return the number of connections to be made to wmediumd's API socket.
         """
@@ -52,14 +52,13 @@ class PluginNode:
 
     @property
     def time_socket_connections(self) -> int:
-        # pylint: disable=no-self-use
         """
         Return the number of time socket connections to wait for.
         """
         return 0
 
     def linux_cmdline(self, runtime: VlabRuntimeData) -> List[str]:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Extra arguments to add to the Linux command-line
         """
@@ -94,7 +93,7 @@ class Plugin:
         self.args = args
 
     def earlystart(self, runtime: VlabRuntimeData) -> str:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Return a shell script fragment to run in each node early,
         just after mounting filesystems.
@@ -102,7 +101,7 @@ class Plugin:
         return ""
 
     def nodestart(self, runtime: VlabRuntimeData) -> str:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Return a shell script fragment to run at each node startup
         (except for the controller).
@@ -110,7 +109,7 @@ class Plugin:
         return ""
 
     def ctrlstart(self, runtime: VlabRuntimeData) -> str:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Return a shell script fragment to run on controller (first machine)
         startup.
@@ -118,7 +117,7 @@ class Plugin:
         return ""
 
     def nodestop(self, runtime: VlabRuntimeData) -> str:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Return a shell script fragment to run on each node at node shutdown
         (except for the controller).
@@ -126,14 +125,14 @@ class Plugin:
         return ""
 
     def ctrlstop(self, runtime: VlabRuntimeData) -> str:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Return a shell script fragment to run on the controller at shutdown.
         """
         return ""
 
     def files(self, runtime: VlabRuntimeData) -> Dict[str, Union[BinaryIO, bytes]]:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Return a dictionary mapping file names (inside the nodes) to their
         contents, or to a file(-like) object.
@@ -141,7 +140,7 @@ class Plugin:
         return {}
 
     def parse_node(self, node: Node, nodecfg: Any) -> Union[PluginNode, None]:
-        # pylint: disable=unused-argument, no-self-use
+        # pylint: disable=unused-argument
         """
         Check for any plugin-specific YAML keys and return an
         instance of PluginNode if appropriate, or None.
@@ -253,7 +252,7 @@ def addr(idx: int) -> str:
     """
     Return an IP address for a given node index
     """
-    return '10.0.0.%d' % idx
+    return f'10.0.0.{idx}'
 
 
 if TYPE_CHECKING:
@@ -284,7 +283,8 @@ def start_process(args: List[str], outfile: Union[None, str] = None,
     s_err = None
 
     if outfile is not None:
-        outfd = open(outfile, 'w')
+        # pylint: disable=consider-using-with
+        outfd = open(outfile, 'w', encoding='utf-8')
         s_out = outfd
         s_err = subprocess.STDOUT
 
@@ -316,13 +316,14 @@ def wait_for_socket(which: str, sockname: Optional[str], timeout: int = 2) -> No
 def _check_status(statusfile: str) -> None:
     if not os.path.exists(statusfile):
         raise Failure("status file wasn't created - test crashed?")
-    status = open(statusfile, 'rb').read()
+    with open(statusfile, 'rb') as stat_f:
+        status = stat_f.read()
     try:
         val = int(status.decode('ascii').strip())
         if val != 0:
             raise Failure(f"test script failed with status {val}")
-    except (ValueError, UnicodeDecodeError):
-        raise Failure(f"status '{status!r}' isn't a valid integer")
+    except (ValueError, UnicodeDecodeError) as except_status:
+        raise Failure(f"status '{status!r}' isn't a valid integer") from except_status
 
 
 class VlabArguments:
@@ -378,7 +379,8 @@ class VlabArguments:
         filename = self.nodes
         config = Config()
         cfgdir = os.path.dirname(filename)
-        cfg = yaml.safe_load(open(filename))
+        with open(filename, encoding='utf-8') as yaml_f:
+            cfg = yaml.safe_load(yaml_f)
         nodes = [self.create_node(cfgdir, nodecfg) for nodecfg in cfg['nodes']]
         addrs = []
         for node in nodes:
@@ -437,7 +439,7 @@ class VlabArguments:
                             default=cls.wallclock,
                             help="run in wallclock mode, without time simulation")
         parser.add_argument('--timeout', type=int, default=cls.timeout,
-                            help=f"test timeout [seconds] (0 for inf, default 120)")
+                            help="test timeout [seconds] (0 for inf, default 120)")
         parser.add_argument(type=str, default=cls.nodes, dest='nodes',
                             help=f"nodes configuration file, default {cls.nodes}")
         parser.add_argument("--logpath", default=cls.logpath,
@@ -454,7 +456,7 @@ class VlabArguments:
                             default=cls.sigquit_on_timeout,
                             help="Send SIGQUIT on timeout to get core dumps")
         parser.add_argument(type=str, dest='command', nargs='*', metavar='cmd/arg',
-                            help=f"command (with arguments) to run inside the vLab")
+                            help="command (with arguments) to run inside the vLab")
         parser.add_argument('--no-shm', action='store_const', const=True,
                             help="Disable shared memory in controller")
         data = parser.parse_args(args)
@@ -530,9 +532,9 @@ class Vlab:
 
         # validate that we can use this config
         if not os.path.exists(os.path.join(Paths.linux, 'linux')):
-            fail(f"Linux binary isn't built - run make")
+            fail("Linux binary isn't built - run make")
         if not os.path.exists(os.path.join(Paths.controller)):
-            fail(f"Time controller isn't built - run make")
+            fail("Time controller isn't built - run make")
 
         for plugin in args.plugins:
             instances: List[PluginNode] = []
@@ -580,8 +582,7 @@ class Vlab:
                 continue
             args.extend(pnode.linux_cmdline(self.runtime))
 
-        outfile = os.path.join(node.logdir,
-                               f'dmesg') if logfile else None
+        outfile = os.path.join(node.logdir, 'dmesg') if logfile else None
         self.processes.append(start_process(args, outfile=outfile,
                                             interactive=interactive,
                                             vlab_name=node.name))
@@ -636,9 +637,10 @@ class Vlab:
         self.runtime.startup = os.path.join(Paths.vlab, 'vm-root/tmp/startup.sh')
 
         path = os.path.join(tmpdir, 'path')
-        open(path, 'w').write(os.environ['PATH'])
+        with open(path, 'w', encoding='utf-8') as path_f:
+            path_f.write(os.environ['PATH'])
 
-        with open(os.path.join(tmpdir, 'hosts'), 'w') as hostsfile:
+        with open(os.path.join(tmpdir, 'hosts'), 'w', encoding='utf-8') as hostsfile:
             hostsfile.write('127.0.0.1	localhost\n')
             for node in nodes:
                 hostsfile.write(f'{node.addr}	{node.name}\n')
@@ -652,25 +654,30 @@ class Vlab:
                 os.makedirs(os.path.join(pluginfiles, os.path.dirname(fname)),
                             exist_ok=True)
                 if isinstance(fcontent, bytes):
-                    open(os.path.join(pluginfiles, fname), 'wb').write(fcontent)
+                    with open(os.path.join(pluginfiles, fname), 'wb') as fcont_f:
+                        fcont_f.write(fcontent)
                 else:
                     fcontent.seek(0)
-                    open(os.path.join(pluginfiles, fname), 'wb').write(fcontent.read())
+                    with open(os.path.join(pluginfiles, fname), 'wb') as fcont_f:
+                        fcont_f.write(fcontent.read())
 
         earlystart = os.path.join(tmpdir, 'early.sh')
-        open(earlystart, 'w').write(f'''#!/bin/sh
+        with open(earlystart, 'w', encoding='utf-8') as earlystart_f:
+            earlystart_f.write(f'''#!/bin/sh
 
 {NEWLINE.join(plugin.earlystart(self.runtime) for plugin in self.args.plugins)}
 ''')
 
         nodestop = os.path.join(tmpdir, 'stop.sh')
-        open(nodestop, 'w').write(f'''#!/bin/sh
+        with open(nodestop, 'w', encoding='utf-8') as nodestop_f:
+            nodestop_f.write(f'''#!/bin/sh
 
 {NEWLINE.join(plugin.nodestop(self.runtime) for plugin in self.args.plugins)}
 ''')
 
         nodestart = os.path.join(tmpdir, 'node.sh')
-        open(nodestart, 'w').write(f'''#!/bin/sh
+        with open(nodestart, 'w', encoding='utf-8') as nodestart_f:
+            nodestart_f.write(f'''#!/bin/sh
 
 chmod +x /tmp/.host/{nodestop}
 
@@ -680,7 +687,8 @@ while true ; do sleep 600 ; done
 ''')
 
         ctrlstart = os.path.join(tmpdir, 'ctrl.sh')
-        open(ctrlstart, 'w').write(fr'''#!/bin/sh
+        with open(ctrlstart, 'w', encoding='utf-8') as ctrlstart_f:
+            ctrlstart_f.write(fr'''#!/bin/sh
 
 {NEWLINE.join(plugin.ctrlstart(self.runtime) for plugin in self.args.plugins)}
 
@@ -721,12 +729,12 @@ poweroff -f
         ctrl_args = [Paths.controller, f'--net={self.runtime.net}',
                      f'--time-at-start={cfg.start_time}']
         if args.dbg:
-            ctrl_args += [f'--debug=3']
+            ctrl_args += ['--debug=3']
         if args.no_shm or cfg.no_shm:
             ctrl_args += ['--no-shm']
 
         if cfg.net_delay is not None:
-            ctrl_args.append('--net-delay=%f' % cfg.net_delay)
+            ctrl_args.append(f'--net-delay={cfg.net_delay}')
 
         if args.wallclock:
             ctrl_args.append('--wallclock-network')
@@ -760,9 +768,9 @@ poweroff -f
                 #       not try to connect to netlink ... it should
                 #       probably have a way to just disable netlink,
                 #       or automatically disable it if '-a' is given
-                if wmediumd_vhost_conns or True:
-                    self.runtime.wmediumd_vu_sock = os.path.join(tmpdir, 'wmediumd-vu')
-                    wmediumd_args.extend(['-u', self.runtime.wmediumd_vu_sock])
+                # if wmediumd_vhost_conns or True:
+                self.runtime.wmediumd_vu_sock = os.path.join(tmpdir, 'wmediumd-vu')
+                wmediumd_args.extend(['-u', self.runtime.wmediumd_vu_sock])
 
                 if wmediumd_api_conns:
                     self.runtime.wmediumd_us_sock = os.path.join(tmpdir, 'wmediumd-us')
@@ -815,7 +823,8 @@ poweroff -f
 
                 gdb_log_str = "\n".join(gdb_log)
                 print(gdb_log_str)
-                with open(os.path.join(self.runtime.logdir, 'gdb_log.txt'), 'w') as file:
+                with open(os.path.join(self.runtime.logdir, 'gdb_log.txt'),
+                          'w', encoding='utf-8') as file:
                     file.write(gdb_log_str)
                 input('==== press Enter to continue ====\n')
                 control_process.send_signal(signal.SIGCONT)
@@ -831,7 +840,9 @@ poweroff -f
                 except subprocess.TimeoutExpired:
                     if first:
                         timedout = True
-                        raise TimeoutFailure(f"Timeout of {args.timeout} seconds expired!")
+                        raise TimeoutFailure(
+                            f"Timeout of {args.timeout} seconds expired!"
+                        ) from None
                     name = str(process.args[0])
                     if args.interactive:
                         # just in case ... for Ctrl-C
@@ -840,7 +851,7 @@ poweroff -f
                         print("Press Ctrl-C to cancel")
                         process.wait()
                     else:
-                        raise Failure(f"Processes didn't exit cleanly")
+                        raise Failure("Processes didn't exit cleanly") from None
         finally:
             for process in itertools.chain(self.killprocesses, self.processes):
                 # Check If the process is still alive to get any signals

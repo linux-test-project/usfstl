@@ -4,11 +4,26 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 { pkgs ? import (builtins.fetchGit {
-    name = "nixpkgs-unstable-2019-11-28";
+    name = "nixpkgs-release-22.11";
     url = https://github.com/nixos/nixpkgs/;
-    rev = "8bb98968edf2769ccf059153ec55f267f13b9afe";
+    ref = "refs/heads/release-22.11";
 }) {} }:
 
+let
+  types-PyYAML = pkgs.python3Packages.buildPythonPackage rec {
+    pname = "types-PyYAML";
+    version = "6.0.7";
+    format = "setuptools";
+
+    src = pkgs.python3Packages.fetchPypi {
+      inherit pname version;
+      sha256 = "1vvxzgrajynrg0wyyy9nhcx7y6czqgika3q5msm3dn4m8ps0qj2r";
+    };
+
+    # Modules doesn't have tests
+    doCheck = false;
+  };
+in
 with pkgs;
 
 multiStdenv.mkDerivation {
@@ -28,5 +43,8 @@ multiStdenv.mkDerivation {
 
         # for coverage plugin
         lcov
+
+        # for pychecks
+        types-PyYAML
     ];
 }
