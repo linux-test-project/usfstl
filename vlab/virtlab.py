@@ -21,10 +21,10 @@ import argparse
 import subprocess
 import importlib
 import tempfile
+from dataclasses import dataclass, field
 from typing import List, Union, Dict, Any, Optional, Type, BinaryIO, TYPE_CHECKING
 import itertools
 import yaml
-import attr
 
 
 class PluginNode:
@@ -167,20 +167,20 @@ class Paths:
 NEWLINE = '\n'
 
 
-@attr.s
+@dataclass
 class Node:
     # pylint: disable=too-many-instance-attributes
     """
     Per-node configuration data
     """
-    addr: str = attr.ib(None)
-    mem: int = attr.ib(128)
-    _name: Union[None, str] = attr.ib(None)
-    run: Union[None, str] = attr.ib(None)
-    plugins: Dict[Type[Plugin], Optional[PluginNode]] = attr.ib(None)
-    rootfs: Union[None, str] = attr.ib(None)
-    baseid: int = attr.ib(0)
-    logdir: str = attr.ib(None)
+    addr: Optional[str] = None
+    mem: int = 128
+    _name: Optional[str] = None
+    run: Optional[str] = None
+    plugins: dict[Type[Plugin], Optional[PluginNode]] = field(default_factory=dict)
+    rootfs: Optional[str] = None
+    baseid: int = 0
+    logdir: str = ''
 
     def set_name(self, value: str) -> None:
         """
@@ -203,16 +203,16 @@ class Node:
     name = property(get_name, fset=set_name)
 
 
-@attr.s
+@dataclass
 class Config:
     # pylint: disable=too-few-public-methods, too-many-instance-attributes
     """
     Global configuration data
     """
-    wmediumd_conf: Union[None, str] = attr.ib(None)
-    wmediumd_per: Union[None, str] = attr.ib(None)
-    net_delay: Union[None, float] = attr.ib(None)
-    nodes: List[Node] = attr.ib([])
+    wmediumd_conf: Union[None, str] = None
+    wmediumd_per: Union[None, str] = None
+    net_delay: Union[None, float] = None
+    nodes: List[Node] = field(default_factory=list)
     start_time: int = 0
     no_shm: bool = False
 
@@ -366,7 +366,6 @@ class VlabArguments:
             ret.rootfs = os.path.join(cfgdir, nodecfg['rootfs'])
         ret.baseid = self.machineid
         self.machineid += 1
-        ret.plugins = {}
         for plugin in self.plugins:
             ret.plugins[type(plugin)] = plugin.parse_node(ret, nodecfg)
         return ret
@@ -497,19 +496,19 @@ class VlabArguments:
         return new
 
 
-@attr.s
+@dataclass
 class VlabRuntimeData:
     # pylint: disable=too-few-public-methods, too-many-instance-attributes
     """
     Runtime data (paths etc.)
     """
-    tmpdir: str = attr.ib("")
-    logdir: str = attr.ib("")
-    startup: str = attr.ib("")
-    clock: Union[None, str] = attr.ib(None)
-    net: Union[None, str] = attr.ib(None)
-    wmediumd_vu_sock: Union[None, str] = attr.ib(None)
-    wmediumd_us_sock: Union[None, str] = attr.ib(None)
+    tmpdir: str = ""
+    logdir: str = ""
+    startup: str = ""
+    clock: Optional[str] = None
+    net: Optional[str] = None
+    wmediumd_vu_sock: Optional[str] = None
+    wmediumd_us_sock: Optional[str] = None
 
 
 class Vlab:

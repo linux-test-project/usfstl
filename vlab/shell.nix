@@ -30,7 +30,7 @@ multiStdenv.mkDerivation {
     name = "vlab";
     buildInputs = [
         # vlab script
-        python3Packages.attrs python3Packages.pyyaml
+        python3Packages.pyyaml
 
         # inside of the VMs
         rsyslog-light mount cpio ncurses iproute socat openssh busybox
