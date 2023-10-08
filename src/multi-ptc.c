@@ -23,6 +23,14 @@ struct usfstl_test USFSTL_NORESTORE_VAR(g_usfstl_multi_controlled_test);
 static bool g_usfstl_multi_test_sched_continue;
 static bool USFSTL_NORESTORE_VAR(g_usfstl_ptc_must_send_test_end_response);
 static bool g_usfstl_multi_ptc_remote_abort;
+static struct {
+	// time value of a sent/pending sched request
+	uint64_t time;
+	// indicates whether a time value of a sent/pending sched request is valid
+	bool time_valid;
+	// indicates a pending sched request, postponed for reducing amount of requests
+	bool pending;
+} g_usfstl_multi_sched_req;
 
 bool USFSTL_NORESTORE_VAR(g_usfstl_multi_test_participant);
 
@@ -59,7 +67,15 @@ static void usfstl_multi_participant_test_fn(const struct usfstl_test *test, voi
 static enum usfstl_sched_req_status
 usfstl_multi_sched_ext_req(struct usfstl_scheduler *sched, uint64_t at)
 {
-	multi_rpc_sched_request_conn(g_usfstl_multi_ctrl_conn, at);
+	// optimization: if running, postpone all sched requests until next wait request
+	// and otherwise, avoid sending repeated sched requests with the same time value
+	if (g_usfstl_multi_test_sched_continue)
+		g_usfstl_multi_sched_req.pending = true;
+	else if (!g_usfstl_multi_sched_req.time_valid || g_usfstl_multi_sched_req.time != at)
+		multi_rpc_sched_request_conn(g_usfstl_multi_ctrl_conn, at);
+	g_usfstl_multi_sched_req.time = at;
+	g_usfstl_multi_sched_req.time_valid = true;
+
 	return USFSTL_SCHED_REQ_STATUS_WAIT;
 }
 
@@ -72,10 +88,23 @@ static void usfstl_multi_sched_ext_wait_participant(struct usfstl_scheduler *sch
 
 	// send the updated view of the shared memory (include the buffer
 	// only if it has changed)
-	multi_rpc_sched_wait_conn(g_usfstl_multi_ctrl_conn,
-				  g_usfstl_shared_mem_msg,
-				  usfstl_shared_mem_get_msg_size(
-					g_usfstl_shared_mem_dirty));
+	if (g_usfstl_multi_sched_req.pending) {
+		// optimization: also send the pending sched request in a combined message
+		uint32_t msg_size = usfstl_shared_mem_get_msg_size(g_usfstl_shared_mem_dirty) +
+				    offsetof(typeof(*g_usfstl_sched_req_and_wait_msg), shared_mem);
+
+		g_usfstl_multi_sched_req.pending = false;
+		g_usfstl_sched_req_and_wait_msg->time = g_usfstl_multi_sched_req.time;
+		multi_rpc_sched_req_and_wait_conn(g_usfstl_multi_ctrl_conn,
+						  g_usfstl_sched_req_and_wait_msg,
+						  msg_size);
+	} else {
+		multi_rpc_sched_wait_conn(g_usfstl_multi_ctrl_conn,
+					  &g_usfstl_sched_req_and_wait_msg->shared_mem,
+					  usfstl_shared_mem_get_msg_size(
+						g_usfstl_shared_mem_dirty));
+	}
+	g_usfstl_multi_sched_req.time_valid = false;
 	g_usfstl_shared_mem_dirty = false;
 
 	while (!g_usfstl_multi_test_sched_continue)

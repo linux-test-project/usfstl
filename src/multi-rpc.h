@@ -30,6 +30,11 @@ struct usfstl_shared_mem_msg_section {
 struct usfstl_shared_mem_msg {
 	struct usfstl_shared_mem_msg_section sections[0];
 } __attribute__((packed));
+
+struct usfstl_sched_req_and_wait_msg {
+	uint64_t time;
+	struct usfstl_shared_mem_msg shared_mem;
+} __attribute__((packed));
 #endif // __USFSTL_MULTI_RPC_H
 
 // declare functions outside ifdefs, needed for code generation
@@ -53,4 +58,7 @@ USFSTL_RPC_VOID_METHOD(multi_rpc_sched_request, uint64_t /* time */);
 USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 		      multi_rpc_sched_wait,
 		      struct usfstl_shared_mem_msg);
+USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
+		      multi_rpc_sched_req_and_wait,
+		      struct usfstl_sched_req_and_wait_msg);
 USFSTL_RPC_VOID_METHOD(multi_rpc_test_failed, uint32_t /* status */);

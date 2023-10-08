@@ -180,13 +180,14 @@ static inline bool usfstl_is_multi_participant(void)
 extern struct usfstl_shared_mem_section *__start_usfstl_shms[];
 extern struct usfstl_shared_mem_section *__stop_usfstl_shms[];
 
-extern struct usfstl_shared_mem_msg *g_usfstl_shared_mem_msg;
+extern struct usfstl_sched_req_and_wait_msg *g_usfstl_sched_req_and_wait_msg;
 extern bool g_usfstl_shared_mem_dirty;
 
 #define for_each_shared_mem_section(s, i)				\
 	for (i = 0; &__start_usfstl_shms[i] < __stop_usfstl_shms; i++)	\
 		if ((s = __start_usfstl_shms[i]))
 
+struct usfstl_shared_mem_msg;
 unsigned int usfstl_shared_mem_get_msg_size(bool is_participant_outdated);
 void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 				  unsigned int msg_size, bool do_not_mark_dirty);

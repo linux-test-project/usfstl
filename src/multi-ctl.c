@@ -200,7 +200,7 @@ static void usfstl_multi_controller_sched_callback(struct usfstl_job *job)
 
 	// send the updated view of the shared memory (include the buffer
 	// only if it has changed)
-	multi_rpc_sched_cont_conn(p->conn, g_usfstl_shared_mem_msg,
+	multi_rpc_sched_cont_conn(p->conn, &g_usfstl_sched_req_and_wait_msg->shared_mem,
 				  usfstl_shared_mem_get_msg_size(
 					p->flags &
 					USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED));
@@ -243,6 +243,16 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 	p->flags |= USFSTL_MULTI_PARTICIPANT_WAITING;
 
 	return 0;
+}
+
+USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
+		      multi_rpc_sched_req_and_wait,
+		      struct usfstl_sched_req_and_wait_msg)
+{
+	uint32_t shared_mem_size = insize - offsetof(typeof(*in), shared_mem);
+
+	_impl_multi_rpc_sched_request(conn, in->time);
+	return _impl_multi_rpc_sched_wait(conn, &in->shared_mem, shared_mem_size);
 }
 
 USFSTL_RPC_VOID_METHOD(multi_rpc_test_failed, uint32_t /* status */)

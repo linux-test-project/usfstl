@@ -31,12 +31,13 @@
 static const struct usfstl_shared_mem_section * const usfstl_shared_mem_section_NULL
 	__attribute__((used, section("usfstl_shms"))) = NULL;
 
-// Shared memory message for receiving/sending from/to a remote participant, or
-// the controller.
-// The buffer inside the msg stores our notion of the remote participant's view
-// of the shared memory
-struct usfstl_shared_mem_msg *g_usfstl_shared_mem_msg;
-// the size of the message struct
+// This struct is used for sending the combined sched request and wait RPC to
+// the controller. It wraps the shared memory message by adding the sched request
+// time to the shared memory buffers
+struct usfstl_sched_req_and_wait_msg *g_usfstl_sched_req_and_wait_msg;
+// This is the size of the shared memory part in the sched request and wait message,
+// used for receiving/sending from/to a remote participant, or the controller.
+// It stores our notion of the remote participant's view of the shared memory
 static unsigned int g_usfstl_shared_mem_msg_size;
 
 // indicates that the local view of the shared mem has changed since last sent
@@ -55,10 +56,11 @@ unsigned int usfstl_shared_mem_get_msg_size(bool is_participant_outdated)
 static struct usfstl_shared_mem_msg_section *usfstl_shared_mem_find_msg_section(
 	const usfstl_shared_mem_section_name_t name, unsigned int buf_size)
 {
+	struct usfstl_shared_mem_msg *msg = &g_usfstl_sched_req_and_wait_msg->shared_mem;
 	char *msg_end;
 	struct usfstl_shared_mem_msg_section *s;
 
-	for_each_msg_section(s, msg_end, g_usfstl_shared_mem_msg,
+	for_each_msg_section(s, msg_end, msg,
 			     g_usfstl_shared_mem_msg_size) {
 		if (strncmp(s->name, name, sizeof(s->name)) == 0) {
 			USFSTL_ASSERT_EQ(s->size, buf_size, "%u");
@@ -74,14 +76,16 @@ static struct usfstl_shared_mem_msg_section *usfstl_shared_mem_add_msg_section(
 	const usfstl_shared_mem_section_name_t name, unsigned int buf_size)
 {
 	unsigned int new_size;
+	unsigned int new_size_req_and_wait;
 	struct usfstl_shared_mem_msg_section *section;
 
 	new_size = g_usfstl_shared_mem_msg_size + sizeof(*section) + buf_size;
-	g_usfstl_shared_mem_msg = usfstl_realloc(g_usfstl_shared_mem_msg,
-						 new_size);
-	USFSTL_ASSERT(g_usfstl_shared_mem_msg);
+	new_size_req_and_wait = new_size + offsetof(typeof(*g_usfstl_sched_req_and_wait_msg), shared_mem);
+	g_usfstl_sched_req_and_wait_msg = usfstl_realloc(g_usfstl_sched_req_and_wait_msg,
+							 new_size_req_and_wait);
+	USFSTL_ASSERT(g_usfstl_sched_req_and_wait_msg);
 
-	section = (void *)((char *)g_usfstl_shared_mem_msg->sections +
+	section = (void *)((char *)g_usfstl_sched_req_and_wait_msg->shared_mem.sections +
 			   g_usfstl_shared_mem_msg_size);
 	memcpy(section->name, name, sizeof(section->name));
 	section->size = buf_size;
@@ -213,6 +217,7 @@ void usfstl_shared_mem_update_local_view(void)
 {
 	if (g_usfstl_multi_local_participant.flags &
 	    USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED) {
+		struct usfstl_shared_mem_msg *msg = &g_usfstl_sched_req_and_wait_msg->shared_mem;
 		char *msg_end;
 		struct usfstl_shared_mem_msg_section *section;
 		struct usfstl_shared_mem_section *s;
@@ -221,7 +226,7 @@ void usfstl_shared_mem_update_local_view(void)
 		g_usfstl_multi_local_participant.flags &=
 			~USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 
-		for_each_msg_section(section, msg_end, g_usfstl_shared_mem_msg,
+		for_each_msg_section(section, msg_end, msg,
 				     g_usfstl_shared_mem_msg_size) {
 			for_each_shared_mem_section(s, i) {
 				if (strncmp(s->name, section->name,
