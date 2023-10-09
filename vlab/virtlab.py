@@ -747,6 +747,7 @@ poweroff -f
         self.killprocesses.append(control_process)
 
         timedout = False
+        exception = None
 
         try:
             wait_for_socket("clock controller", self.runtime.clock)
@@ -846,22 +847,35 @@ poweroff -f
                         process.wait()
                     else:
                         raise Failure("Processes didn't exit cleanly") from None
-        finally:
-            for process in itertools.chain(self.killprocesses, self.processes):
-                # Check If the process is still alive to get any signals
-                if process.poll() is None:
-                    pgrp = os.getpgid(process.pid)
-                    sig_send = signal.SIGKILL
-                    if timedout and args.sigquit_on_timeout:
-                        sig_send = signal.SIGQUIT
-                    os.killpg(pgrp, sig_send)
-            os.system('reset -I >/dev/null 2>&1 || true')
 
-            for node in nodes:
-                for pnode in node.plugins.values():
-                    if pnode is None:
-                        continue
+        # pylint: disable=broad-except
+        except Exception as exc:
+            # No exception so far, allow the finally block
+            exception = exc
+
+        for process in itertools.chain(self.killprocesses, self.processes):
+            # Check If the process is still alive to get any signals
+            if process.poll() is None:
+                pgrp = os.getpgid(process.pid)
+                sig_send = signal.SIGKILL
+                if timedout and args.sigquit_on_timeout:
+                    sig_send = signal.SIGQUIT
+                os.killpg(pgrp, sig_send)
+        os.system('reset -I >/dev/null 2>&1 || true')
+
+        for node in nodes:
+            for pnode in node.plugins.values():
+                try:
                     pnode.postrun(node, self, node.logdir)
+                # pylint: disable=broad-except
+                except Exception as exc:
+                    if exception is None:
+                        exception = exc
+                    else:
+                        print(f'Post-run for node {node.name} raised further exception: {exc}')
+
+        if exception is not None:
+            raise exception
 
         if not args.interactive:
             assert statusfile is not None
