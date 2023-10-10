@@ -177,7 +177,7 @@ class Node:
     mem: int = 128
     _name: Optional[str] = None
     run: Optional[str] = None
-    plugins: dict[Type[Plugin], Optional[PluginNode]] = field(default_factory=dict)
+    plugins: dict[Type[Plugin], PluginNode] = field(default_factory=dict)
     rootfs: Optional[str] = None
     baseid: int = 0
     logdir: str = ''
@@ -367,7 +367,9 @@ class VlabArguments:
         ret.baseid = self.machineid
         self.machineid += 1
         for plugin in self.plugins:
-            ret.plugins[type(plugin)] = plugin.parse_node(ret, nodecfg)
+            pnode = plugin.parse_node(ret, nodecfg)
+            if pnode is not None:
+                ret.plugins[type(plugin)] = pnode
         return ret
 
     def parse_config(self) -> None:
@@ -538,9 +540,8 @@ class Vlab:
         for plugin in args.plugins:
             instances: List[PluginNode] = []
             for node in args.config.nodes:
-                pnode = node.plugins[type(plugin)]
-                if pnode is not None:
-                    instances.append(pnode)
+                if type(plugin) in node.plugins:
+                    instances.append(node.plugins[type(plugin)])
             plugin.validate(instances)
 
     def start_node(self, node: Node, logfile: bool = True,
@@ -553,8 +554,6 @@ class Vlab:
 
         # start plugins first - part of the API
         for pnode in node.plugins.values():
-            if pnode is None:
-                continue
             pnode.start(node, self, node.logdir)
 
         vmroots = [f'{Paths.vlab}/vm-root']
@@ -577,8 +576,6 @@ class Vlab:
         if statusfile:
             args.append(f'status=/tmp/.host{statusfile}')
         for pnode in node.plugins.values():
-            if pnode is None:
-                continue
             args.extend(pnode.linux_cmdline(self.runtime))
 
         outfile = os.path.join(node.logdir, 'dmesg') if logfile else None
@@ -719,8 +716,6 @@ poweroff -f
         controller_conns = 0
         for node in nodes:
             for pnode in node.plugins.values():
-                if pnode is None:
-                    continue
                 wmediumd_vhost_conns += pnode.wmediumd_vhost_connections
                 wmediumd_api_conns += pnode.wmediumd_api_connections
                 controller_conns += pnode.time_socket_connections
