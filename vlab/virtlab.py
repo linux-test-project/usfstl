@@ -153,6 +153,13 @@ class Plugin:
         data or binaries are present. Raise Failure() if not.
         """
 
+    def postrun(self, runtime: VlabRuntimeData) -> None:
+        # pylint: disable=unused-argument
+        """
+        Do any necessary work after the vlab run concluded and all nodes
+        have been shut down again.
+        """
+
 class Paths:
     # pylint: disable=too-few-public-methods
     """
@@ -873,6 +880,16 @@ poweroff -f
                         exception = exc
                     else:
                         print(f'Post-run for node {node.name} raised further exception: {exc}')
+
+        for plugin in self.args.plugins:
+            try:
+                plugin.postrun(self.runtime)
+            # pylint: disable=broad-except
+            except Exception as exc:
+                if exception is None:
+                    exception = exc
+                else:
+                    print(f'Post-run for plugin {type(plugin)} raised further exception: {exc}')
 
         if exception is not None:
             raise exception
