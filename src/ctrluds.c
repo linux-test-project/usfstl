@@ -93,12 +93,12 @@ static void _usfstl_read_msg(struct usfstl_ctrl_uds *ctrl_uds)
 
 	ret = recvmsg(fd, &_msg, MSG_PEEK);
 	if (ret <= 0) {
-		ctrl_uds->disconnect_cb();
 		if (ctrl_uds->loop_entry.fd != -1) {
 			usfstl_loop_unregister(&ctrl_uds->loop_entry);
 			close(ctrl_uds->loop_entry.fd);
 			ctrl_uds->loop_entry.fd = -1;
 		}
+		ctrl_uds->disconnect_cb();
 		return;
 	}
 
