@@ -329,8 +329,11 @@ void usfstl_vhost_user_send_response(struct usfstl_vhost_user_dev *dev,
 	usfstl_vhost_user_free_buf(buf);
 }
 
-static void usfstl_vhost_user_handle_queue(struct usfstl_vhost_user_dev_int *dev,
-					   unsigned int virtq_idx)
+// Note: noinline prevents a dwarf parser error when compiled with optimizations
+static void
+__attribute__((__noinline__))
+usfstl_vhost_user_handle_queue(struct usfstl_vhost_user_dev_int *dev,
+			       unsigned int virtq_idx)
 {
 	/* preallocate on the stack for most cases */
 	struct iovec in_sg[SG_STACK_PREALLOC] = { };
@@ -364,6 +367,7 @@ static void usfstl_vhost_user_job_callback(struct usfstl_job *job)
 }
 
 static bool
+__attribute__((__noinline__))
 usfstl_vhost_user_handle_queue_oob(struct usfstl_vhost_user_dev_int *dev,
 				   unsigned int virtq_idx)
 {
