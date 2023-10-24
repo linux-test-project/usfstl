@@ -853,7 +853,12 @@ poweroff -f
                         print("Press Ctrl-C to cancel")
                         process.wait()
                     else:
-                        raise Failure("Processes didn't exit cleanly") from None
+                        pname = os.path.basename(process.args[0])
+                        if hasattr(process, 'vlab_name'):
+                            pname += f", vlab name: {process.vlab_name}"
+                        pargs = " ".join(process.args[1:])
+                        err = f"Process: {pname}, didn't exit cleanly args: {pargs}"
+                        raise Failure(err) from None
 
         # pylint: disable=broad-except
         except Exception as exc:
