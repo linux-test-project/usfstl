@@ -127,7 +127,16 @@ class Plugin:
     def ctrlstop(self, runtime: VlabRuntimeData) -> str:
         # pylint: disable=unused-argument
         """
-        Return a shell script fragment to run on the controller at shutdown.
+        Return a shell script fragment to run on the controller at shutdown,
+        after all other nodes are shut down.
+        """
+        return ""
+
+    def ctrlstop_pre(self, runtime: VlabRuntimeData) -> str:
+        # pylint: disable=unused-argument
+        """
+        Return a shell script fragment to run on the controller at shutdown,
+        before all other nodes are shut down.
         """
         return ""
 
@@ -718,6 +727,8 @@ status=$(sed 's/.*status=\([^ ]*\)\( .*\|$\)/\1/;t;d' /proc/cmdline)
 echo $code > $status
 
 {NEWLINE.join([f"ssh -Fnone -oStrictHostKeyChecking=no {node.addr} /tmp/.host/{nodestop}" for node in nodes[1:]])}
+
+{NEWLINE.join(plugin.ctrlstop_pre(self.runtime) for plugin in self.args.plugins)}
 
 {NEWLINE.join([f"echo power off {node.addr} ; ssh -Fnone -oStrictHostKeyChecking=no {node.addr} poweroff -f &" for node in nodes[1:]])}
 {"echo waiting 5 seconds for shutdown; sleep 5" if len(nodes) > 1 else ""}
