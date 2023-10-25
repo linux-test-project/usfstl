@@ -590,6 +590,20 @@ class Vlab:
                                             interactive=interactive,
                                             vlab_name=node.name))
 
+    def start_process(self, args: List[str], outfile: Union[None, str] = None,
+                      interactive: bool = False, cwd: Union[None, str] = None,
+                      vlab_name: Optional[str] = None) -> Any:
+        # pylint: disable=too-many-arguments
+        """
+        Start a new process, append it to the list of processes tracked
+        (and possibly later killed) by the Vlab instance, and return its
+        Popen object.
+        """
+        process = start_process(args, outfile, interactive, cwd, vlab_name)
+        if process is not None:
+            self.killprocesses.append(process)
+        return process
+
     def get_log_dir(self) -> str:
         """
         Return the log directory by current date/time
@@ -748,10 +762,8 @@ poweroff -f
             ctrl_args.extend([f'--time={self.runtime.clock}',
                               f'--clients={clients}'])
 
-        control_process = start_process(ctrl_args,
-                                        outfile=os.path.join(self.runtime.logdir,
-                                                             'controller.log'))
-        self.killprocesses.append(control_process)
+        ctrl_log = os.path.join(self.runtime.logdir, 'controller.log')
+        control_process = self.start_process(ctrl_args, ctrl_log)
 
         timedout = False
         exception = None
@@ -791,10 +803,8 @@ poweroff -f
 
                 wmediumd_args.extend(['-l', '7'])
 
-                wmediumd_proc = start_process([Paths.wmediumd] + wmediumd_args,
-                                              outfile=os.path.join(self.runtime.logdir,
-                                                                   'wmediumd.log'))
-                self.killprocesses.append(wmediumd_proc)
+                self.start_process([Paths.wmediumd] + wmediumd_args,
+                                   outfile=os.path.join(self.runtime.logdir, 'wmediumd.log'))
 
                 if wmediumd_vhost_conns:
                     wait_for_socket("wmediumd vhost-user", self.runtime.wmediumd_vu_sock)
