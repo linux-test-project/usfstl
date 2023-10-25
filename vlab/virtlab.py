@@ -560,11 +560,9 @@ class Vlab:
                     instances.append(node.plugins[type(plugin)])
             plugin.validate(instances)
 
-    def start_node(self, node: Node, logfile: bool = True,
-                   interactive: bool = False,
-                   statusfile: Union[None, str] = None) -> None:
+    def start_node_plugins(self, node: Node) -> None:
         """
-        Start a UML node in the virtual lab.
+        Start plugins for a UML node in the virtual lab.
         """
         os.mkdir(node.logdir)
 
@@ -572,6 +570,12 @@ class Vlab:
         for pnode in node.plugins.values():
             pnode.start(node, self, node.logdir)
 
+    def start_node(self, node: Node, logfile: bool = True,
+                   interactive: bool = False,
+                   statusfile: Union[None, str] = None) -> None:
+        """
+        Start a UML node in the virtual lab.
+        """
         vmroots = [f'{Paths.vlab}/vm-root']
         vmroots.extend(self.extraroots)
         args = [f'{Paths.linux}/linux', f'mem={node.mem}M',
@@ -821,6 +825,9 @@ poweroff -f
                     wait_for_socket("wmediumd vhost-user", self.runtime.wmediumd_vu_sock)
                 if wmediumd_api_conns:
                     wait_for_socket("wmediumd unix domain", self.runtime.wmediumd_us_sock)
+
+            for node in nodes:
+                self.start_node_plugins(node)
 
             nodes[0].run = ctrlstart
             self.start_node(nodes[0], args.capture_all, args.interactive, statusfile)
