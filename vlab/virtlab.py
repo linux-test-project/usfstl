@@ -898,7 +898,7 @@ poweroff -f
                         raise Failure(err) from None
 
         # pylint: disable=broad-except
-        except Exception as exc:
+        except BaseException as exc:
             # No exception so far, allow the finally block
             exception = exc
 
