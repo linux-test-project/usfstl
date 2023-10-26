@@ -599,9 +599,15 @@ class Vlab:
             args.extend(pnode.linux_cmdline(self.runtime))
 
         outfile = os.path.join(node.logdir, 'dmesg') if logfile else None
-        self.processes.append(start_process(args, outfile=outfile,
-                                            interactive=interactive,
-                                            vlab_name=node.name))
+        process = start_process(args, outfile=outfile,
+                                interactive=interactive,
+                                vlab_name=node.name)
+
+        # we wait for the first process, so insert the controller at the front
+        if node.baseid == 1:
+            self.processes.insert(0, process)
+        else:
+            self.processes.append(process)
 
     def start_process(self, args: List[str], outfile: Union[None, str] = None,
                       interactive: bool = False, cwd: Union[None, str] = None,
