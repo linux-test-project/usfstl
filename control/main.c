@@ -347,7 +347,7 @@ static uint32_t _handle_message(struct usfstl_schedule_client *client)
 
 	/* set up the client's name */
 	if (msg.op == UM_TIMETRAVEL_START && msg.time != (uint64_t)-1) {
-		DBG_CLIENT(2, client, "now known as id:%" PRIx64,
+		DBG_CLIENT(0, client, "now known as id:%" PRIx64,
 			   (uint64_t)msg.time);
 		sprintf(client->name, "id:%" PRIx64, (uint64_t)msg.time);
 		client->shm_name = msg.time;
@@ -649,6 +649,8 @@ static void process_starting_client(struct usfstl_schedule_client *client)
 	clients |= CTRL_CLIENT_BIT(client->id);
 	usfstl_list_item_remove(&client->list);
 	usfstl_list_append(&client_list, &client->list);
+
+	DBG_CLIENT(0, client, "started, assigned shm id %d", client->id);
 
 	set_running_client(client);
 
