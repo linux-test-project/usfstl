@@ -420,7 +420,7 @@ OBJS += $(DWARF_OBJS) $(DWARF_READ_OBJS)
 _USFSTL_CC_INC := -I$(USFSTL_PATH)/include/ -I.
 _USFSTL_CC_OPT = $(USFSTL_CC_OPT) -Wall -Wextra -Wno-unused-parameter -Wno-format-zero-length -Werror -D_FILE_OFFSET_BITS=64
 _USFSTL_AS_OPT := $(filter-out -mno-ms-bitfields,$(_USFSTL_CC_OPT))
-_USFSTL_CC_OPT += -DHAVE_DL_ITERATE_PHDR=1 -D_GNU_SOURCE=1 -DHAVE_ATOMIC_FUNCTIONS -DHAVE_SYNC_FUNCTIONS
+_USFSTL_CC_OPT += -DHAVE_DL_ITERATE_PHDR=1 -D_GNU_SOURCE=1 -DHAVE_ATOMIC_FUNCTIONS -DHAVE_SYNC_FUNCTIONS -DHAVE_LINK_H
 _USFSTL_CC_OPT += -DHAVE_DECL_STRNLEN=1
 ifeq ($(findstring clang,$(CC)),clang)
 # usfstl actually uses this gnu extension, so don't warn on it in clang.

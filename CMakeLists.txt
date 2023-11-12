@@ -20,6 +20,7 @@ target_compile_options(usfstl PRIVATE
     -DHAVE_DECL_STRNLEN=1
     -DHAVE_DL_ITERATE_PHDR=1
     -DHAVE_SYNC_FUNCTIONS
+    -DHAVE_LINK_H
 )
 
 if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
