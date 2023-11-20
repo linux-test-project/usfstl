@@ -38,3 +38,61 @@ void rpc_read(usfstl_fd_t fd, void *buf, size_t nbyte)
 		nbyte -= ret;
 	}
 }
+
+static inline void _usfstl_rpc_advance_buffers(size_t nbyte, WSABUF **buf_ptr, unsigned int *buf_cnt)
+{
+	while (nbyte) {
+		size_t size = min(nbyte, (*buf_ptr)->len);
+
+		nbyte -= size;
+		(*buf_ptr)->len -= size;
+		(*buf_ptr)->buf = ((char *)(*buf_ptr)->buf) + size;
+		if ((*buf_ptr)->len == 0) {
+			(*buf_ptr)++;
+			(*buf_cnt)--;
+		}
+	}
+}
+
+void rpc_writev(usfstl_fd_t fd, unsigned int n, const struct write_vector *vectors)
+{
+	WSABUF bufs[n];
+	unsigned int buf_cnt;
+	DWORD bytes_sent, bufsize = 0;
+	WSABUF *buf_ptr = bufs;
+
+	for (buf_cnt = 0; buf_cnt < n; buf_cnt++) {
+		bufs[buf_cnt].buf = (void *)vectors[buf_cnt].data;
+		bufs[buf_cnt].len = vectors[buf_cnt].len;
+		bufsize += vectors[buf_cnt].len;
+	}
+
+	while (bufsize) {
+		assert(WSASend(fd, buf_ptr, buf_cnt, &bytes_sent, 0, NULL, NULL) == 0);
+		assert(bytes_sent <= bufsize);
+		bufsize -= bytes_sent;
+		_usfstl_rpc_advance_buffers(bytes_sent, &buf_ptr, &buf_cnt);
+	}
+}
+
+void rpc_readv(usfstl_fd_t fd, unsigned int n, const struct read_vector *vectors)
+{
+	WSABUF bufs[n];
+	unsigned int buf_cnt;
+	DWORD bytes_received, bufsize = 0;
+	WSABUF *buf_ptr = bufs;
+	DWORD flags = 0;
+
+	for (buf_cnt = 0; buf_cnt < n; buf_cnt++) {
+		bufs[buf_cnt].buf = vectors[buf_cnt].data;
+		bufs[buf_cnt].len = vectors[buf_cnt].len;
+		bufsize += vectors[buf_cnt].len;
+	}
+
+	while (bufsize) {
+		assert(WSARecv(fd, buf_ptr, buf_cnt, &bytes_received, &flags, NULL, NULL) == 0);
+		assert(bytes_received <= bufsize);
+		bufsize -= bytes_received;
+		_usfstl_rpc_advance_buffers(bytes_received, &buf_ptr, &buf_cnt);
+	}
+}

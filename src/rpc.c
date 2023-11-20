@@ -50,12 +50,15 @@ static void _usfstl_rpc_send_response(struct usfstl_rpc_connection *conn,
 	struct usfstl_rpc_response resp = {
 		.error = status,
 	};
+	struct write_vector vector[] = {
+		{ .data = &tag, .len = sizeof(tag) },
+		{ .data = &resp, .len = sizeof(resp) },
+		{ .data = ret, .len = retsize },
+	};
 
 	usfstl_flush_all();
 
-	rpc_write(conn->conn.fd, &tag, sizeof(tag));
-	rpc_write(conn->conn.fd, &resp, sizeof(resp));
-	rpc_write(conn->conn.fd, ret, retsize);
+	rpc_writev(conn->conn.fd, 3, vector);
 
 	g_usfstl_rpc_stack_num--;
 }
@@ -203,6 +206,11 @@ static uint32_t usfstl_rpc_handle_one(struct usfstl_rpc_connection *conn)
 	struct usfstl_rpc_request hdr;
 	bool swap = false;
 	uint32_t tag;
+	unsigned char buf[conn->extra_len];
+	struct read_vector vector[] = {
+		{ .data = &hdr, .len = sizeof(hdr) },
+		{ .data = buf, .len = conn->extra_len },
+	};
 
 	rpc_read(conn->conn.fd, &tag, sizeof(tag));
 
@@ -219,20 +227,15 @@ static uint32_t usfstl_rpc_handle_one(struct usfstl_rpc_connection *conn)
 		assert(0);
 	}
 
-	rpc_read(conn->conn.fd, &hdr, sizeof(hdr));
+	rpc_readv(conn->conn.fd, 2, vector);
 
 	if (swap) {
 		hdr.retsize = swap32(hdr.retsize);
 		hdr.argsize = swap32(hdr.argsize);
 	}
 
-	if (conn->extra_len) {
-		unsigned char buf[conn->extra_len];
-
-		rpc_read(conn->conn.fd, buf, conn->extra_len);
-
+	if (conn->extra_len)
 		conn->extra_received(conn, buf);
-	}
 
 	usfstl_rpc_handle_one_call(conn, &hdr);
 	return 0;
@@ -358,16 +361,20 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 	};
 	struct usfstl_rpc_response resp;
 	uint32_t tag = USFSTL_RPC_TAG_REQUEST;
+	uint32_t argsize_masked = (argsize & ~USFSTL_VAR_DATA_SIZE) ?: argmin;
+	unsigned char buf[conn->extra_len];
+	struct write_vector vector[] = {
+		{ .data = &tag, .len = sizeof(tag) },
+		{ .data = &req, .len = sizeof(req) },
+		{ .data = buf, .len = conn->extra_len },
+		{ .data = arg, .len = argsize_masked },
+	};
 
 	if (!conn->initialized)
 		usfstl_rpc_initialize(conn);
 
 	assert(!conn->broken);
 
-	argsize &= ~USFSTL_VAR_DATA_SIZE;
-
-	if (!argsize)
-		argsize = argmin;
 	if (!retsize)
 		retsize = retmin;
 
@@ -383,33 +390,24 @@ void usfstl_rpc_call(struct usfstl_rpc_connection *conn, const char *name,
 		assert(stub);
 
 		if (conn->extra_len) {
-			unsigned char buf[conn->extra_len];
-
 			memset(&buf, 0, sizeof(buf));
 			conn->extra_transmit(conn, buf);
 			conn->extra_received(conn, buf);
 		}
 
-		usfstl_rpc_make_call(conn, stub, arg, argsize, ret, retsize);
+		usfstl_rpc_make_call(conn, stub, arg, argsize_masked, ret, retsize);
 		return;
 	}
 
 	usfstl_flush_all();
 
-	// write request
-	rpc_write(conn->conn.fd, &tag, sizeof(tag));
-	rpc_write(conn->conn.fd, &req, sizeof(req));
-
 	if (conn->extra_len) {
-		unsigned char buf[conn->extra_len];
-
 		memset(&buf, 0, sizeof(buf));
 		conn->extra_transmit(conn, buf);
-
-		rpc_write(conn->conn.fd, buf, conn->extra_len);
 	}
 
-	rpc_write(conn->conn.fd, arg, argsize);
+	// write request
+	rpc_writev(conn->conn.fd, 4, vector);
 
 	tag = usfstl_wait_for_response(conn);
 

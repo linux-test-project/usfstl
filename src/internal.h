@@ -125,6 +125,16 @@ void _usfstl_sched_set_time(struct usfstl_scheduler *sched, uint64_t time);
 void usfstl_task_cleanup(void);
 
 /* rpc */
+struct write_vector {
+	const void *data;
+	size_t len;
+};
+
+struct read_vector {
+	void *data;
+	size_t len;
+};
+
 #define USFSTL_MAX_RPC_SIZE_ON_STACK 256
 #define USFSTL_MAX_RPC_STACK	20
 extern struct usfstl_rpc_connection *g_usfstl_rpc_stack[USFSTL_MAX_RPC_STACK];
@@ -132,6 +142,8 @@ extern unsigned int g_usfstl_rpc_stack_num;
 
 void rpc_write(usfstl_fd_t fd, const void *buf, size_t bufsize);
 void rpc_read(usfstl_fd_t fd, void *buf, size_t nbyte);
+void rpc_writev(usfstl_fd_t fd, unsigned int n, const struct write_vector *vectors);
+void rpc_readv(usfstl_fd_t fd, unsigned int n, const struct read_vector *vectors);
 
 void usfstl_rpc_del_connection_raw(struct usfstl_rpc_connection *conn);
 
