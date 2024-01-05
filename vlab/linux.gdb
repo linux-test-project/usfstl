@@ -5,7 +5,10 @@ python
 import subprocess
 p = subprocess.run(['./linux', '--version'], capture_output=True)
 ver = p.stdout.strip().decode('ascii')
-gdb.execute(f'lx-symbols ../driver-install/lib/modules/{ver}/')
+# 'updates': for backports, so it's preferred (if present)
+# 'kernel': for normal (not backports) modules
+paths = [f'../driver-install/lib/modules/{ver}/{dir}' for dir in ('updates', 'kernel')]
+gdb.execute(f'lx-symbols {" ".join(paths)}')
 end
 cd ..
 handle 11 nostop noprint pass
