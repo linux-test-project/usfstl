@@ -30,6 +30,8 @@ else
 	mount tmp -t tmpfs /etc
 fi
 
+ln -s /proc/mounts /etc/mtab
+
 mount tmp -t tmpfs /root
 mount tmp -t tmpfs /var
 mount tmp -t tmpfs /run
