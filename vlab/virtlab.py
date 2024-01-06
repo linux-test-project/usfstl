@@ -249,12 +249,13 @@ def load_plugins(path: str) -> List[Type[Plugin]]:
     Load plugins in the given directory.
     """
     ret: List[Type[Plugin]] = []
-    sys.path.append(path)
+    sys.path.insert(0, path)
     for filename in sorted(glob.glob(os.path.join(path, '*.py'))):
         modname = os.path.basename(filename)[:-3]
         clsname = modname.capitalize() + 'Plugin'
         mod = importlib.import_module(modname)
         ret.append(getattr(mod, clsname))
+    del sys.path[0]
     return ret
 
 def fail(msg: str) -> None:
