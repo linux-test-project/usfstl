@@ -14,8 +14,22 @@ ip link set lo up
 mount proc -t proc /proc
 mount sys -t sysfs /sys
 mount debug -t debugfs /sys/kernel/debug
-mount tmp -t tmpfs /etc
 mount tmp -t tmpfs /tmp
+
+# preserve /etc/alternatives for Ubuntu/Debian
+if test -d /etc/alternatives ; then
+	mkdir /tmp/alternatives
+	mount --no-mtab --bind /etc/alternatives /tmp/alternatives
+
+	mount tmp -t tmpfs /etc
+
+	mkdir /etc/alternatives
+	mount --no-mtab --move /tmp/alternatives /etc/alternatives
+	rmdir /tmp/alternatives
+else
+	mount tmp -t tmpfs /etc
+fi
+
 mount tmp -t tmpfs /root
 mount tmp -t tmpfs /var
 mount tmp -t tmpfs /run
