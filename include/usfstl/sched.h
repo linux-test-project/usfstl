@@ -40,6 +40,9 @@
  * external, scheduler to synchronize multiple components.
  */
 
+/* Workaround for fullSimLinuxXsim: disable skipping external_request */
+extern bool g_usfstl_sched_disable_skip_external_request;
+
 /**
  * struct usfstl_job - usfstl scheduler job
  * @time: time this job fires

@@ -10,6 +10,11 @@
 #include <usfstl/list.h>
 #include "internal.h"
 
+bool USFSTL_NORESTORE_VAR(g_usfstl_sched_disable_skip_external_request);
+USFSTL_OPT_FLAG("sched-disable-skip-external-request", 0,
+		g_usfstl_sched_disable_skip_external_request,
+		"Scheduler workaround to disable skipping external_request");
+
 uint64_t usfstl_sched_current_time(struct usfstl_scheduler *sched)
 {
 	if (sched->external_get_time)
@@ -32,7 +37,8 @@ usfstl_sched_external_request(struct usfstl_scheduler *sched, uint64_t time)
 	 * we won't schedule until we get called to run, and that usually won't
 	 * happen if we don't ask for it.
 	 */
-	if (!sched->waiting && sched->next_external_sync_set &&
+	if (!g_usfstl_sched_disable_skip_external_request &&
+	    !sched->waiting && sched->next_external_sync_set &&
 	    usfstl_time_cmp(time, <, sched->next_external_sync))
 		return USFSTL_SCHED_REQ_STATUS_CAN_RUN;
 

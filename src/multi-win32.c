@@ -112,6 +112,14 @@ void usfstl_run_participant(struct usfstl_multi_participant *p, int nargs)
 	strcat(cmdline, " ");
 	strcat(cmdline, ctlnamebuf);
 
+	if (g_usfstl_sched_disable_skip_external_request) {
+		char schedopt[] = "--sched-disable-skip-external-request";
+
+		assert(strlen(cmdline) + strlen(schedopt) + 1 < sizeof(cmdline));
+		strcat(cmdline, " ");
+		strcat(cmdline, schedopt);
+	}
+
 	assert(CreateProcess(NULL,
 			     cmdline,
 			     NULL,	// lpProcessAttributes

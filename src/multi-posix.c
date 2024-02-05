@@ -47,7 +47,7 @@ void usfstl_run_participant(struct usfstl_multi_participant *p, int nargs)
 	p->conn->conn.fd = fds[0];
 
 	if ((pid = fork()) == 0) {
-		const char *_args[nargs + 5];
+		const char *_args[nargs + 6];
 		char buf[100], namebuf[20 + strlen(p->name)];
 		char ctlnamebuf[19 + strlen(g_usfstl_multi_local_participant.name)];
 		int i;
@@ -64,7 +64,12 @@ void usfstl_run_participant(struct usfstl_multi_participant *p, int nargs)
 		sprintf(ctlnamebuf, "--multi-ptc-ctl=%s",
 			g_usfstl_multi_local_participant.name);
 		_args[nargs + 3] = ctlnamebuf;
-		_args[nargs + 4] = NULL;
+		if (g_usfstl_sched_disable_skip_external_request) {
+			_args[nargs + 4] = "--sched-disable-skip-external-request";
+			_args[nargs + 5] = NULL;
+		} else {
+			_args[nargs + 4] = NULL;
+		}
 		execv(p->binary, (char * const *)_args);
 		assert(0);
 	}
