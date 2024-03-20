@@ -588,7 +588,8 @@ class Vlab:
                 f'tmpdir={self.runtime.tmpdir}',
                 f'hostname={node.name}',
                 f'vmroots={":".join(vmroots)}',
-                f'vlab={Paths.vlab}']
+                f'vlab={Paths.vlab}',
+                f'VLAB_VAR_LOG_DIR={node.logdir}/logs/']
         if node.rootfs:
             args.append(f'customrootfs={node.rootfs}')
 
@@ -600,6 +601,7 @@ class Vlab:
             args.extend(pnode.linux_cmdline(self.runtime))
 
         outfile = os.path.join(node.logdir, 'dmesg') if logfile else None
+        os.mkdir(os.path.join(node.logdir, 'logs'))
         process = start_process(args, outfile=outfile,
                                 interactive=interactive,
                                 vlab_name=node.name)

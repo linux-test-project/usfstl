@@ -43,6 +43,8 @@ ln -s /run /var/run
 mount -o remount,rw /
 mount --bind / /tmp/.host/
 
+mount --bind -o rw /tmp/.host$VLAB_VAR_LOG_DIR /var/log/
+
 chmod +x /tmp/.host$tmpdir/early.sh
 /tmp/.host$tmpdir/early.sh
 
