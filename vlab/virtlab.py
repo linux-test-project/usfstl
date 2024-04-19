@@ -22,7 +22,7 @@ import subprocess
 import importlib
 import tempfile
 from dataclasses import dataclass, field
-from typing import List, Union, Dict, Any, Optional, Type, BinaryIO, TYPE_CHECKING
+from typing import List, Union, Dict, Any, Optional, Type, BinaryIO, TYPE_CHECKING, Mapping
 import itertools
 import yaml
 
@@ -80,6 +80,25 @@ class PluginNode:
         Do any necessary work after the vlab run concluded and all nodes
         have been shut down again.
         """
+
+class Symlink:
+    # pylint: disable=too-few-public-methods
+    """
+    Symlink class for the Plugin::files() method.
+    """
+    def __init__(self, target: bytes) -> None:
+        """
+        Create a symlink, should be relative.
+        """
+        assert target[0] != ord(b'/')
+        self._target = target
+
+    @property
+    def target(self) -> bytes:
+        """
+        Return the symlink target
+        """
+        return self._target
 
 class Plugin:
     """
@@ -140,7 +159,7 @@ class Plugin:
         """
         return ""
 
-    def files(self, runtime: VlabRuntimeData) -> Dict[str, Union[BinaryIO, bytes]]:
+    def files(self, runtime: VlabRuntimeData) -> Mapping[str, Union[BinaryIO, bytes, Symlink]]:
         # pylint: disable=unused-argument
         """
         Return a dictionary mapping file names (inside the nodes) to their
@@ -689,14 +708,18 @@ class Vlab:
             for fname, fcontent in plugin.files(self.runtime).items():
                 assert fname.startswith('/')
                 fname = fname[1:]
+                outname = os.path.join(pluginfiles, fname)
                 os.makedirs(os.path.join(pluginfiles, os.path.dirname(fname)),
                             exist_ok=True)
-                if isinstance(fcontent, bytes):
-                    with open(os.path.join(pluginfiles, fname), 'wb') as fcont_f:
+                if isinstance(fcontent, Symlink):
+                    assert fcontent.target[0] != ord(b'/')
+                    os.symlink(fcontent.target, outname)
+                elif isinstance(fcontent, bytes):
+                    with open(outname, 'wb') as fcont_f:
                         fcont_f.write(fcontent)
                 else:
                     fcontent.seek(0)
-                    with open(os.path.join(pluginfiles, fname), 'wb') as fcont_f:
+                    with open(outname, 'wb') as fcont_f:
                         fcont_f.write(fcontent.read())
 
         earlystart = os.path.join(tmpdir, 'early.sh')

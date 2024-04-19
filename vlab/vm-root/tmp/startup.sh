@@ -81,7 +81,7 @@ ln -s ../../../iw/iw /tmp/bin/
 
 # copy plugin-files
 pushd /tmp/.host/$tmpdir/pluginfiles >/dev/null
-find . -not -type d -not -type l -print0 | cpio --quiet -0 -R0:0 -d -p /
+find . -not -type d -print0 | cpio --quiet -0 -R0:0 -d -p /
 
 # copy vm-root dirs (after, so they can "win" over plugins)
 echo $vmroots | tr ':' '\n' | while read dir ; do
