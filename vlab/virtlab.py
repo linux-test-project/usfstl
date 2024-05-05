@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=too-many-lines
 #
 # Copyright (C) 2020-2021 Intel Corporation
 #
