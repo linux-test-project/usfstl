@@ -313,7 +313,9 @@ class VlabNamedProcess(_VlabNamedProcessBase):
 
 def start_process(args: List[str], outfile: Union[None, str] = None,
                   interactive: bool = False, cwd: Union[None, str] = None,
-                  vlab_name: Optional[str] = None) -> Any:
+                  vlab_name: Optional[str] = None,
+                  env: Optional[Mapping[str, str]] = None) -> Any:
+    # pylint: disable=too-many-arguments
     """
     Start a single process and returns its Popen object.
     """
@@ -334,7 +336,7 @@ def start_process(args: List[str], outfile: Union[None, str] = None,
 
     return VlabNamedProcess(args, start_new_session=True, cwd=cwd,
                             stdout=s_out, stdin=s_in, stderr=s_err,
-                            vlab_name=vlab_name)
+                            vlab_name=vlab_name, env=env)
 
 
 def wait_for_socket(which: str, sockname: Optional[str], timeout: int = 2) -> None:
