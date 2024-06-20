@@ -28,7 +28,7 @@ class CoveragePluginNode(virtlab.PluginNode):
         subprocess.run(['lcov', '-q', '--rc', 'lcov_branch_coverage=1',
                         '-c', '-d', tmpdir, '-o', machine_file], check=True)
 
-        combined_file = os.path.join(vlabinst.runtime.logdir, 'data.cov')
+        combined_file = os.path.join(vlabinst.runtime.logdir, 'linux.cov')
         # combine coverage from other nodes if exists
         if os.path.exists(combined_file):
             subprocess.run(['lcov', '-q', '--rc', 'lcov_branch_coverage=1',
