@@ -265,6 +265,12 @@ class TimeoutFailure(Failure):
     """
     retcode = 3
 
+class ExitFailure(Failure):
+    """
+    Represents an exit failure in vlab
+    """
+    retcode = 4
+
 def load_plugins(path: str) -> List[Type[Plugin]]:
     """
     Load plugins in the given directory.
@@ -949,7 +955,7 @@ poweroff -f
                             pname += f", vlab name: {process.vlab_name}"
                         pargs = " ".join(process.args[1:])
                         err = f"Process: {pname}, didn't exit cleanly args: {pargs}"
-                        raise Failure(err) from None
+                        raise ExitFailure(err) from None
 
         # pylint: disable=broad-except
         except BaseException as exc:
