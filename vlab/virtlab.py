@@ -615,7 +615,7 @@ class Vlab:
         vmroots.extend(self.extraroots)
         args = [f'{Paths.linux}/linux', f'mem={node.mem}M',
                 f'init={self.runtime.startup}',
-                'root=none', 'hostfs=/', 'rootfstype=hostfs', 'rootflags=/',
+                'root=none', 'hostfs=/', 'rootfstype=hostfs',
                 f'run=/tmp/.host{node.run}',
                 f'virtio_uml.device={self.runtime.net}:1',
                 f'addr={node.addr}',
