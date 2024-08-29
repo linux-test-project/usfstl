@@ -35,6 +35,7 @@ struct usfstl_task {
 
 	struct usfstl_list_entry sem_entry;
 	struct usfstl_sem *check_sem;
+	bool woken_by_sem_post;
 };
 
 static void usfstl_task_next(void)
@@ -359,6 +360,8 @@ bool usfstl_sem_timedwait(struct usfstl_sem *sem, uint64_t timeout)
 	struct usfstl_task *task = usfstl_task_current();
 
 	USFSTL_ASSERT(task, "can only call usfstl_sem_timedwait() while in task");
+	USFSTL_ASSERT(!task->woken_by_sem_post,
+		      "task->woken_by_sem_post corruption");
 
 	usfstl_sem_init_if_needed(sem);
 
@@ -400,13 +403,16 @@ bool usfstl_sem_timedwait(struct usfstl_sem *sem, uint64_t timeout)
 		USFSTL_ASSERT(!task->check_sem,
 			      "check_sem must be reset by unblock");
 
-		if (sem->ctr == 0) {
+		if (!task->woken_by_sem_post) {
 			USFSTL_ASSERT(task->sem_entry.next,
 				      "task must be on semaphore list here");
 			USFSTL_ASSERT_CMP(timeout, !=, NO_TIMEOUT, "%" PRIu64);
 			usfstl_list_item_remove(&task->sem_entry);
 			return false;
 		}
+
+		task->woken_by_sem_post = false;
+		return true;
 	}
 
 	sem->ctr--;
@@ -432,7 +438,7 @@ bool usfstl_sem_trywait(struct usfstl_sem *sem)
 	return false;
 }
 
-static void usfstl_process_sem_wakeup(struct usfstl_sem *sem)
+static bool usfstl_process_sem_wakeup(struct usfstl_sem *sem)
 {
 	struct usfstl_task *task;
 
@@ -453,21 +459,29 @@ static void usfstl_process_sem_wakeup(struct usfstl_sem *sem)
 		// additional "!" so here we can "uncover" that to show
 		// that the semaphore has been signaled.
 		task->job.name -= 1;
+		// indicate that the task was first in line and woke up
+		task->woken_by_sem_post = true;
 		// re-add the job for the signal
 		usfstl_sched_add_job(&g_usfstl_task_scheduler, &task->job);
 
 		usfstl_list_item_remove(&task->sem_entry);
-		break;
+		return true;
 	}
+
+	return false;
 }
 
 void usfstl_sem_post(struct usfstl_sem *sem)
 {
 	usfstl_sem_init_if_needed(sem);
 
-	sem->ctr++;
-
-	usfstl_process_sem_wakeup(sem);
+	/*
+	 * If we wake a task, that task owns the counter immediately,
+	 * so no increment. If there's no task woken, increment it to
+	 * leave it for whoever tries to decrement it next.
+	 */
+	if (!usfstl_process_sem_wakeup(sem))
+		sem->ctr++;
 }
 
 void usfstl_task_block(struct usfstl_task *task)
@@ -477,11 +491,23 @@ void usfstl_task_block(struct usfstl_task *task)
 
 void usfstl_task_unblock(struct usfstl_task *task)
 {
+	struct usfstl_sem *sem = task->check_sem;
+
 	usfstl_sched_unblock_job(&g_usfstl_task_scheduler, &task->job);
 
-	if (task->check_sem) {
-		if (task->check_sem->ctr)
-			usfstl_process_sem_wakeup(task->check_sem);
-		task->check_sem = NULL;
+	if (!sem)
+		return;
+
+	if (sem->ctr) {
+		sem->ctr--;
+		/*
+		 * It might not actually be _this_ task that gets
+		 * woken up (it's a priority list), but some task
+		 * must be woken up here, since at least this one
+		 * is eligible now.
+		 */
+		USFSTL_ASSERT(usfstl_process_sem_wakeup(sem));
 	}
+
+	task->check_sem = NULL;
 }
