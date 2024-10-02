@@ -454,7 +454,7 @@ static void usfstl_vhost_user_clear_mappings(struct usfstl_vhost_user_dev_int *d
 	for (idx = 0; idx < MAX_REGIONS; idx++) {
 		if (dev->region_vaddr[idx]) {
 			munmap(dev->region_vaddr[idx],
-			       dev->regions[idx].size + dev->regions[idx].mmap_offset);
+			       dev->regions[idx].size);
 			dev->region_vaddr[idx] = NULL;
 		}
 
@@ -472,15 +472,11 @@ static void usfstl_vhost_user_setup_mappings(struct usfstl_vhost_user_dev_int *d
 	for (idx = 0; idx < dev->n_regions; idx++) {
 		USFSTL_ASSERT(!dev->region_vaddr[idx]);
 
-		/*
-		 * Cannot rely on the offset being page-aligned, I think ...
-		 * adjust for it later when we translate addresses instead.
-		 */
 		dev->region_vaddr[idx] = mmap(NULL,
-					      dev->regions[idx].size +
-					      dev->regions[idx].mmap_offset,
+					      dev->regions[idx].size,
 					      PROT_READ | PROT_WRITE, MAP_SHARED,
-					      dev->region_fds[idx], 0);
+					      dev->region_fds[idx],
+					      dev->regions[idx].mmap_offset);
 		USFSTL_ASSERT(dev->region_vaddr[idx] != (void *)-1,
 			      "mmap() failed (%d) for fd %d", errno, dev->region_fds[idx]);
 	}
@@ -891,10 +887,8 @@ void *usfstl_vhost_user_to_va(struct usfstl_vhost_user_dev *extdev, uint64_t add
 			   dev->regions[region].size)
 			return (uint8_t *)dev->region_vaddr[region] +
 			       (addr -
-				dev->regions[region].user_addr +
-				dev->regions[region].mmap_offset);
+				dev->regions[region].user_addr);
 	}
-
 	USFSTL_ASSERT(0, "cannot translate address %"PRIx64"\n", addr);
 	return NULL;
 }
