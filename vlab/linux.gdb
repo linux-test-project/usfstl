@@ -9,9 +9,7 @@ ver = p.stdout.strip().decode('ascii')
 # 'kernel': for normal (not backports) modules
 paths = [f'../driver-install/lib/modules/{ver}/{dir}' for dir in ('updates', 'kernel')]
 gdb.execute(f'lx-symbols {" ".join(paths)}')
-end
-cd ..
-handle 11 nostop noprint pass
+
 #
 # So ... this is complicated. When gdb installs a regular breakpoint
 # on some place, it writes there a breakpoint instruction (which is
@@ -34,17 +32,37 @@ handle 11 nostop noprint pass
 # restore all the code to normal, and reinstall breakpoints when we
 # continue.
 #
-# Thus we can use that behaviour to work around the module issue:
-# simply put a breakpoint on init_new_ldt which happens just after
-# the clone() for a new userspace process, and do nothing there but
-# continue, which reinstalls all breakpoints, including the ones in
-# modules.
+# Thus we can use that behaviour to work around the module issue.
+# We break on start_userspace and install a finish breakpoint. Breaking
+# a second time after the clone() itself reinstalls all breakpoints,
+# including the ones in modules.
 #
-break init_new_ldt
-commands
-silent
-continue
+class NoopFinishBreakpoint(gdb.FinishBreakpoint):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.silent = True
+        self.commands = 'continue'
+
+    def stop(self):
+        # It seems that we actually need to stop once for this to work. But
+        # we will immediately continue with the commands (see __init__).
+        return True
+
+class InstallNoopFinishBreakpoint(gdb.Breakpoint):
+    silent = True
+
+    def stop(self):
+        NoopFinishBreakpoint(internal=True)
+        return False
+
+# We don't use a "fork" catchpoint because those cannot be installed
+# from python.
+InstallNoopFinishBreakpoint('start_userspace', internal=True)
+
 end
+cd ..
+handle 11 nostop noprint pass
 
 echo \n
 echo Welcome to vlab kernel debugging\n
@@ -52,5 +70,4 @@ echo --------------------------------\n\n
 echo You can install breakpoints in modules, they're treated\n
 echo as shared libraries, so just say 'y' if asked to make the\n
 echo breakpoint pending on future load.\n\n
-echo Do NOT, however, delete the breakpoint on 'init_new_ldt'!\n\n
 echo Have fun!\n\n
