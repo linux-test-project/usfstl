@@ -928,21 +928,20 @@ poweroff -f
                 input('==== press Enter to continue ====\n')
                 control_process.send_signal(signal.SIGCONT)
 
-            first = True
-            for process in self.processes:
+            for proc_index, process in enumerate(self.processes):
+                timeout: Union[None, int] = 1
+                if proc_index == 0:
+                    timeout = args.timeout
                 try:
-                    timeout: Union[None, int] = 1
-                    if first:
-                        timeout = args.timeout
                     process.wait(timeout=timeout)
-                    first = False
                 except subprocess.TimeoutExpired:
-                    if first:
+                    name = str(process.args[0])
+                    print(f"{name} timed out after {timeout}s", file=sys.stderr)
+                    if proc_index == 0:
                         timedout = True
                         raise TimeoutFailure(
                             f"Timeout of {args.timeout} seconds expired!"
                         ) from None
-                    name = str(process.args[0])
                     if args.interactive:
                         # just in case ... for Ctrl-C
                         os.system('reset -I >/dev/null 2>&1 || true')
