@@ -124,57 +124,54 @@ static bool usfstl_shared_mem_merge_local_section(
 }
 
 // merge a remote section into the shared memory message
-static void usfstl_shared_mem_merge_remote_section(
+static bool usfstl_shared_mem_merge_remote_section(
 	const usfstl_shared_mem_section_name_t name,
 	const void *buf,
 	unsigned int buf_size)
 {
+	bool relevant = false;
+	int i;
+	struct usfstl_shared_mem_section *s;
 	struct usfstl_shared_mem_msg_section *section;
 
 	// try to find the section in the existing space
-	section = usfstl_shared_mem_find_msg_section(name, buf_size);
-
-	if (!section) {
-		// if not existing, check if the section is relevant
-		// however, the controller keeps all sections
-		if (!usfstl_is_multi_controller()) {
-			bool relevant = false;
-			struct usfstl_shared_mem_section *s;
-			int i;
-
-			for_each_shared_mem_section(s, i) {
-				if (strncmp(s->name, name,
-					    sizeof(s->name)) == 0) {
-					USFSTL_ASSERT_EQ(SECTION_SIZE(s),
-							 buf_size, "%u");
-					relevant = true;
-					break;
-				}
-			}
-
-			if (!relevant)
-				return;
+	for_each_shared_mem_section(s, i) {
+		if (strncmp(s->name, name,
+				sizeof(s->name)) == 0) {
+			USFSTL_ASSERT_EQ(SECTION_SIZE(s),
+						buf_size, "%u");
+			relevant = true;
+			break;
 		}
-
-		// and then create it
-		section = usfstl_shared_mem_add_msg_section(name, buf_size);
 	}
 
-	memcpy(section->buf, buf, buf_size);
+	if (relevant) {
+		section = usfstl_shared_mem_find_msg_section(name, buf_size);
+
+		if (!section)
+			section = usfstl_shared_mem_add_msg_section(name, buf_size);
+		memcpy(section->buf, buf, buf_size);
+	}
+
+	return relevant;
 }
 
 // merge an incoming message into the shared memory message
-static void usfstl_shared_mem_merge_msg(
+static bool usfstl_shared_mem_merge_msg(
 	const struct usfstl_shared_mem_msg *msg, unsigned int msg_size)
 {
+	bool relevant_merge = false;
 	const char *msg_end;
 	const struct usfstl_shared_mem_msg_section *section;
 
 	for_each_msg_section(section, msg_end, msg, msg_size)
-		usfstl_shared_mem_merge_remote_section(section->name,
-						       section->buf,
-						       section->size);
+		relevant_merge |=
+			usfstl_shared_mem_merge_remote_section(section->name,
+							       section->buf,
+							       section->size);
 	USFSTL_ASSERT_EQ((char *)section, msg_end, "%p");
+
+	return relevant_merge;
 }
 
 // upon an incoming message, update our notion of the remote participant's
@@ -206,10 +203,10 @@ void usfstl_shared_mem_handle_msg(const struct usfstl_shared_mem_msg *msg,
 
 	// mark the local view as outdated until we really need to refresh it
 	// from the buffer
-	g_usfstl_multi_local_participant.flags |=
-		USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 
-	usfstl_shared_mem_merge_msg(msg, msg_size);
+	if (usfstl_shared_mem_merge_msg(msg, msg_size))
+		g_usfstl_multi_local_participant.flags |=
+			USFSTL_MULTI_PARTICIPANT_SHARED_MEM_OUTDATED;
 }
 
 // refresh the local view of the shared memory from the updated remote version
