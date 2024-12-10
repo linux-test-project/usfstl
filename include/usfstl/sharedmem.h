@@ -26,7 +26,7 @@
 #define USFSTL_SHARED_MEM_START(section) __start_usfstl_shared_mem_ ## section
 #define USFSTL_SHARED_MEM_STOP(section) __stop_usfstl_shared_mem_ ## section
 
-typedef char usfstl_shared_mem_section_name_t[16];
+typedef char usfstl_shared_mem_section_name_t[32];
 
 /**
  * struct usfstl_shared_mem_section - simulation shared memory section
