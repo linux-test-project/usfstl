@@ -237,6 +237,7 @@ USFSTL_RPC_METHOD_VAR(uint32_t /* dummy */,
 	struct usfstl_multi_participant *p = conn->data;
 
 	usfstl_shared_mem_handle_msg(in, insize, false);
+	usfstl_shared_mem_update_local_view();
 
 	// set the flag after handling the shared mem msg, so the handler
 	// knows which participant was running
