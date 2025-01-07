@@ -604,7 +604,11 @@ static void usfstl_vhost_user_handle_msg(struct usfstl_loop_entry *entry)
 		/* nothing to be done */
 		break;
 	case VHOST_USER_SET_MEM_TABLE:
-		USFSTL_ASSERT(len >= (int)sizeof(msg.payload.mem_regions));
+		USFSTL_ASSERT(len > 0);
+		USFSTL_ASSERT((size_t)len >= sizeof(msg.payload.mem_regions) -
+					     sizeof(msg.payload.mem_regions.regions) +
+					     sizeof(msg.payload.mem_regions.regions[0]) *
+						msg.payload.mem_regions.n_regions);
 		USFSTL_ASSERT(msg.payload.mem_regions.n_regions <= MAX_REGIONS);
 		usfstl_vhost_user_clear_mappings(dev);
 		memcpy(dev->regions, msg.payload.mem_regions.regions,
