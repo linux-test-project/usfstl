@@ -299,6 +299,7 @@ def addr(idx: int) -> str:
     return f'10.0.0.{idx}'
 
 
+# pylint: disable=too-many-positional-arguments
 if TYPE_CHECKING:
     # pylint: disable=invalid-name,unsubscriptable-object
     _VlabNamedProcessBase = subprocess.Popen[bytes]
@@ -665,6 +666,7 @@ class Vlab:
         else:
             self.processes.append(process)
 
+    # pylint: disable=too-many-positional-arguments
     def start_process(self, args: List[str], outfile: Union[None, str] = None,
                       interactive: bool = False, cwd: Union[None, str] = None,
                       vlab_name: Optional[str] = None) -> Any:
@@ -795,11 +797,17 @@ code=$?
 status=$(sed 's/.*status=\([^ ]*\)\( .*\|$\)/\1/;t;d' /proc/cmdline)
 echo $code > $status
 
-{NEWLINE.join([f"ssh -Fnone -oStrictHostKeyChecking=no {node.addr} /tmp/.host/{nodestop}" for node in nodes[1:]])}
+{NEWLINE.join(
+    [f"ssh -Fnone -oStrictHostKeyChecking=no {node.addr} /tmp/.host/{nodestop}"
+     for node in nodes[1:]])
+}
 
 {NEWLINE.join(plugin.ctrlstop_pre(self.runtime) for plugin in self.args.plugins)}
 
-{NEWLINE.join([f"echo power off {node.addr} ; ssh -Fnone -oStrictHostKeyChecking=no {node.addr} poweroff -f &" for node in nodes[1:]])}
+{NEWLINE.join(
+    [f"echo power off {node.addr} ; ssh -Fnone -oStrictHostKeyChecking=no {node.addr} poweroff -f &"
+     for node in nodes[1:]])
+}
 {"echo waiting 5 seconds for shutdown; sleep 5" if len(nodes) > 1 else ""}
 
 {NEWLINE.join(plugin.ctrlstop(self.runtime) for plugin in self.args.plugins)}
