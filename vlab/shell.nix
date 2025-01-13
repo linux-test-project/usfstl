@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 { pkgs ? import (builtins.fetchGit {
-    name = "nixpkgs-release-22.11";
+    name = "nixpkgs-release-24.11";
     url = https://github.com/nixos/nixpkgs/;
-    ref = "refs/heads/release-22.11";
+    ref = "refs/heads/release-24.11";
+    rev = "67e9c880898889470f153157a96b595e758167fc";
 }) {} }:
 
 let
@@ -33,7 +34,7 @@ multiStdenv.mkDerivation {
         python3Packages.pyyaml
 
         # inside of the VMs
-        rsyslog-light mount cpio ncurses iproute socat openssh busybox
+        rsyslog-light mount cpio ncurses iproute2 socat openssh busybox
 
         # wmediumd
         libnl pkg-config libconfig
