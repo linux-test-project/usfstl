@@ -311,17 +311,20 @@ class VlabNamedProcess(_VlabNamedProcessBase):
     """
     Vlab process class to have an extra vlab name for debug
     """
-    def __init__(self, *args: Any, vlab_name: Optional[str] = None, **kw: Any):
+    def __init__(self, *args: Any, vlab_name: Optional[str] = None,
+                 gdb_args: Optional[str] = None, **kw: Any):
         # work around some stupid mypy version dependent issues
         _args = [self] + list(args)
         _VlabNamedProcessBase.__init__(*_args, **kw)
         self.vlab_name = vlab_name
+        self.gdb_args = gdb_args
 
 
 def start_process(args: List[str], outfile: Union[None, str] = None,
                   interactive: bool = False, cwd: Union[None, str] = None,
                   vlab_name: Optional[str] = None,
-                  env: Optional[Mapping[str, str]] = None) -> Any:
+                  env: Optional[Mapping[str, str]] = None,
+                  gdb_args: Optional[str] = None) -> Any:
     # pylint: disable=too-many-arguments
     """
     Start a single process and returns its Popen object.
@@ -343,7 +346,7 @@ def start_process(args: List[str], outfile: Union[None, str] = None,
 
     return VlabNamedProcess(args, start_new_session=True, cwd=cwd,
                             stdout=s_out, stdin=s_in, stderr=s_err,
-                            vlab_name=vlab_name, env=env)
+                            vlab_name=vlab_name, env=env, gdb_args=gdb_args)
 
 
 def wait_for_socket(which: str, sockname: Optional[str], timeout: int = 2) -> None:
@@ -921,7 +924,9 @@ poweroff -f
                     basename = os.path.basename(process.args[0])
                     gdb_log += [f'\npid: {process.pid} ({basename}{extra})']
                     gdb: List[str] = ['gdb']
-                    if os.path.basename(process.args[0]) == 'linux':
+                    if isinstance(process, VlabNamedProcess) and process.gdb_args:
+                        gdb += [process.gdb_args]
+                    elif os.path.basename(process.args[0]) == 'linux':
                         linux_gdb = os.path.join(os.path.dirname(__file__), 'linux.gdb')
                         gdb += [f'-ex "source {linux_gdb}"']
                     gdb.extend(['--pid', str(process.pid)])
