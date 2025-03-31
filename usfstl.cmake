@@ -359,9 +359,17 @@ function(usfstl_add_test)
     endif()
 
     set(globals_file ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME}${CMAKE_EXECUTABLE_SUFFIX}.globals)
+    set(_gcov_tls "__(llvm_)?gcov|_*emutls")
+    set(_sanitizers ".*_(l|a|ub)san")
+    set(_sections "\\.bss|\\.data|___|__end__")
+    set(_mangled_names "_Z.*(GlobCopy|pglob_copy|scandir|qsort|preinit|ubsan|ioctl|CurrentUBR|(S|s)uppression|asan_after_init_array|VptrCheck|(i|I)nterceptor|printf|xdrrec|MlockIsUnsupportedvE7printed)")
+    set(_san_symbols "_Z.*__(sanitizer|interception|sancov)")
+    set(_internal "replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed")
+    set(_ignore_variables " . (${_gcov_tls}|${_sanitizers}|${_sections}|${_mangled_names}|${_san_symbols}|${_internal})")
+
     add_custom_command(
         OUTPUT ${globals_file}
-        COMMAND nm -S --size-sort ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME} | sort | grep -E -v " . (__(llvm_)?gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir|qsort)|_Z.*__(sanitizer|interception)|replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed)" | perl -ne "binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack(\"${_global_pack}\",hex($1), hex($2))" > ${globals_file}
+        COMMAND nm -S --size-sort ${CMAKE_BINARY_DIR}/${name}/${usfstl_add_test_TEST_NAME} | sort | grep -E -v ${_ignore_variables} | perl -ne "binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack(\"${_global_pack}\",hex($1), hex($2))" > ${globals_file}
         VERBATIM
         DEPENDS ${test_target}
     )

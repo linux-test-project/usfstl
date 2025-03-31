@@ -457,6 +457,13 @@ $(_USFSTL_LIB): | $(USFSTL_LOGDIR)
 # There are read only global vars which are relocatable.
 # Those won't considered as RO by the nm command since they should be located on runtime.
 # Remove those vars from the globals which should be restored using address filtering.
+_GCOV_TLS := __(llvm_)?gcov|_*emutls
+_SANITIZERS := .*_(l|a|ub)san
+_SECTIONS := \.bss|\.data|___|__end__
+_MANGLED_NAMES := _Z.*(GlobCopy|pglob_copy|scandir|qsort|preinit|ubsan|ioctl|CurrentUBR|(S|s)uppression|asan_after_init_array|VptrCheck|(i|I)nterceptor|printf|xdrrec|MlockIsUnsupportedvE7printed)
+_SAN_SYMBOLS := _Z.*__(sanitizer|interception|sancov)
+_INTERNAL := replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed
+_IGNORE_VARIABLES :=  . ($(_GCOV_TLS)|$(_SANITIZERS)|$(_SECTIONS)|$(_MANGLED_NAMES)|$(_SAN_SYMBOLS)|$(_INTERNAL))
 $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).globals: $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY)
 	@echo " GEN  $*/$(notdir $@)" $(USFSTL_LOG_TEST)
 	$(eval DATA_RO_PARAMS:= $(shell objdump -h $< | grep ".data.rel.ro" | cut -d' ' -f5-7))
@@ -466,7 +473,7 @@ $(USFSTL_TEST_BIN_PATH)/%/$(_USFSTL_TEST_BINARY).globals: $(USFSTL_TEST_BIN_PATH
 	$(eval DATA_RO_END_HEX:= $(shell printf '%0$(_USFSTL_GLOBAL_PTR_SIZE)x' $(DATA_RO_END)))
 	$(S)nm -S --size-sort $< | sort | \
 		awk '{if ("$(DATA_RO_ADDR)" == "" || "$(DATA_RO_END_HEX)" == "" || $$1 < "$(DATA_RO_ADDR)" || $$1 >= "$(DATA_RO_END_HEX)") print}' | \
-		grep -E -v " . (__(llvm_)?gcov|_*emutls|.*_(l|a|ub)san|\.bss|\.data|___|__end__|_Z.*(GlobCopy|pglob_copy|scandir|qsort)|_Z.*__(sanitizer|interception)|replaced_headers|__usfstl_assert_info|usfstl_tested_files|__unnamed)" | \
+		grep -E -v "$(_IGNORE_VARIABLES)" | \
 		perl -ne 'binmode(stdout); m/^([0-9a-f]*) ([0-9a-f]*) [dDbB] .*/ && print pack("$(_USFSTL_GLOBAL_PACK)",hex($$1), hex($$2))' > $@
 
 .SECONDEXPANSION:
