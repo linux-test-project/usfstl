@@ -1142,8 +1142,16 @@ static int
 read_location_attr(struct dwarf_buf *buf, struct attr_val *val,
 		   int addrsize)
 {
+	enum dwarf_location_operation operation;
 	unsigned char buffer_length = read_byte(buf);
-	enum dwarf_location_operation operation = read_byte(buf);
+
+	if (buffer_length == 0) {
+		val->encoding = ATTR_VAL_NONE;
+		val->u.uint = 0;
+		return 1;
+	}
+
+	operation = read_byte(buf);
 
 	buffer_length -= 1;
 
