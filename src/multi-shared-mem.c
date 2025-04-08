@@ -31,10 +31,13 @@
 static const struct usfstl_shared_mem_section * const usfstl_shared_mem_section_NULL
 	__attribute__((used, section("usfstl_shms"))) = NULL;
 
+// In case the shared memory is not used, the sched default request is used.
+static struct usfstl_sched_req_and_wait_msg g_usfstl_sched_default_req_and_wait_msg;
 // This struct is used for sending the combined sched request and wait RPC to
 // the controller. It wraps the shared memory message by adding the sched request
 // time to the shared memory buffers
-struct usfstl_sched_req_and_wait_msg *g_usfstl_sched_req_and_wait_msg;
+struct usfstl_sched_req_and_wait_msg *g_usfstl_sched_req_and_wait_msg =
+	&g_usfstl_sched_default_req_and_wait_msg;
 // This is the size of the shared memory part in the sched request and wait message,
 // used for receiving/sending from/to a remote participant, or the controller.
 // It stores our notion of the remote participant's view of the shared memory
@@ -81,6 +84,8 @@ static struct usfstl_shared_mem_msg_section *usfstl_shared_mem_add_msg_section(
 
 	new_size = g_usfstl_shared_mem_msg_size + sizeof(*section) + buf_size;
 	new_size_req_and_wait = new_size + offsetof(typeof(*g_usfstl_sched_req_and_wait_msg), shared_mem);
+	if (g_usfstl_sched_req_and_wait_msg == &g_usfstl_sched_default_req_and_wait_msg)
+		g_usfstl_sched_req_and_wait_msg = NULL;
 	g_usfstl_sched_req_and_wait_msg = usfstl_realloc(g_usfstl_sched_req_and_wait_msg,
 							 new_size_req_and_wait);
 	USFSTL_ASSERT(g_usfstl_sched_req_and_wait_msg);
