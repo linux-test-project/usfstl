@@ -18,7 +18,7 @@ add_custom_target(build
 
 # provide
 macro(usfstl_configure_framework)
-    set(options SCHED_CTRL SKIP_ASAN_STR VHOST_USER)
+    set(options SCHED_CTRL SKIP_ASAN_STR VHOST_USER DONT_ADD_NOPIC_FOR_M32)
     set(oneValueArgs
         BIN_PATH
         CC_OPT
@@ -37,9 +37,12 @@ macro(usfstl_configure_framework)
     endif()
 
     string(APPEND USFSTL_CC_OPT " -DUSFSTL_USE_ASSERT_PROFILING=1 -g -gdwarf-2 -mno-ms-bitfields")
-    # -m32, -mfentry and -fpic aren't compatible, so if we have -m32 add -fno-pic
+
     if("${USFSTL_CC_OPT}" MATCHES "-m32")
-        string(APPEND USFSTL_CC_OPT " -fno-pic")
+        if(NOT USFSTL_DONT_ADD_NOPIC_FOR_M32)
+            # In older compilers -m32, -mfentry and -fpic aren't compatible, so if we have -m32 add -fno-pic
+            string(APPEND USFSTL_CC_OPT " -fno-pic")
+        endif()
         set(_global_pack LL)
     else()
         set(_global_pack QQ)

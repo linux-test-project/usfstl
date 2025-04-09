@@ -20,6 +20,8 @@
 #  - USFSTL_LOGDIR          = Log directory for compilations with USFSTL_LOG_TO_FILES
 #                           (will be created if it doesn't exist)
 #  - USFSTL_CC_OPT          = general CC options to be used for everything, e.g. -m32
+#  - USFSTL_DONT_ADD_NOPIC_FOR_M32 = set to 1 if when compiling with -m32 should
+#                                    not add -fnoPIC
 #  - USFSTL_TESTED_LIB      = tested library filename (e.g. libtest.a)
 #  - USFSTL_SUPPORT_LIB     = support library filename (e.g. libsupport.a)
 #  - USFSTL_TEST_OBJS       = Test object files. Note that this is actually called
@@ -293,9 +295,11 @@ USFSTL_TEST_CC_OPT += $(ASSERT_PROFILING_DEFINE)
 #                                properly on mingw, cf. gcc bugzilla 52991.
 USFSTL_CC_OPT += -g -gdwarf-2 -mno-ms-bitfields
 USFSTL_TEST_CC_OPT += -g -gdwarf-2 -mno-ms-bitfields -DUSFSTL_TEST_NAME=$(USFSTL_TEST_NAME)
-# -m32, -mfentry and -fpic aren't compatible, so if we have -m32 add -fno-pic
 ifeq ($(filter -m32,$(USFSTL_CC_OPT)),-m32)
+ifndef USFSTL_DONT_ADD_NOPIC_FOR_M32
+# In older compilers -m32, -mfentry and -fpic aren't compatible, so if we have -m32 add -fno-pic
 USFSTL_CC_OPT += -fno-pic
+endif
 _USFSTL_GLOBAL_PACK = LL
 _USFSTL_GLOBAL_PTR_SIZE = 8
 else
