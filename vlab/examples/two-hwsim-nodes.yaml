@@ -12,3 +12,6 @@ nodes:
    hwsim: true
 wmediumd:
    config: two-hwsim-nodes.wmediumd
+
+controller:
+   start-time: 1663704211188727690
