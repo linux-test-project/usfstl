@@ -17,9 +17,10 @@
 // ensuring that it exists
 #define USFSTL_SHARED_MEM_VAR(var, _section)					\
 	var __attribute__((used, section("usfstl_shared_mem_" #_section)));	\
-	extern const struct usfstl_shared_mem_section *				\
+	extern const struct usfstl_shared_mem_section * const			\
 		usfstl_shared_mem_section_ ## _section;				\
-	static void *SHARED_MEM_DUMMY_REF(__LINE__) __attribute__((unused)) =	\
+	static void const *SHARED_MEM_DUMMY_REF(__LINE__)			\
+		__attribute__((unused)) =					\
 		&usfstl_shared_mem_section_ ## _section;
 
 // created by the linker
