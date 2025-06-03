@@ -18,6 +18,7 @@ import time
 import glob
 import datetime
 import signal
+from signal import Signals
 import argparse
 import subprocess
 import importlib
@@ -978,7 +979,7 @@ poweroff -f
             # Check If the process is still alive to get any signals
             if process.poll() is None:
                 pgrp = os.getpgid(process.pid)
-                sig_send = signal.SIGKILL
+                sig_send: Signals = signal.SIGKILL
                 if timedout and args.sigquit_on_timeout:
                     sig_send = signal.SIGQUIT
                 os.killpg(pgrp, sig_send)
